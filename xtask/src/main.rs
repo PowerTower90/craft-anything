@@ -357,6 +357,7 @@ fn schemas(root: &Path, check: bool) -> bool {
         ("build-progress.schema.json", craft_anything_engine::workspace::progress::build_progress_schema()),
         ("mechanics.schema.json", craft_anything_engine::mechanics::mechanics_schema()),
         ("self-test.schema.json", craft_anything_engine::self_test::self_test_schema()),
+        ("inventory.schema.json", craft_anything_engine::inventory::inventory_schema()),
     ];
     let mut ok = true;
     for (name, schema) in files {
