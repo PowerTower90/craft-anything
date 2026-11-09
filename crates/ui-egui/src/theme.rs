@@ -244,6 +244,10 @@ pub fn install_fonts(ctx: &egui::Context) {
     for fam in [FontFamily::Proportional, FontFamily::Monospace] {
         fonts.families.entry(fam).or_default().extend(fallbacks.iter().cloned());
     }
+    // DM Sans and egui's own fallbacks have no arrows, and directions in the interface say
+    // "Settings → AI": a build without craft-fonts showed a box. JetBrains Mono, bundled for code,
+    // has them; last in the stack, it only draws what nothing else can.
+    fonts.families.entry(FontFamily::Proportional).or_default().push("JetBrainsMono".to_owned());
     let base: Vec<String> = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
     for (fam, primary) in [("medium", "DMSans-Medium"), ("semibold", "DMSans-Bold")] {
         let mut stack = vec![primary.to_owned()];
@@ -647,6 +651,24 @@ mod tests {
         assert_eq!(fallback_rank("craft:Unknown Face:Regular"), FallbackRank::Other);
         assert_eq!(fallback_rank("craft:BIZ UDMincho:Regular"), FallbackRank::Serif);
         assert_eq!(fallback_rank("craft:BIZ UDPGothic:Regular"), FallbackRank::Local);
+    }
+
+    /// Directions in the interface say "Settings → AI", and errors' fixes do too; DM Sans has no
+    /// arrow, so a build without craft-fonts drew a box. The bundled JetBrains Mono draws it in
+    /// every family, craft-fonts or not.
+    #[test]
+    fn arrows_show_in_every_family_without_craft_fonts() {
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
+        let text = "Settings → AI ← ↑ ↓ › •";
+        for font in [FontId::proportional(14.0), FontId::monospace(14.0), medium(14.0), semibold(14.0)] {
+            assert!(ctx.fonts_mut(|f| f.has_glyphs(&font, text)), "{text} shows as boxes in {font:?}");
+        }
+        // Still DM Sans first: the arrow face only stands in for what it lacks.
+        let families = ctx.fonts_mut(|f| f.definitions().families.clone());
+        assert_eq!(families.get(&FontFamily::Proportional).and_then(|s| s.first()).map(String::as_str), Some("DMSans"));
+        assert_eq!(families.get(&FontFamily::Proportional).and_then(|s| s.last()).map(String::as_str), Some("JetBrainsMono"));
     }
 
     /// Releases are built with craft-fonts (#19), and so is CI; a build without them has only

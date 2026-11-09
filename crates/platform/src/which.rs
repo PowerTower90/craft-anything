@@ -1,4 +1,6 @@
-//! Find programs on `PATH` (with `PATHEXT` on Windows). No subprocess is run.
+//! Find programs on `PATH` (with `PATHEXT` on Windows). On Windows the `PATH` the registry holds
+//! now is read too (through `reg.exe`, cached), since a process's own `PATH` is a copy from when
+//! it started; nothing else runs a subprocess.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -22,17 +24,25 @@ const USUAL_HOME_DIRS: &[&str] =
 #[cfg(unix)]
 const USUAL_DIRS: &[&str] = &["/opt/homebrew/bin", "/usr/local/bin"];
 // Claude Code's installer, npm (without a custom prefix), WinGet's portable packages (Claude
-// Code's WinGet install), bun, cargo, Hermes Agent's installer (`%LOCALAPPDATA%\hermes\bin`, #116)
-// and Grok Build (`%USERPROFILE%\.grok\bin`). PATH may not have them yet in an app started before
-// the install.
+// Code's WinGet install), bun, cargo, Hermes Agent's installer (`%LOCALAPPDATA%\hermes\bin`, #116),
+// Grok Build (`%USERPROFILE%\.grok\bin`) and Scoop's shims. PATH may not have them yet in an app
+// started before the install.
 #[cfg(windows)]
-const USUAL_HOME_DIRS: &[&str] =
-    &[r".local\bin", r"AppData\Roaming\npm", r"AppData\Local\Microsoft\WinGet\Links", r".bun\bin", r".cargo\bin", r"AppData\Local\hermes\bin", r".grok\bin"];
+const USUAL_HOME_DIRS: &[&str] = &[
+    r".local\bin",
+    r"AppData\Roaming\npm",
+    r"AppData\Local\Microsoft\WinGet\Links",
+    r".bun\bin",
+    r".cargo\bin",
+    r"AppData\Local\hermes\bin",
+    r".grok\bin",
+    r"scoop\shims",
+];
 #[cfg(not(any(unix, windows)))]
 const USUAL_HOME_DIRS: &[&str] = &[];
-// WinGet's portable packages installed for every user (`--scope machine`).
+// WinGet's portable packages installed for every user (`--scope machine`), and Chocolatey's shims.
 #[cfg(windows)]
-const USUAL_DIRS: &[&str] = &[r"C:\Program Files\WinGet\Links"];
+const USUAL_DIRS: &[&str] = &[r"C:\Program Files\WinGet\Links", r"C:\ProgramData\chocolatey\bin"];
 #[cfg(not(any(unix, windows)))]
 const USUAL_DIRS: &[&str] = &[];
 const HOME_VAR: &str = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
@@ -41,9 +51,211 @@ const HOME_VAR: &str = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
 /// wins. An app opened from the Dock or a desktop launcher gets the system's short `PATH`, not the
 /// shell's, and would miss a coding agent installed in `~/.local/bin`; on Windows an installer
 /// may not have added its folder to `PATH` at all.
+///
+/// On Windows the machine and user `PATH` as the registry holds them now come right after the
+/// process's own: a process's `PATH` is a copy taken when it (or the shell that opened it) started,
+/// so a tool installed since (Claude Code through WinGet, which adds its package folder to the
+/// user `PATH`) was "not installed" until that shell was restarted.
 pub fn search_path() -> Option<OsString> {
     let local_data = cfg!(windows).then(|| std::env::var_os("LOCALAPPDATA")).flatten().map(PathBuf::from);
-    with_usual_dirs(std::env::var_os("PATH"), std::env::var_os(HOME_VAR).map(PathBuf::from), local_data)
+    let path = with_registry_path(std::env::var_os("PATH"), &registry::dirs());
+    with_usual_dirs(path, std::env::var_os(HOME_VAR).map(PathBuf::from), local_data)
+}
+
+/// The folders [`search_path`] names, in order.
+pub fn search_dirs() -> Vec<PathBuf> {
+    search_path().map(|p| std::env::split_paths(&p).collect()).unwrap_or_default()
+}
+
+/// `path` with the registry's folders after it, each once (Windows paths compare without case).
+fn with_registry_path(path: Option<OsString>, registry: &[PathBuf]) -> Option<OsString> {
+    if registry.is_empty() {
+        return path;
+    }
+    let mut dirs: Vec<PathBuf> = path.as_ref().map(|p| std::env::split_paths(p).collect()).unwrap_or_default();
+    let before = dirs.len();
+    for d in registry {
+        if !dirs.iter().any(|have| same_dir(have, d)) {
+            dirs.push(d.clone());
+        }
+    }
+    if dirs.len() == before {
+        return path;
+    }
+    std::env::join_paths(&dirs).ok().or(path)
+}
+
+/// Whether two folder paths name the same folder as text: Windows ignores case (and a trailing
+/// separator), so `C:\Tools\` and `c:\tools` are one entry.
+fn same_dir(a: &Path, b: &Path) -> bool {
+    if cfg!(windows) {
+        a.to_string_lossy().to_lowercase().trim_end_matches(['\\', '/']) == b.to_string_lossy().to_lowercase().trim_end_matches(['\\', '/'])
+    } else {
+        a == b
+    }
+}
+
+/// The `Path` values of the machine (`HKLM\...\Session Manager\Environment`) and user
+/// (`HKCU\Environment`) environment in the registry, read with `reg.exe` and cached for a few
+/// seconds so a lookup stays cheap. Nothing on other systems.
+#[cfg(windows)]
+mod registry {
+    use super::PathBuf;
+    use crate::sync::Mutex;
+    use std::cell::Cell;
+    use std::sync::OnceLock;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::{Duration, Instant};
+
+    /// Machine first, then user: the order Windows joins them in.
+    const KEYS: [&str; 2] = [r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", r"HKCU\Environment"];
+    /// How long a reading is used before it is refreshed (in the background, so no lookup waits).
+    const FRESH_FOR: Duration = Duration::from_secs(10);
+
+    type Cache = Mutex<Option<(Instant, Vec<PathBuf>)>>;
+
+    thread_local! {
+        /// Set while this thread runs `reg.exe`: starting it looks the program up through
+        /// [`super::search_path`], which must not read the registry again.
+        static READING: Cell<bool> = const { Cell::new(false) };
+    }
+
+    /// The registry's `PATH` folders, machine then user, each once. The first call reads them;
+    /// later calls get the cached reading, refreshed in the background once it is older than
+    /// [`FRESH_FOR`]. Empty while this thread is itself reading them.
+    pub(super) fn dirs() -> Vec<PathBuf> {
+        static CACHE: OnceLock<Cache> = OnceLock::new();
+        static REFRESHING: AtomicBool = AtomicBool::new(false);
+        if READING.with(Cell::get) {
+            return Vec::new();
+        }
+        let cache = CACHE.get_or_init(|| Mutex::new(None));
+        let cached = cache.lock().ok().and_then(|g| g.as_ref().cloned());
+        match cached {
+            Some((at, dirs)) => {
+                if at.elapsed() >= FRESH_FOR && !REFRESHING.swap(true, Ordering::AcqRel) {
+                    let spawned = std::thread::Builder::new().name("registry-path".into()).spawn(move || {
+                        let fresh = read();
+                        if let Ok(mut g) = cache.lock() {
+                            *g = Some((Instant::now(), fresh));
+                        }
+                        REFRESHING.store(false, Ordering::Release);
+                    });
+                    if spawned.is_err() {
+                        REFRESHING.store(false, Ordering::Release);
+                    }
+                }
+                dirs
+            }
+            None => {
+                let dirs = read();
+                if let Ok(mut g) = cache.lock() {
+                    *g = Some((Instant::now(), dirs.clone()));
+                }
+                dirs
+            }
+        }
+    }
+
+    /// Read both keys now (uncached). Any failure (no `reg.exe`, a timeout, odd output) is an
+    /// empty or shorter list, never an error: the process's own `PATH` is still searched.
+    pub(super) fn read() -> Vec<PathBuf> {
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                READING.with(|r| r.set(false));
+            }
+        }
+        READING.with(|r| r.set(true));
+        let _reset = Reset;
+        // By its full path: a bare name would be looked up through `search_path` (see `READING`),
+        // and a `reg.exe` earlier on PATH must not stand in for the system's.
+        let system_root = std::env::var_os("SystemRoot").filter(|v| !v.is_empty()).map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+        let reg = system_root.join("System32").join("reg.exe");
+        let mut out: Vec<PathBuf> = Vec::new();
+        for key in KEYS {
+            let run = crate::Process::new(&reg)
+                .args(["query", key, "/v", "Path"])
+                .timeout(Duration::from_secs(5))
+                .idle_timeout(Duration::from_secs(3))
+                .stdout_cap(64 * 1024)
+                .stderr_cap(4 * 1024)
+                .label("read PATH from the registry")
+                .run();
+            let Ok(output) = run else { continue };
+            if !output.success {
+                continue;
+            }
+            // `var_os` panics on a name with `=` or NUL in it; such a `%name%` is left as written.
+            let env = |var: &str| if var.contains(['=', '\0']) { None } else { std::env::var_os(var).map(|v| v.to_string_lossy().into_owned()) };
+            for d in super::parse_reg_path(&output.stdout_text(), &env) {
+                if !out.iter().any(|have| super::same_dir(have, &d)) {
+                    out.push(d);
+                }
+            }
+        }
+        out
+    }
+}
+
+#[cfg(not(windows))]
+mod registry {
+    pub(super) fn dirs() -> Vec<super::PathBuf> {
+        Vec::new()
+    }
+}
+
+/// The folders in `reg.exe query <key> /v Path` output: the `Path` line's `REG_SZ` or
+/// `REG_EXPAND_SZ` value, `%VAR%` references expanded through `var` (kept as written when `var`
+/// doesn't know them, as Windows does), split on `;`, blanks dropped. Empty for an empty value,
+/// an error message or any other text.
+#[cfg(any(windows, test))]
+fn parse_reg_path(output: &str, var: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
+    let value = output.lines().find_map(|line| {
+        let mut parts = line.split_whitespace();
+        if !parts.next()?.eq_ignore_ascii_case("Path") {
+            return None;
+        }
+        let kind = parts.next()?;
+        if !matches!(kind, "REG_SZ" | "REG_EXPAND_SZ") {
+            return None;
+        }
+        // The value itself may hold spaces (`C:\Program Files`): take all of the line after the type.
+        let after_kind = line.find(kind).map(|i| i.saturating_add(kind.len()))?;
+        Some((kind == "REG_EXPAND_SZ", line.get(after_kind..).unwrap_or_default().trim()))
+    });
+    let Some((expand, value)) = value else { return Vec::new() };
+    let value = if expand { expand_vars(value, var) } else { value.to_string() };
+    value.split(';').map(str::trim).filter(|d| !d.is_empty()).map(PathBuf::from).collect()
+}
+
+/// `text` with each `%NAME%` replaced by `var(NAME)`, left as it is when there is no such
+/// variable; a lone `%` (and `%%`) stays too.
+#[cfg(any(windows, test))]
+fn expand_vars(text: &str, var: &dyn Fn(&str) -> Option<String>) -> String {
+    // Between the `%` signs, every odd piece is a name (or an empty one for `%%`) unless it is the
+    // last piece, which only an unpaired `%` leaves.
+    let pieces: Vec<&str> = text.split('%').collect();
+    let mut out = String::with_capacity(text.len());
+    for (i, piece) in pieces.iter().enumerate() {
+        let unpaired = i.saturating_add(1) == pieces.len();
+        if i % 2 == 0 || unpaired {
+            if i % 2 == 1 {
+                out.push('%');
+            }
+            out.push_str(piece);
+            continue;
+        }
+        match if piece.is_empty() { None } else { var(piece) } {
+            Some(v) => out.push_str(&v),
+            None => {
+                out.push('%');
+                out.push_str(piece);
+                out.push('%');
+            }
+        }
+    }
+    out
 }
 
 /// How to start `program`, and the arguments that go before the caller's. On Windows only `.exe`
@@ -224,6 +436,49 @@ fn npmrc_prefix(home: &Path) -> Option<PathBuf> {
     })
 }
 
+/// WinGet's portable packages: each package folder under `%LOCALAPPDATA%\Microsoft\WinGet\Packages`
+/// (per user) and `%ProgramFiles%\WinGet\Packages` (every user), and its first-level sub-folders.
+/// WinGet puts the package folder itself (or the sub-folder the manifest names, such as
+/// `ffmpeg-…\bin`) on `PATH`, and its `Links` folder is often empty; an app started before the
+/// install doesn't have the new entry. Claude Code's WinGet package is `claude.exe` straight in
+/// its package folder. Bounded: at most 64 packages, 16 sub-folders each.
+#[cfg(windows)]
+fn winget_packages(local_data: Option<&Path>) -> Vec<PathBuf> {
+    let program_files = std::env::var_os("ProgramFiles").filter(|v| !v.is_empty()).map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
+    let roots = local_data.map(|l| l.join(r"Microsoft\WinGet\Packages")).into_iter().chain([program_files.join(r"WinGet\Packages")]);
+    let mut out = Vec::new();
+    for root in roots {
+        for package in sub_dirs(&root, 64) {
+            let inner = sub_dirs(&package, 16);
+            out.push(package);
+            for sub in inner {
+                // An archive's top folder with the programs in `bin` (FFmpeg, WinLibs).
+                let bin = sub.join("bin");
+                out.push(sub);
+                if bin.is_dir() {
+                    out.push(bin);
+                }
+            }
+        }
+    }
+    out
+}
+
+#[cfg(not(windows))]
+fn winget_packages(_local_data: Option<&Path>) -> Vec<PathBuf> {
+    Vec::new()
+}
+
+/// The folders directly in `dir`, by name, at most `limit` of them; none when it can't be read.
+#[cfg(windows)]
+fn sub_dirs(dir: &Path, limit: usize) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut dirs: Vec<PathBuf> = entries.flatten().filter(|e| e.file_type().is_ok_and(|t| t.is_dir())).map(|e| e.path()).collect();
+    dirs.sort();
+    dirs.truncate(limit);
+    dirs
+}
+
 fn with_usual_dirs(path: Option<OsString>, home: Option<PathBuf>, local_data: Option<PathBuf>) -> Option<OsString> {
     let mut dirs: Vec<PathBuf> = path.as_ref().map(|p| std::env::split_paths(p).collect()).unwrap_or_default();
     let before = dirs.len();
@@ -234,8 +489,9 @@ fn with_usual_dirs(path: Option<OsString>, home: Option<PathBuf>, local_data: Op
     // `Antigravity.exe` is never taken for the CLI.
     let local_data =
         local_data.filter(|p| !p.as_os_str().is_empty()).or_else(|| home.as_ref().filter(|_| cfg!(windows)).map(|h| h.join("AppData").join("Local")));
+    let winget = winget_packages(local_data.as_deref());
     let antigravity = local_data.into_iter().flat_map(|p| [p.join("agy").join("bin"), p.join("Antigravity")]);
-    for d in in_home.chain(antigravity).chain(USUAL_DIRS.iter().map(PathBuf::from)) {
+    for d in in_home.chain(antigravity).chain(winget).chain(USUAL_DIRS.iter().map(PathBuf::from)) {
         if !dirs.contains(&d) {
             dirs.push(d);
         }
@@ -617,17 +873,118 @@ mod tests {
         let dirs: Vec<PathBuf> = std::env::split_paths(&with_usual_dirs(Some(path), Some(home.clone()), None).unwrap()).collect();
         assert_eq!(dirs[..3], [PathBuf::from(r"C:\Windows"), home.join(r".local\bin"), home.join(r"AppData\Roaming\npm")]);
         // PATH's two less `.local\bin`, which is a usual one too; Antigravity's two folders (plus
-        // npm's prefix where the environment sets one, and nvm for Windows' versions where
-        // `NVM_HOME` names them).
+        // npm's prefix where the environment sets one, nvm for Windows' versions where `NVM_HOME`
+        // names them, and the WinGet packages this computer has for every user).
         let npm = usize::from(npm_global_bin(&home).is_some());
         let nvm = nvm_bins(&home).len();
-        assert_eq!(dirs.len(), 1 + USUAL_HOME_DIRS.len() + 2 + USUAL_DIRS.len() + npm + nvm, "nothing twice");
+        let winget = winget_packages(Some(&home.join("AppData").join("Local"))).len();
+        assert_eq!(dirs.len(), 1 + USUAL_HOME_DIRS.len() + 2 + USUAL_DIRS.len() + npm + nvm + winget, "nothing twice");
         assert!(dirs.contains(&home.join("AppData").join("Local").join("agy").join("bin")));
         assert!(dirs.contains(&home.join("AppData").join("Local").join("Antigravity")));
         // Each way Claude Code installs on Windows: native, npm, WinGet (per user and machine-wide).
         assert!(dirs.contains(&home.join(r"AppData\Local\Microsoft\WinGet\Links")));
         assert!(dirs.contains(&home.join(r".grok\bin")));
         assert!(dirs.contains(&PathBuf::from(r"C:\Program Files\WinGet\Links")));
+        // Scoop's and Chocolatey's shims.
+        assert!(dirs.contains(&home.join(r"scoop\shims")));
+        assert!(dirs.contains(&PathBuf::from(r"C:\ProgramData\chocolatey\bin")));
+    }
+
+    /// WinGet puts a portable package's own folder (Claude Code: `claude.exe` in it) or the
+    /// sub-folder its manifest names (FFmpeg: `ffmpeg-…\bin`) on the user's PATH, not `Links`;
+    /// an app started before the install doesn't have that entry yet.
+    #[cfg(windows)]
+    #[test]
+    fn winget_package_folders_are_searched() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("profile");
+        let local_data = dir.path().join("local");
+        let packages = local_data.join(r"Microsoft\WinGet\Packages");
+        let claude = packages.join("Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe");
+        let ffmpeg = packages.join(r"Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0.2-full_build\bin");
+        let adb = packages.join(r"Google.PlatformTools_Microsoft.Winget.Source_8wekyb3d8bbwe\platform-tools");
+        for d in [&claude, &ffmpeg, &adb] {
+            std::fs::create_dir_all(d).unwrap();
+        }
+        std::fs::write(claude.join("claude.exe"), "").unwrap();
+        std::fs::write(ffmpeg.join("ffmpeg.exe"), "").unwrap();
+        std::fs::write(adb.join("adb.exe"), "").unwrap();
+        // A file where a package folder is expected is passed over.
+        std::fs::write(packages.join("stray.txt"), "").unwrap();
+        let path = with_usual_dirs(None, Some(home), Some(local_data.clone()));
+        assert_eq!(which_in("claude", path.clone()), [claude.join("claude.exe")]);
+        assert_eq!(which_in("ffmpeg", path.clone()), [ffmpeg.join("ffmpeg.exe")]);
+        assert_eq!(which_in("adb", path), [adb.join("adb.exe")]);
+        assert!(winget_packages(Some(&dir.path().join("nowhere"))).iter().all(|p| !p.starts_with(dir.path())), "a missing folder adds nothing");
+    }
+
+    /// What `reg.exe query … /v Path` prints, for both value kinds, with `%VAR%` expanded through
+    /// the caller (unknown names kept, as Windows keeps them), and nothing for an empty value or
+    /// an error.
+    #[test]
+    fn reg_query_output_names_the_path_folders() {
+        let var = |name: &str| match name {
+            "USERPROFILE" => Some(r"C:\Users\u".to_string()),
+            "SystemRoot" | "SYSTEMROOT" => Some(r"C:\Windows".to_string()),
+            _ => None,
+        };
+        let plain = "\r\nHKEY_CURRENT_USER\\Environment\r\n    Path    REG_SZ    C:\\Users\\u\\.cargo\\bin;C:\\Program Files\\Git\\cmd;\r\n\r\n";
+        assert_eq!(parse_reg_path(plain, &var), [PathBuf::from(r"C:\Users\u\.cargo\bin"), PathBuf::from(r"C:\Program Files\Git\cmd")]);
+        let expand = "\r\nHKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment\r\n    Path    REG_EXPAND_SZ    %SystemRoot%\\system32;%SYSTEMROOT%;;%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps; %NOT_SET%\\bin ;C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe\r\n\r\n";
+        assert_eq!(
+            parse_reg_path(expand, &var),
+            [
+                PathBuf::from(r"C:\Windows\system32"),
+                PathBuf::from(r"C:\Windows"),
+                PathBuf::from(r"C:\Users\u\AppData\Local\Microsoft\WindowsApps"),
+                PathBuf::from(r"%NOT_SET%\bin"),
+                PathBuf::from(r"C:\Users\u\AppData\Local\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe"),
+            ]
+        );
+        // A REG_SZ value is taken as written, and the value's name is matched without case.
+        assert_eq!(parse_reg_path("    PATH    REG_SZ    %USERPROFILE%\\bin\r\n", &var), [PathBuf::from(r"%USERPROFILE%\bin")]);
+        assert!(parse_reg_path("\r\nHKEY_CURRENT_USER\\Environment\r\n    Path    REG_EXPAND_SZ    \r\n\r\n", &var).is_empty(), "an empty value");
+        assert!(parse_reg_path("    Path    REG_EXPAND_SZ\r\n", &var).is_empty(), "no value at all");
+        assert!(parse_reg_path("\r\nERROR: The system was unable to find the specified registry key or value.\r\n", &var).is_empty());
+        assert!(parse_reg_path("    Path    REG_BINARY    0A0B\r\n", &var).is_empty(), "not a string");
+        assert!(parse_reg_path("", &var).is_empty());
+        // Other values in the same output are not taken for PATH.
+        assert!(parse_reg_path("    TEMP    REG_EXPAND_SZ    %USERPROFILE%\\AppData\\Local\\Temp\r\n", &var).is_empty());
+        assert_eq!(expand_vars("%USERPROFILE%\\a%%b%", &var), "C:\\Users\\u\\a%%b%");
+        assert_eq!(expand_vars("100%", &var), "100%");
+        assert_eq!(expand_vars("", &var), "");
+    }
+
+    /// The process's PATH is a copy from when it started; a folder an installer added to the
+    /// registry's user PATH since (Claude Code through WinGet) is searched all the same. The
+    /// registry is only read here, never written: the hermetic part gives the process PATH as a
+    /// temp folder and checks the registry's folders follow it.
+    #[cfg(windows)]
+    #[test]
+    fn a_folder_only_the_registry_path_has_is_searched() {
+        let registry = registry::read();
+        let system32 = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into())).join("system32");
+        assert!(registry.iter().any(|d| same_dir(d, &system32)), "the machine PATH always has System32: {registry:?}");
+        let only_in_registry = registry.iter().find(|d| !same_dir(d, &system32)).cloned().unwrap_or_else(|| system32.clone());
+        // The process PATH stands in as a temp folder, so nothing on this computer's real PATH leaks in.
+        let temp = tempfile::tempdir().unwrap();
+        let process = Some(temp.path().as_os_str().to_owned());
+        let dirs: Vec<PathBuf> = std::env::split_paths(&with_registry_path(process, &registry).unwrap()).collect();
+        assert_eq!(dirs[0], temp.path(), "the process's own PATH comes first");
+        assert!(dirs.iter().any(|d| same_dir(d, &only_in_registry)), "{only_in_registry:?} is searched: {dirs:?}");
+        assert_eq!(dirs.len(), 1 + registry.len(), "each registry folder once, after it");
+        // A folder already on the process PATH keeps its place and is not added again, whatever its case.
+        let upper = OsString::from(only_in_registry.to_string_lossy().to_uppercase());
+        let dirs: Vec<PathBuf> = std::env::split_paths(&with_registry_path(Some(upper.clone()), &registry).unwrap()).collect();
+        assert_eq!(dirs[0], PathBuf::from(&upper));
+        assert_eq!(dirs.iter().filter(|d| same_dir(d, &only_in_registry)).count(), 1);
+        assert_eq!(with_registry_path(Some(upper.clone()), &[]), Some(upper), "nothing from the registry: PATH as it was");
+        // And the real search path has every registry folder; the cached reading matches.
+        let searched = search_dirs();
+        for d in &registry {
+            assert!(searched.iter().any(|s| same_dir(s, d)), "{d:?} missing from {searched:?}");
+        }
+        assert_eq!(registry::dirs(), registry::dirs(), "the cache answers the same");
     }
 
     const NPM_SHIM: &str = "@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\n\r\n\
