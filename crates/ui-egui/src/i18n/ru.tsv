@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	Приложение агента коди
 on another computer over SSH (not checked); set up when you start	на другом компьютере по SSH (не проверено); настраивается при запуске
 On another computer over SSH (not checked)	На другом компьютере по SSH (не проверено)
 Install Claude Code on this computer and sign in once, then Look again.	Установите Claude Code на этот компьютер, войдите один раз, затем нажмите «Поискать снова».
+under a minute	меньше минуты
+{n} min	{n} мин
+Status check: what are you doing right now?	Проверка статуса: что ты делаешь прямо сейчас?
+Nothing new for {time}	Ничего нового уже {time}
+Last said: {text}	Последние слова: {text}
+Nudge	Подтолкнуть
+Stops the build. Continue picks up where it stopped.	Останавливает сборку. «Продолжить» возобновит с того места, где она остановилась.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	Просит сборщика сказать одной строкой, что он делает; если он застрял, завершить ход и объяснить.
+This build	Эта сборка
+{n} earlier	ещё {n} ранее
+Check: {s}%	Проверка: {s}%
+Check: passed	Проверка: пройдена
+Check: failed	Проверка: не пройдена
+{n} differ	{n} отличаются
+Asked you: {text}	Спросил вас: {text}
+answered	отвечено
+waiting	ожидает
+The build stopped on an error	Сборка остановилась из-за ошибки
+{name} · quiet {time}	{name} · тишина {time}
+{name} · Building · {time}	{name} · Сборка · {time}
+Building on another screen. Click to open it.	Сборка идёт на другом экране. Нажмите, чтобы открыть.

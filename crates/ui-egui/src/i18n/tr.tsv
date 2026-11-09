@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	Kodlama ajanı uygulaması ({host} üzerin
 on another computer over SSH (not checked); set up when you start	başka bir bilgisayarda SSH ile (denetlenmedi); başladığınızda kurulur
 On another computer over SSH (not checked)	Başka bir bilgisayarda SSH ile (denetlenmedi)
 Install Claude Code on this computer and sign in once, then Look again.	Claude Code'u bu bilgisayara kurun, bir kez oturum açın, sonra Yeniden bak'a basın.
+under a minute	bir dakikadan az
+{n} min	{n} dk
+Status check: what are you doing right now?	Durum kontrolü: şu anda ne yapıyorsun?
+Nothing new for {time}	{time} boyunca yeni bir şey yok
+Last said: {text}	Son söylediği: {text}
+Nudge	Dürt
+Stops the build. Continue picks up where it stopped.	Derlemeyi durdurur. Devam et, kaldığı yerden sürdürür.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	Derleyiciden ne yaptığını tek satırda söylemesini ister; takıldıysa turu bitirip açıklamasını.
+This build	Bu derleme
+{n} earlier	{n} önceki
+Check: {s}%	Kontrol: %{s}
+Check: passed	Kontrol: geçti
+Check: failed	Kontrol: geçemedi
+{n} differ	{n} farklı
+Asked you: {text}	Sana sordu: {text}
+answered	yanıtlandı
+waiting	bekliyor
+The build stopped on an error	Derleme bir hatayla durdu
+{name} · quiet {time}	{name} · {time} sessiz
+{name} · Building · {time}	{name} · Derleniyor · {time}
+Building on another screen. Click to open it.	Başka bir ekranda derleniyor. Açmak için tıkla.

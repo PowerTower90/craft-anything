@@ -185,6 +185,13 @@ impl RunSet {
         self.active() > 0 || !self.queue.is_empty()
     }
 
+    /// The runs working now, the one that started first first (a title bar names them).
+    pub fn running(&self) -> Vec<&RebuildRun> {
+        let mut v: Vec<&RebuildRun> = self.runs.values().filter(|r| r.is_running()).collect();
+        v.sort_by_key(|r| (r.started(), r.root.clone()));
+        v
+    }
+
     /// The projects working or waiting.
     pub fn busy(&self) -> Vec<PathBuf> {
         let mut v: Vec<PathBuf> = self.runs.iter().filter(|(_, r)| r.is_running()).map(|(p, _)| p.clone()).collect();

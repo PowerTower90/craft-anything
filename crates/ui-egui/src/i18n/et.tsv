@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	Programmeerimisagendi rakendus (SSH kaudu 
 on another computer over SSH (not checked); set up when you start	teises arvutis SSH kaudu (kontrollimata); seadistatakse käivitamisel
 On another computer over SSH (not checked)	Teises arvutis SSH kaudu (kontrollimata)
 Install Claude Code on this computer and sign in once, then Look again.	Paigalda Claude Code sellesse arvutisse, logi korra sisse ja vali siis „Otsi uuesti“.
+under a minute	alla minuti
+{n} min	{n} min
+Status check: what are you doing right now?	Olekukontroll: mida sa praegu teed?
+Nothing new for {time}	Midagi uut pole {time}
+Last said: {text}	Viimati ütles: {text}
+Nudge	Torgi
+Stops the build. Continue picks up where it stopped.	Peatab ehituse. Jätka jätkab sealt, kus see pooleli jäi.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	Palub ehitajal ühe reaga öelda, mida ta teeb; kui ta on kinni, lõpetada käik ja selgitada.
+This build	See ehitus
+{n} earlier	{n} varasemat
+Check: {s}%	Kontroll: {s}%
+Check: passed	Kontroll: läbitud
+Check: failed	Kontroll: ebaõnnestus
+{n} differ	{n} erinevad
+Asked you: {text}	Küsis sinult: {text}
+answered	vastatud
+waiting	ootel
+The build stopped on an error	Ehitus peatus vea tõttu
+{name} · quiet {time}	{name} · vaikus {time}
+{name} · Building · {time}	{name} · Ehitamine · {time}
+Building on another screen. Click to open it.	Ehitamine käib teisel ekraanil. Klõpsa, et see avada.

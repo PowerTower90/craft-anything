@@ -200,6 +200,13 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
                 }
                 rule(ui);
             }
+            // A build going on another screen: named here, so it's never out of sight.
+            if let Some(b) = background_build(app) {
+                if build_pill(ui, &b).clicked() {
+                    app.open_project_at(&b.root);
+                }
+                rule(ui);
+            }
             // During first run there is nothing to switch or set yet.
             if !app.settings.first_run_done {
                 return;
@@ -272,6 +279,62 @@ fn download_pill(ui: &mut Ui, title: &str, fraction: Option<f32>) -> egui::Respo
     widgets::animate(ui, std::time::Duration::from_millis(250));
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, text.clone()));
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// A build going on a screen the person isn't looking at.
+struct BackgroundBuild {
+    root: std::path::PathBuf,
+    /// "Notes · Building · 12 min", or "Notes · quiet 7 min" once it has gone quiet.
+    text: String,
+    quiet: bool,
+    /// Other builds going elsewhere too.
+    more: usize,
+}
+
+/// The build to name in the title bar: the earliest-started run whose project isn't on screen
+/// (none while the person watches the only one).
+fn background_build(app: &CraftApp) -> Option<BackgroundBuild> {
+    let on_screen = (app.state.screen == Screen::Project).then(|| app.workspace.as_ref().map(|w| w.root.clone())).flatten();
+    let runs: Vec<_> = app.runs.running().into_iter().filter(|r| on_screen.as_ref() != Some(&r.root)).collect();
+    let first = runs.first()?;
+    let name = app
+        .projects
+        .iter()
+        .find(|p| p.root == first.root)
+        .map(|p| p.manifest.name.clone())
+        .unwrap_or_else(|| first.root.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+    let quiet = first.quiet_for() >= widgets::QUIET_ACTIONS_AFTER;
+    let text = if quiet {
+        crate::i18n::trf("{name} · quiet {time}", &[("name", &name), ("time", &widgets::minutes_words(first.quiet_for()))])
+    } else {
+        crate::i18n::trf("{name} · Building · {time}", &[("name", &name), ("time", &widgets::minutes_words(first.started().elapsed()))])
+    };
+    Some(BackgroundBuild { root: first.root.clone(), text, quiet, more: runs.len().saturating_sub(1) })
+}
+
+/// "Notes · Building · 12 min" with a hammer; opens the project when clicked. A quiet build is
+/// in the warning colour.
+fn build_pill(ui: &mut Ui, b: &BackgroundBuild) -> egui::Response {
+    let t = Tokens::get(ui.ctx());
+    let s = scale(ui.ctx());
+    let ink = if b.quiet { t.warning } else { t.text };
+    let g = widgets::label_galley(ui, &b.text, label(12.0, s), ink);
+    let size = Vec2::new(g.size().x + (26.0 + 12.0) * s, 26.0 * s);
+    let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::click());
+    let h = widgets::hover_t(ui, &resp);
+    let edge = if b.quiet { t.warning.gamma_multiply(0.6) } else { t.card_border };
+    ui.painter().rect(rect, t.radius, crate::theme::mix(t.raised, t.hover, h), egui::Stroke::new(s, edge), egui::StrokeKind::Inside);
+    let icon = egui::Rect::from_center_size(egui::pos2(rect.left() + 14.0 * s, rect.center().y), Vec2::splat(14.0 * s));
+    icons::paint(ui, icon, "hammer", 14.0 * s, if b.quiet { t.warning } else { t.accent });
+    ui.painter().galley_with_override_text_color(egui::pos2(rect.left() + 26.0 * s, rect.center().y - g.size().y / 2.0), g, ink);
+    widgets::focus_ring(ui, &resp, rect);
+    // The time moves once a minute; a repaint each second is already asked for while a run goes.
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, b.text.clone()));
+    let mut tip = tr("Building on another screen. Click to open it.");
+    if b.more > 0 {
+        tip = format!("{tip} {}", crate::i18n::trf("and {n} more", &[("n", &b.more.to_string())]));
+    }
+    resp.on_hover_text(tip).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// Clean room / Deep switch.

@@ -264,7 +264,8 @@ mod tests {
         }
         std::fs::write(app.join("cmd/viewer/main.go"), "package main").unwrap();
         let launch = || crate::outputs::launch(app, None);
-        let package = format!("./{}", Path::new("cmd").join("viewer").display());
+        // Go package paths always use forward slashes, on Windows too (`go run ./cmd/viewer`).
+        let package = "./cmd/viewer".to_string();
         assert_eq!(launch(), Some(("go".into(), vec!["run".into(), package])));
         std::fs::write(app.join("cmd/library/main.go"), "package main").unwrap();
         assert!(launch().is_none());

@@ -95,6 +95,15 @@ impl StandIns {
         true
     }
 
+    /// The project's latest run looks `by` older: it started and last spoke that much earlier,
+    /// so a screen shows what a long wait shows. False when no run was started for it.
+    pub fn backdate(&self, root: &Path, by: Duration) -> bool {
+        let all = self.started.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(h) = all.iter().rev().find(|h| h.root == root) else { return false };
+        h.feed.lock().unwrap_or_else(PoisonError::into_inner).activity().backdate(by);
+        true
+    }
+
     /// The project's latest run finishes well ("Done.").
     pub fn finish(&self, root: &Path) -> bool {
         self.send(root, RunEvent::Finished { ok: true, message: "Done.".into(), paused: false })

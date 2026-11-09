@@ -900,3 +900,24 @@ In this project, {kind}: {choice}.	このプロジェクトでは {kind}: {choic
 Couldn't change the approvals:	承認を変更できませんでした:
 What the builder may do without asking you, in this project.	このプロジェクトでビルダーが確認なしにしてよいこと。
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	既定は自動モードに従います。オンのときは元に戻せることは実行し、それ以外は拒否します。オフのときはビルダーが確認します。
+under a minute	1分未満
+{n} min	{n}分
+Status check: what are you doing right now?	状況確認：今何をしていますか？
+Nothing new for {time}	{time}新しい動きがありません
+Last said: {text}	最後の発言：{text}
+Nudge	催促
+Stops the build. Continue picks up where it stopped.	ビルドを停止します。「続ける」で止まった場所から再開します。
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	ビルダーに今していることを1行で言うよう求めます。行き詰まっている場合はターンを終えて説明するよう求めます。
+This build	このビルド
+{n} earlier	これより前に{n}件
+Check: {s}%	チェック：{s}%
+Check: passed	チェック：合格
+Check: failed	チェック：不合格
+{n} differ	{n}件が異なる
+Asked you: {text}	質問：{text}
+answered	回答済み
+waiting	待機中
+The build stopped on an error	ビルドがエラーで停止しました
+{name} · quiet {time}	{name} · 静か {time}
+{name} · Building · {time}	{name} · ビルド中 · {time}
+Building on another screen. Click to open it.	別の画面でビルド中です。クリックで開きます。

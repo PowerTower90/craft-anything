@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	编程智能体应用（通过 SSH 连接 
 on another computer over SSH (not checked); set up when you start	位于另一台计算机，通过 SSH（未检查）；启动时配置
 On another computer over SSH (not checked)	位于另一台计算机，通过 SSH（未检查）
 Install Claude Code on this computer and sign in once, then Look again.	在此计算机上安装 Claude Code 并登录一次，然后点击“再找一次”。
+under a minute	不到一分钟
+{n} min	{n} 分钟
+Status check: what are you doing right now?	状态检查：你现在在做什么？
+Nothing new for {time}	已有 {time} 没有新进展
+Last said: {text}	最后说：{text}
+Nudge	催一下
+Stops the build. Continue picks up where it stopped.	停止构建。“继续”会从停下的地方接着做。
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	请构建器用一行话说明正在做什么；如果卡住了，请结束本轮并说明。
+This build	本次构建
+{n} earlier	更早 {n} 项
+Check: {s}%	检查：{s}%
+Check: passed	检查：通过
+Check: failed	检查：未通过
+{n} differ	{n} 项不同
+Asked you: {text}	向你提问：{text}
+answered	已回答
+waiting	等待中
+The build stopped on an error	构建因错误而停止
+{name} · quiet {time}	{name} · 已安静 {time}
+{name} · Building · {time}	{name} · 构建中 · {time}
+Building on another screen. Click to open it.	正在另一个界面构建。点击打开。

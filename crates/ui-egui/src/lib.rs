@@ -589,6 +589,8 @@ pub struct CraftApp {
     pub asking: std::collections::HashSet<PathBuf>,
     /// Projects whose Pause was pressed and whose build hasn't stopped yet (#551).
     pub pausing: std::collections::HashSet<PathBuf>,
+    /// A feed item to scroll to on the next frame (a click on the side panel's build timeline).
+    pub feed_jump: Option<usize>,
     /// A build asked something since the last frame: the taskbar flashes if the window is behind.
     attention: bool,
     /// Jobs whose result goes into the conversation (a first look, an answer without an AI):
@@ -672,6 +674,7 @@ impl CraftApp {
             chat_jobs: Vec::new(),
             asking: Default::default(),
             pausing: Default::default(),
+            feed_jump: None,
             pending_consent: Default::default(),
             next_consent: 1,
             attention: false,

@@ -433,12 +433,17 @@ impl RebuildRun {
 
     /// When it began working (a queued run begins when its turn comes).
     pub fn started(&self) -> Instant {
-        self.started
+        self.started.checked_sub(self.activity.skew()).unwrap_or(self.started)
     }
 
     /// How long since the run last had anything to say. Cheap: safe to read while drawing.
     pub fn quiet_for(&self) -> Duration {
         self.activity.quiet_for()
+    }
+
+    /// The last full line the builder said, if anything. Cheap: safe to read while drawing.
+    pub fn last_said(&self) -> Option<String> {
+        self.activity.last_said()
     }
 
     /// What it's on now. Cheap: safe to read while drawing.

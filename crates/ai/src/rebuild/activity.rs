@@ -136,6 +136,40 @@ pub struct ActivityNow {
     pub last: Option<Action>,
 }
 
+/// How much of a command or a path fits on one status line; the log has the rest.
+pub const NOW_LENGTH: usize = 90;
+
+impl ActivityNow {
+    /// One line in English for what the run is on: "Now: Running cargo test (42s), and 1 more",
+    /// or "Last: Reading src/main.rs" between actions; nothing before the first action. `title`
+    /// names a tool there are no words for (the app passes the tool registry's titles).
+    pub fn words_with(&self, title: impl Fn(&str) -> Option<String>) -> Option<String> {
+        let words = |a: &Action| cut(&a.words_with(&title), NOW_LENGTH);
+        match (&self.current, &self.last) {
+            (Some((a, took)), _) => {
+                let line = format!("Now: {} ({})", words(a), duration_short(*took));
+                Some(if self.others > 0 { format!("{line}, and {} more", self.others) } else { line })
+            }
+            (None, Some(a)) => Some(format!("Last: {}", words(a))),
+            (None, None) => None,
+        }
+    }
+
+    pub fn words(&self) -> Option<String> {
+        self.words_with(|_| None)
+    }
+}
+
+/// A duration as a clock reads it: "42s", "3m 02s", "1h 02m".
+pub fn duration_short(d: Duration) -> String {
+    let s = d.as_secs();
+    match s {
+        0..60 => format!("{s}s"),
+        60..3600 => format!("{}m {:02}s", s / 60, s % 60),
+        _ => format!("{}h {:02}m", s / 3600, (s % 3600) / 60),
+    }
+}
+
 #[derive(Debug)]
 struct Going {
     call_id: String,
@@ -150,6 +184,8 @@ struct State {
     last: Option<Action>,
     /// What the builder has said since the last full line.
     said: String,
+    /// The last full line the builder said.
+    last_said: Option<String>,
 }
 
 /// When a run last had anything to say and what it's on, readable while drawing: its one lock is
@@ -157,6 +193,8 @@ struct State {
 #[derive(Debug)]
 pub struct Activity {
     began: Instant,
+    /// Time added to the clock (tests make a run look older than it is; see [`Activity::backdate`]).
+    skew_ms: AtomicU64,
     last_ms: AtomicU64,
     roots: Vec<PathBuf>,
     state: Mutex<State>,
@@ -164,23 +202,45 @@ pub struct Activity {
 
 impl Activity {
     pub(super) fn new(roots: Vec<PathBuf>) -> Activity {
-        Activity { began: Instant::now(), last_ms: 0.into(), roots, state: Mutex::default() }
+        Activity { began: Instant::now(), skew_ms: 0.into(), last_ms: 0.into(), roots, state: Mutex::default() }
+    }
+
+    /// How far into the run, by its clock.
+    fn elapsed(&self) -> Duration {
+        self.began.elapsed().saturating_add(self.skew())
+    }
+
+    /// Make the run look `by` older: its start and its last event move back. For tests of what
+    /// a screen shows after a long wait, without waiting.
+    pub(super) fn backdate(&self, by: Duration) {
+        let ms = u64::try_from(by.as_millis()).unwrap_or(u64::MAX);
+        self.skew_ms.fetch_add(ms, Ordering::Relaxed);
+    }
+
+    /// How much older the run was made to look.
+    pub(super) fn skew(&self) -> Duration {
+        Duration::from_millis(self.skew_ms.load(Ordering::Relaxed))
     }
 
     fn touch(&self) {
-        let ms = u64::try_from(self.began.elapsed().as_millis()).unwrap_or(u64::MAX);
+        let ms = u64::try_from(self.elapsed().as_millis()).unwrap_or(u64::MAX);
         self.last_ms.store(ms, Ordering::Relaxed);
     }
 
     /// How long it has been since the last event.
     pub(super) fn quiet_for(&self) -> Duration {
-        self.began.elapsed().saturating_sub(Duration::from_millis(self.last_ms.load(Ordering::Relaxed)))
+        self.elapsed().saturating_sub(Duration::from_millis(self.last_ms.load(Ordering::Relaxed)))
+    }
+
+    /// The last full line the builder said, if it has said anything.
+    pub(super) fn last_said(&self) -> Option<String> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner).last_said.clone()
     }
 
     /// Take in one event. Returns the lines it added, for the log.
     pub(super) fn record(&self, e: &RunEvent) -> Vec<ActivityLine> {
         self.touch();
-        let at = self.began.elapsed();
+        let at = self.elapsed();
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         let mut new: Vec<(LineKind, String)> = Vec::new();
         if let RunEvent::Agent(AgentEvent::TextDelta { text }) = e {
@@ -200,6 +260,9 @@ impl Activity {
         for l in &lines {
             if state.lines.len() >= KEPT_LINES {
                 state.lines.pop_front();
+            }
+            if l.kind == LineKind::Said {
+                state.last_said = Some(l.text.clone());
             }
             state.lines.push_back(l.clone());
         }
@@ -267,7 +330,7 @@ impl Activity {
 
     /// Note something about the log itself, for whoever is reading the lines.
     pub(super) fn problem(&self, text: String) {
-        let at = self.began.elapsed();
+        let at = self.elapsed();
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         state.lines.push_back(ActivityLine { at, kind: LineKind::Problem, text });
     }

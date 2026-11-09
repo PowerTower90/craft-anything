@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	Aplicativo de agente de programação (por
 on another computer over SSH (not checked); set up when you start	em outro computador por SSH (não verificado); será configurado ao iniciar
 On another computer over SSH (not checked)	Em outro computador por SSH (não verificado)
 Install Claude Code on this computer and sign in once, then Look again.	Instale o Claude Code neste computador, entre uma vez e depois escolha Procurar de novo.
+under a minute	menos de um minuto
+{n} min	{n} min
+Status check: what are you doing right now?	Verificação de status: o que você está fazendo agora?
+Nothing new for {time}	Nada de novo há {time}
+Last said: {text}	Última fala: {text}
+Nudge	Cutucar
+Stops the build. Continue picks up where it stopped.	Para a construção. Continuar retoma de onde parou.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	Pede ao construtor que diga em uma linha o que está fazendo; se estiver travado, que encerre o turno e explique.
+This build	Esta construção
+{n} earlier	{n} anteriores
+Check: {s}%	Verificação: {s}%
+Check: passed	Verificação: aprovada
+Check: failed	Verificação: reprovada
+{n} differ	{n} diferem
+Asked you: {text}	Perguntou a você: {text}
+answered	respondida
+waiting	aguardando
+The build stopped on an error	A construção parou com um erro
+{name} · quiet {time}	{name} · em silêncio há {time}
+{name} · Building · {time}	{name} · Construindo · {time}
+Building on another screen. Click to open it.	Construindo em outra tela. Clique para abrir.

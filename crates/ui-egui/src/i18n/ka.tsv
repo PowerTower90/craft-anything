@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	პროგრამირების �
 on another computer over SSH (not checked); set up when you start	სხვა კომპიუტერზე SSH-ით (შეუმოწმებელი); დაყენდება დაწყებისას
 On another computer over SSH (not checked)	სხვა კომპიუტერზე SSH-ით (შეუმოწმებელი)
 Install Claude Code on this computer and sign in once, then Look again.	დააყენეთ Claude Code ამ კომპიუტერზე, ერთხელ შედით სისტემაში და შემდეგ აირჩიეთ „კიდევ მოძებნა“.
+under a minute	ერთ წუთზე ნაკლები
+{n} min	{n} წთ
+Status check: what are you doing right now?	სტატუსის შემოწმება: რას აკეთებ ახლა?
+Nothing new for {time}	{time} არაფერი ახალი
+Last said: {text}	ბოლოს თქვა: {text}
+Nudge	შეახსენე
+Stops the build. Continue picks up where it stopped.	აჩერებს აწყობას. „გაგრძელება“ იქიდან აგრძელებს, სადაც გაჩერდა.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	სთხოვს ამწყობს ერთ ხაზში თქვას, რას აკეთებს; თუ გაიჭედა, დაასრულოს სვლა და ახსნას.
+This build	ეს აწყობა
+{n} earlier	{n} ადრინდელი
+Check: {s}%	შემოწმება: {s}%
+Check: passed	შემოწმება: გავლილია
+Check: failed	შემოწმება: ჩავარდა
+{n} differ	{n} განსხვავდება
+Asked you: {text}	გკითხა: {text}
+answered	პასუხგაცემული
+waiting	ელოდება
+The build stopped on an error	აწყობა შეცდომით შეჩერდა
+{name} · quiet {time}	{name} · სიჩუმე {time}
+{name} · Building · {time}	{name} · იწყობა · {time}
+Building on another screen. Click to open it.	იწყობა სხვა ეკრანზე. დააწკაპუნე გასახსნელად.
