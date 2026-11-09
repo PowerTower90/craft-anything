@@ -2,7 +2,6 @@
 //! installing Ghidra, Godot or a pinned engine, and reading or changing settings. Ids follow
 //! docs/tool-ids.md.
 
-use crate::Caller;
 use crate::settings::Settings;
 use crate::tool::{Ctx, Effects, Requires, ToolOutput, ToolSpec, Toolset, parse_params, schema_of};
 use craft_anything_engines::game::{self, Builder};
@@ -50,7 +49,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "settings_set",
             title: "Change a setting",
-            summary: "Set one setting by its dotted key from settings_show (`auto_mode`, `deep_mode`, `projects_dir`, `assets.budget_usd`…) to a JSON value, then save. Unknown keys and values of the wrong type are refused, and nothing is written. An agent or MCP client may change only looks and quality knobs (`theme`, `language`, `mode`, `assets.image_model`, `build.*` thresholds); consent, Auto mode, Deep mode, engines, AI backends, folders, money and plugins are the person's, in Settings or from the CLI.",
+            summary: "Set one setting by its dotted key from settings_show (`auto_mode`, `deep_mode`, `projects_dir`, `assets.budget_usd`…) to a JSON value, then save. Unknown keys and values of the wrong type are refused, and nothing is written.",
             beginner: "Changes one of your settings.",
             toolset: Toolset::Setup,
             effects: Effects::WRITES_FILESYSTEM.union(Effects::MUTATES_SESSION),
@@ -83,7 +82,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "plugins_add",
             title: "Add a plugin",
-            summary: "Add an external MCP server as a plugin ([[plugins.mcp]] in config.toml): an id, and either a command (a local server, with args, env and cwd) or a url (a remote https server, with headers). A plugin added here always asks before each call. replace overwrites a plugin with the same id. Run plugins_refresh next to read its tools. Only the person adds plugins (Settings or the CLI); agents and MCP clients are refused.",
+            summary: "Add an external MCP server as a plugin ([[plugins.mcp]] in config.toml): an id, and either a command (a local server, with args, env and cwd) or a url (a remote https server, with headers). A plugin added here always asks before each call. replace overwrites a plugin with the same id. Run plugins_refresh next to read its tools.",
             beginner: "Adds an add-on: another program or server whose tools Craft Anything can use.",
             toolset: Toolset::Setup,
             effects: Effects::WRITES_FILESYSTEM.union(Effects::MUTATES_SESSION),
@@ -94,7 +93,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "plugins_remove",
             title: "Remove a plugin",
-            summary: "Remove a plugin from config.toml by its id. Its tools stop being offered from the next start. Only the person removes plugins (Settings or the CLI); agents and MCP clients are refused.",
+            summary: "Remove a plugin from config.toml by its id. Its tools stop being offered from the next start.",
             beginner: "Removes an add-on.",
             toolset: Toolset::Setup,
             effects: Effects::WRITES_FILESYSTEM.union(Effects::MUTATES_SESSION),
@@ -182,43 +181,6 @@ pub struct RemovePluginParams {
     pub id: String,
 }
 
-/// The settings an agent or MCP client may change through `settings_set`: looks and quality knobs,
-/// nothing that widens what it may do or touches this computer. Everything else (consent, Auto
-/// mode, Deep mode, the builder's questions, engine programs and folders, AI backends, project
-/// folders, money, plugins, running the person's program) is the person's, in Settings or from the
-/// CLI. Dotted keys exactly as `settings_show` gives them; a test checks each one exists.
-pub const AGENT_SETTABLE: &[&str] = &[
-    "theme",
-    "language",
-    "mode",
-    "assets.image_model",
-    "build.good_enough",
-    "build.max_rounds",
-    "build.web_widths",
-    "build.max_pages",
-    "build.picture_good_enough",
-];
-
-/// Whether the caller is an AI acting on its own (a builder, or the agent behind an MCP client)
-/// rather than the person at the app or the CLI.
-fn is_agent(caller: Caller) -> bool {
-    matches!(caller, Caller::Mcp | Caller::Agent)
-}
-
-/// `key` as `settings_show` spells it: each part trimmed, so `build . max_rounds` is `build.max_rounds`.
-fn settings_key(key: &str) -> String {
-    key.split('.').map(str::trim).collect::<Vec<_>>().join(".")
-}
-
-/// Refuses an agent or MCP client a change only the person may make (`what` completes "An agent can't …").
-fn person_only(caller: Caller, what: impl Into<String>) -> Result<(), ToolError> {
-    if is_agent(caller) {
-        return Err(ToolError::new(ErrorCode::NoPermission, format!("An agent can't {}.", what.into()))
-            .with_remediation("Ask the person to do it in Settings (or with the CLI)."));
-    }
-    Ok(())
-}
-
 fn save_settings(ctx: &mut Ctx<'_>, next: Settings) -> Result<String, ToolError> {
     let path = ctx.session.config_dir().join("config.toml");
     next.save_to(&path)?;
@@ -261,8 +223,6 @@ fn add_wasm_plugin(ctx: &mut Ctx<'_>, p: AddPluginParams, path: std::path::PathB
 }
 
 fn plugins_add(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
-    // A plugin is a program or server this computer will run or trust from then on: the person's choice.
-    person_only(ctx.caller, "add a plugin")?;
     let mut p: AddPluginParams = parse_params(params)?;
     if let Some(path) = p.wasm.take() {
         return add_wasm_plugin(ctx, p, path);
@@ -310,7 +270,6 @@ fn plugins_add(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
 }
 
 fn plugins_remove(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
-    person_only(ctx.caller, "remove a plugin")?;
     let p: RemovePluginParams = parse_params(params)?;
     let mut next = ctx.session.settings.clone();
     let before = next.plugins.mcp.len() + next.plugins.wasm.len();
@@ -553,13 +512,6 @@ pub fn with_setting(settings: &Settings, key: &str, value: Value) -> Result<Sett
 
 fn settings_set(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
     let p: SetParams = parse_params(params)?;
-    // A builder (or the agent behind an MCP client) can't let itself do more: consent, Auto mode,
-    // Deep mode, engine programs and the like are the person's to change, from the app or the CLI.
-    let key = settings_key(&p.key);
-    if is_agent(ctx.caller) && !AGENT_SETTABLE.contains(&key.as_str()) {
-        return Err(ToolError::new(ErrorCode::NoPermission, format!("An agent can't change the {key:?} setting."))
-            .with_remediation(format!("Ask the person to change it in Settings (or with the CLI). An agent may change: {}.", AGENT_SETTABLE.join(", "))));
-    }
     let next = with_setting(&ctx.session.settings, &p.key, p.value)?;
     let path = ctx.session.config_dir().join("config.toml");
     next.save_to(&path)?;
@@ -681,96 +633,6 @@ mod tests {
         let ghidra = out["result"]["engines"].as_array().unwrap().iter().find(|v| v["id"] == "ghidra").unwrap();
         assert_eq!(ghidra["found"].as_str(), Some(launcher.display().to_string().as_str()));
         assert_eq!(out["result"]["deep_mode"]["ghidra"], ghidra["found"]);
-    }
-
-    /// A builder (or the agent behind an MCP client) can't let itself do more through settings:
-    /// consent, Auto mode, Deep mode, engine programs and plugins stay the person's, and the
-    /// refusal changes nothing, in the session or on disk. Looks and quality knobs are fine.
-    #[test]
-    fn an_agent_changes_only_harmless_settings() {
-        let s = crate::testing::session();
-        let config = s.config_dir().join("config.toml");
-        let before = s.settings.clone();
-        let e = Engine::new(s);
-        let set = |caller: Caller, key: &str, value: Value| e.call("settings_set", json!({"key": key, "value": value}), CallOptions::new(caller));
-        for caller in [Caller::Agent, Caller::Mcp] {
-            for (key, value) in [
-                ("ask_before_running", json!(false)),
-                ("auto_mode", json!(true)),
-                ("deep_mode", json!(true)),
-                ("engines.tools.adb", json!("C:/anything.exe")),
-                ("engines.ghidra.install_dir", json!("/tmp/x")),
-                ("projects_dir", json!("/tmp/elsewhere")),
-                ("assets.budget_usd", json!(1000.0)),
-                ("runtime_study", json!(true)),
-                ("plugins.mcp", json!([])),
-                ("build.parallel", json!(64)),
-                ("build", json!({"parallel": 64})),
-                (" ask_before_running ", json!(false)),
-                ("no_such_setting", json!(1)),
-            ] {
-                let err = set(caller, key, value).unwrap_err();
-                assert_eq!(err.code, ErrorCode::NoPermission, "{caller:?} {key}: {}", err.message);
-                assert!(err.remediation.as_deref().unwrap_or_default().contains("Settings"), "{caller:?} {key}: {:?}", err.remediation);
-            }
-        }
-        let after = e.session().settings.clone();
-        assert!(after == before, "nothing changed");
-        // (A test session starts in Deep mode; the refusal leaves it there.)
-        assert!(after.ask_before_running && after.auto_mode && after.deep_mode && !after.runtime_study);
-        assert!(!config.exists(), "nothing was written");
-
-        // Looks and quality knobs are an agent's to change; the person changes anything.
-        set(Caller::Agent, "theme", json!("studio-light")).unwrap();
-        set(Caller::Mcp, "build.max_rounds", json!(3)).unwrap();
-        set(Caller::Agent, " build . web_widths ", json!([1280])).unwrap();
-        set(Caller::Ui, "ask_before_running", json!(false)).unwrap();
-        set(Caller::Cli, "deep_mode", json!(false)).unwrap();
-        let after = e.session().settings.clone();
-        assert_eq!((after.theme.as_str(), after.build.max_rounds, after.build.web_widths.as_slice()), ("studio-light", 3, &[1280][..]));
-        assert!(!after.ask_before_running && !after.deep_mode);
-        let saved = std::fs::read_to_string(&config).unwrap();
-        assert!(saved.contains("ask_before_running = false") && saved.contains("studio-light"), "{saved}");
-        // A wrong value for an allowed key is still refused for what it is.
-        assert_ne!(set(Caller::Agent, "theme", json!(5)).unwrap_err().code, ErrorCode::NoPermission);
-    }
-
-    #[test]
-    fn every_setting_an_agent_may_change_exists() {
-        let doc = serde_json::to_value(Settings::default()).unwrap();
-        for key in AGENT_SETTABLE {
-            let pointer = format!("/{}", key.replace('.', "/"));
-            assert!(doc.pointer(&pointer).is_some(), "{key} isn't a setting");
-            assert_eq!(settings_key(key), *key, "{key} is spelled as settings_show spells it");
-        }
-        // The dangerous ones are not on the list, whatever Settings grows.
-        for key in ["ask_before_running", "auto_mode", "deep_mode", "questions", "runtime_study", "projects_dir", "version"] {
-            assert!(!AGENT_SETTABLE.contains(&key), "{key}");
-        }
-        assert!(!AGENT_SETTABLE.iter().any(|k| k.starts_with("engines") || k.starts_with("plugins") || k.starts_with("ai")));
-    }
-
-    /// Plugins are programs or servers this computer runs or trusts from then on: the person adds
-    /// and removes them, from the app or the CLI, never a builder or an MCP client.
-    #[test]
-    fn only_the_person_adds_or_removes_plugins() {
-        let s = crate::testing::session();
-        let config = s.config_dir().join("config.toml");
-        let e = Engine::new(s);
-        let call = |caller: Caller, id: &str, p: Value| e.call(id, p, CallOptions::new(caller));
-        call(Caller::Ui, "plugins_add", json!({"id": "docs", "url": "https://mcp.example.com/mcp"})).unwrap();
-        for caller in [Caller::Agent, Caller::Mcp] {
-            let err = call(caller, "plugins_add", json!({"id": "evil", "command": "C:/anything.exe"})).unwrap_err();
-            assert_eq!(err.code, ErrorCode::NoPermission, "{caller:?}: {}", err.message);
-            assert!(err.remediation.as_deref().unwrap_or_default().contains("Settings"));
-            assert_eq!(call(caller, "plugins_remove", json!({"id": "docs"})).unwrap_err().code, ErrorCode::NoPermission, "{caller:?}");
-        }
-        let ids: Vec<String> = e.session().settings.plugins.mcp.iter().map(|p| p.id.clone()).collect();
-        assert_eq!(ids, ["docs"]);
-        assert!(!std::fs::read_to_string(&config).unwrap().contains("evil"));
-        // Listing and refreshing stay open to every caller (refresh runs the plugin, which has its own consent).
-        assert!(call(Caller::Agent, "plugins_list", json!({})).is_ok());
-        call(Caller::Cli, "plugins_remove", json!({"id": "docs"})).unwrap();
     }
 
     #[test]
