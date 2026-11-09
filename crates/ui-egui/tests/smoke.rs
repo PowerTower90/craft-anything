@@ -3847,3 +3847,102 @@ fn the_workbench_shows_a_running_builds_activity_and_sends_it_notes() {
     assert!(runs.finish(&a.root));
     h.run_steps(2);
 }
+
+/// A real click on a tile, as a mouse makes one: the pointer comes to rest over the tile, the
+/// button goes down on one frame and up on a later one. (A click in a single frame hid a tile
+/// that never took real clicks.)
+fn press_and_release(h: &mut Harness<'static, CraftApp>, pos: egui::Pos2, modifiers: egui::Modifiers) {
+    h.hover_at(pos);
+    // Long enough at rest for the tile's tooltip to show, as a person's pointer does.
+    h.run_steps(45);
+    if modifiers != egui::Modifiers::NONE {
+        h.event(egui::Event::ModifiersChanged(modifiers));
+    }
+    h.event(egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: true, modifiers });
+    // Held for about 120 ms of frames.
+    h.run_steps(8);
+    h.event(egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: false, modifiers });
+    h.step();
+    if modifiers != egui::Modifiers::NONE {
+        h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+    }
+    h.run_steps(3);
+}
+
+#[test]
+fn a_real_click_on_a_gallery_tile_shows_it_and_ctrl_click_adds_another() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = asset_project(d.path());
+    // Frames a sixtieth of a second apart, as on a real screen (the harness's default is a quarter).
+    let mut h = Harness::builder().with_size(egui::vec2(1600.0, 1000.0)).with_step_dt(1.0 / 60.0).with_max_steps(64).build_eframe(move |cc| {
+        CraftApp::setup_context(&cc.egui_ctx);
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 4 && craft_anything_ui_egui::assets_ui::cached_thumbs(a) == 2));
+    // As in the live check: a filter typed first, its thumbnails drawn.
+    h.state_mut().assets.query = "r".into();
+    h.run_steps(4);
+    let rock = h.get_by_label("Rock").rect().center();
+    press_and_release(&mut h, rock, egui::Modifiers::NONE);
+    assert_eq!(h.state().assets.selected.len(), 1, "the tile took the click");
+    assert!(h.query_by_label("Pick an asset").is_none(), "the Inspector shows the asset");
+    assert!(h.query_all_by_label("Rock").count() >= 2, "its name is in the Inspector too");
+    h.get_by_label("Mark as: Needs replacing");
+    h.get_by_label("Mark as: Keep");
+    // Ctrl/⌘-click adds another.
+    let grass = h.get_by_label("grass").rect().center();
+    press_and_release(&mut h, grass, egui::Modifiers::COMMAND);
+    assert_eq!(h.state().assets.selected.len(), 2, "Ctrl-click added a second");
+    assert!(h.query_all_by_label("2 selected").count() >= 1);
+}
+
+#[test]
+fn pictures_come_first_and_unreadable_assets_are_hidden_until_asked_for() {
+    use craft_anything_engine::inventory::{self, INVENTORY_VERSION, Inventory, Item, Kind, Source, Status};
+    use craft_anything_engine::tools::web_common::{Image, encode_png};
+    let d = tempfile::tempdir().unwrap();
+    let ws = asset_project(d.path());
+    let png = encode_png(&Image { width: 4, height: 4, rgba: vec![90; 64] }).unwrap();
+    std::fs::write(ws.root.join("reference/thumbs/zebra.png"), &png).unwrap();
+    let mut items = Vec::new();
+    // Runtime-filled textures the scan couldn't take out: no file, no picture, a problem.
+    for i in 0..3 {
+        let mut font = Item::new(Source::Original, &format!("res#{i}"), Kind::Texture, "Font Texture", Status::Original);
+        font.problem = Some("an empty texture (0×0; the game fills it while it runs)".into());
+        font.bytes = 124;
+        items.push(font);
+    }
+    let mut zebra = Item::new(Source::Original, "res#9", Kind::Texture, "Zebra", Status::Original);
+    zebra.path = Some("reference/assets/texture/zebra.png".into());
+    zebra.thumb = Some("reference/thumbs/zebra.png".into());
+    items.push(zebra);
+    items.push(Item::new(Source::Original, "res#10", Kind::Sound, "Alarm", Status::Original));
+    items.push(Item::new(Source::Original, "res#11", Kind::Texture, "Atlas", Status::Original));
+    inventory::save(&ws.root, &Inventory { version: INVENTORY_VERSION, original_scanned_ms: Some(1), items, ..Default::default() }).unwrap();
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 6));
+    h.run_steps(2);
+    let names = |h: &mut Harness<'static, CraftApp>| {
+        let app = h.state_mut();
+        app.assets.shown().to_vec().iter().map(|i| app.assets.items[*i].name.clone()).collect::<Vec<_>>()
+    };
+    // The picture first, then the others; the unreadable ones are hidden and counted.
+    assert_eq!(names(&mut h), ["Zebra", "Atlas", "Alarm"]);
+    h.get_by_label("Textures 2").click();
+    h.run_steps(2);
+    assert_eq!(names(&mut h), ["Zebra", "Atlas"]);
+    h.get_by_label("Hide unreadable (3)").click();
+    h.run_steps(2);
+    assert_eq!(names(&mut h), ["Zebra", "Atlas", "Font Texture", "Font Texture", "Font Texture"], "shown last when asked for");
+    h.get_by_label("Textures 5");
+}

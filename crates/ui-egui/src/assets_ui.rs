@@ -218,7 +218,21 @@ struct ViewKey {
     kind: Option<Kind>,
     status: Option<Status>,
     query: String,
+    show_unreadable: bool,
     generation: u64,
+}
+
+/// An item the scan couldn't take out of the original: there's no file and no picture of it,
+/// only why (a texture the game fills while it runs, say).
+pub fn unreadable(item: &Item) -> bool {
+    item.problem.is_some() && item.path.is_none()
+}
+
+/// The order the grid shows items in: those with a picture first (textures and sprites with a
+/// thumbnail, by name), then the other kinds, and the ones with a problem last.
+fn order_key(item: &Item) -> (bool, bool, Kind, String) {
+    let preview = item.thumb.is_some() && matches!(item.kind, Kind::Texture | Kind::Sprite);
+    (item.problem.is_some(), !preview, item.kind, item.name.to_lowercase())
 }
 
 /// The gallery's state: the project's items, the filters, the selection and the thumbnails.
@@ -236,7 +250,14 @@ pub struct Gallery {
     pub kind: Option<Kind>,
     pub status: Option<Status>,
     pub query: String,
+    /// Show the items the scan couldn't read (off at first: they're a wall of empty tiles).
+    pub show_unreadable: bool,
     key: Option<ViewKey>,
+    /// Every item's index in the grid's order, and the list version it was sorted for.
+    order: Vec<usize>,
+    order_of: Option<u64>,
+    /// Unreadable items the other filters let through (the toggle's count).
+    unreadable: usize,
     /// Indexes into `items` that pass the filters, in order.
     shown: Vec<usize>,
     /// Items of each kind passing the other filters (the chips' counts).
@@ -244,6 +265,8 @@ pub struct Gallery {
     generation: u64,
     pub selected: BTreeSet<String>,
     anchor: Option<String>,
+    /// The tile a press selected, so the click that ends the same press doesn't select it again.
+    pressed: Option<String>,
     /// The item shown in the detail panel.
     pub focus: Option<String>,
     /// The note being typed for the focused item.
@@ -277,6 +300,12 @@ impl Gallery {
         &self.shown
     }
 
+    /// How many unreadable items the other filters let through.
+    pub fn unreadable_count(&mut self) -> usize {
+        self.refilter();
+        self.unreadable
+    }
+
     /// How many items of `kind` pass the other filters.
     pub fn kind_count(&mut self, kind: Kind) -> usize {
         self.refilter();
@@ -284,13 +313,28 @@ impl Gallery {
     }
 
     fn refilter(&mut self) {
-        let key = ViewKey { source: self.source, kind: self.kind, status: self.status, query: self.query.trim().to_lowercase(), generation: self.generation };
+        let key = ViewKey {
+            source: self.source,
+            kind: self.kind,
+            status: self.status,
+            query: self.query.trim().to_lowercase(),
+            show_unreadable: self.show_unreadable,
+            generation: self.generation,
+        };
         if self.key.as_ref() == Some(&key) {
             return;
         }
+        if self.order_of != Some(self.generation) || self.order.len() != self.items.len() {
+            let mut order: Vec<usize> = (0..self.items.len()).collect();
+            order.sort_by_cached_key(|i| self.items.get(*i).map(order_key));
+            self.order = order;
+            self.order_of = Some(self.generation);
+        }
         self.shown.clear();
         self.kinds.clear();
-        for (i, item) in self.items.iter().enumerate() {
+        self.unreadable = 0;
+        for &i in &self.order {
+            let Some(item) = self.items.get(i) else { continue };
             let pass = key.source.is_none_or(|s| item.source == s)
                 && key.status.is_none_or(|s| item.status == s)
                 && (key.query.is_empty()
@@ -300,6 +344,12 @@ impl Gallery {
                         .any(|t| t.to_lowercase().contains(&key.query)));
             if !pass {
                 continue;
+            }
+            if unreadable(item) {
+                self.unreadable += usize::from(key.kind.is_none_or(|k| item.kind == k));
+                if !key.show_unreadable {
+                    continue;
+                }
             }
             *self.kinds.entry(item.kind).or_insert(0) += 1;
             if key.kind.is_none_or(|k| item.kind == k) {
@@ -722,6 +772,13 @@ pub fn rail(app: &mut CraftApp, ui: &mut Ui) {
                 }
             }
         });
+        ui.add_space(8.0);
+        let n = app.assets.unreadable_count();
+        let mut hide = !app.assets.show_unreadable;
+        widgets::toggle(ui, &mut hide, &trf("Hide unreadable ({n})", &[("n", &count(n as u64))])).on_hover_text(tr(
+            "Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).",
+        ));
+        app.assets.show_unreadable = !hide;
     });
 }
 
@@ -851,10 +908,17 @@ fn grid(app: &mut CraftApp, ui: &mut Ui) {
     let rows = shown.len().div_ceil(cols);
     let mut want: Vec<(String, String)> = Vec::new();
     let mut drawn: Vec<String> = Vec::new();
-    let mut clicked: Option<(usize, egui::Modifiers)> = None;
+    // A press picks a tile (as in a file manager); a click without a press (the keyboard, a screen
+    // reader) picks it too. Each tile's id comes from its item, so it is the same widget from the
+    // press to the release whatever row it is drawn in.
+    let mut picked: Option<(usize, egui::Modifiers, bool)> = None;
+    if !ui.input(|i| i.pointer.any_down() || i.pointer.any_released()) {
+        app.assets.pressed = None;
+    }
     let g = &app.assets;
+    // The rows' spacing is set before show_rows measures them, so the rows it counts are the rows drawn.
+    ui.spacing_mut().item_spacing = Vec2::splat(GAP);
     egui::ScrollArea::vertical().id_salt("asset-grid").auto_shrink([false, false]).show_rows(ui, TILE_H, rows, |ui, range| {
-        ui.spacing_mut().item_spacing = Vec2::splat(GAP);
         for r in range {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = GAP;
@@ -871,8 +935,12 @@ fn grid(app: &mut CraftApp, ui: &mut Ui) {
                     }
                     let selected = g.selected.contains(&item.id);
                     let focused = g.focus.as_deref() == Some(item.id.as_str());
-                    if tile(ui, item, thumb, selected, focused, &t).clicked() {
-                        clicked = Some((pos, ui.input(|i| i.modifiers)));
+                    let resp = tile(ui, item, thumb, selected, focused, &t);
+                    let mods = ui.input(|i| i.modifiers);
+                    if resp.is_pointer_button_down_on() && ui.input(|i| i.pointer.primary_pressed()) {
+                        picked = Some((pos, mods, true));
+                    } else if resp.clicked() {
+                        picked = Some((pos, mods, false));
                     }
                 }
             });
@@ -886,8 +954,16 @@ fn grid(app: &mut CraftApp, ui: &mut Ui) {
     }
     let ctx = ui.ctx().clone();
     app.want_asset_thumbs(&ctx, want);
-    if let Some((pos, mods)) = clicked {
-        select(app, &shown, pos, mods);
+    if let Some((pos, mods, press)) = picked {
+        let id = shown.get(pos).and_then(|i| app.assets.items.get(*i)).map(|i| i.id.clone());
+        if press {
+            app.assets.pressed = id;
+            select(app, &shown, pos, mods);
+        } else if app.assets.pressed.is_some() && app.assets.pressed.take() == id {
+            // The release of the press that already picked it.
+        } else {
+            select(app, &shown, pos, mods);
+        }
     }
 }
 
@@ -923,7 +999,8 @@ fn select(app: &mut CraftApp, shown: &[usize], pos: usize, mods: egui::Modifiers
 
 /// One tile: the thumbnail (or the kind's icon), the name, and its size or length.
 fn tile(ui: &mut Ui, item: &Item, thumb: Option<&Thumb>, selected: bool, focused: bool, t: &Tokens) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(Vec2::new(TILE_W, TILE_H), Sense::click());
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(TILE_W, TILE_H), Sense::hover());
+    let resp = ui.interact(rect, egui::Id::new(("asset-tile", item.id.as_str())), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, selected, &item.name));
     if !ui.is_rect_visible(rect) {
         return resp;
@@ -1216,6 +1293,30 @@ mod tests {
         g.apply(vec![Item { status: Status::NeedsReplacing, ..item("a", Source::Original, Kind::Texture, "Rock") }]);
         g.status = Some(Status::NeedsReplacing);
         assert_eq!(g.shown(), &[0]);
+    }
+
+    #[test]
+    fn pictures_first_problems_last_and_unreadable_hidden_by_default() {
+        let mut font = item("f", Source::Original, Kind::Texture, "Font Texture");
+        font.problem = Some("an empty texture".into());
+        let mut pic = item("p", Source::Original, Kind::Texture, "zebra");
+        pic.thumb = Some("reference/thumbs/p.png".into());
+        let mut broken_sound = item("b", Source::Original, Kind::Sound, "Boom");
+        broken_sound.path = Some("reference/assets/sound/boom.fsb".into());
+        broken_sound.problem = Some("an odd codec".into());
+        let mut g = Gallery {
+            items: vec![font, item("m", Source::Original, Kind::Model, "Crate"), broken_sound, pic, item("t", Source::Original, Kind::Texture, "Atlas")],
+            ..Default::default()
+        };
+        // zebra (a picture), Atlas (a texture without one), Crate, then problems: Boom (it has a file).
+        assert_eq!(g.shown(), &[3, 4, 1, 2]);
+        assert_eq!(g.unreadable_count(), 1);
+        assert_eq!(g.kind_count(Kind::Texture), 2);
+        g.show_unreadable = true;
+        assert_eq!(g.shown(), &[3, 4, 1, 0, 2], "problems last, by kind");
+        assert_eq!(g.kind_count(Kind::Texture), 3);
+        g.kind = Some(Kind::Sound);
+        assert_eq!(g.unreadable_count(), 0, "counted under the current filter");
     }
 
     #[test]
