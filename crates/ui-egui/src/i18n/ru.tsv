@@ -1491,3 +1491,5 @@ The build stopped on an error	Сборка остановилась из-за о
 {name} · quiet {time}	{name} · тишина {time}
 {name} · Building · {time}	{name} · Сборка · {time}
 Building on another screen. Click to open it.	Сборка идёт на другом экране. Нажмите, чтобы открыть.
+Check it now	Проверить сейчас
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Запускает проверки того, что уже собрано, без сборщика. Когда они пройдут, можно пробовать.

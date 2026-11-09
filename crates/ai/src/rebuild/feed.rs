@@ -8,9 +8,13 @@ use super::*;
 
 /// Fold one workflow event into the feed.
 pub fn apply(feed: &mut Vec<FeedItem>, e: &RunEvent) {
+    // Every agent message still open ends, not only the last item: a status note after the
+    // builder's words leaves them before it, and they'd look as if it were still talking.
     let end_stream = |feed: &mut Vec<FeedItem>| {
-        if let Some(FeedItem::Agent { streaming, .. }) = feed.last_mut() {
-            *streaming = false;
+        for item in feed.iter_mut() {
+            if let FeedItem::Agent { streaming, .. } = item {
+                *streaming = false;
+            }
         }
     };
     match e {

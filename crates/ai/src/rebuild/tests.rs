@@ -455,6 +455,7 @@ fn notes_added_while_it_works_reach_the_agent_at_its_next_step() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     assert!(w.added(&mut ws, true, true).is_none(), "nothing added, nothing to say");
     use craft_anything_engine::questions::{self, AskedQuestion};
@@ -1386,6 +1387,7 @@ fn an_api_backend_builds_with_the_build_tools() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     w.attach(&ws).unwrap();
     // The model writes a file with the Build tools, then answers.
@@ -1503,6 +1505,7 @@ fn the_mechanics_sheet_is_required_and_held_against_the_code() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     let check = |round| w.run_checks(&ws, &SheetKind, round).unwrap().remove(0);
 
@@ -2600,6 +2603,7 @@ fn check_worker(ws: &Workspace, deep: bool) -> Worker {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     }
 }
 
@@ -3087,6 +3091,7 @@ fn preparing_the_builders_agent_does_not_lock_up() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     let entry = crate::BackendEntry {
         config: crate::BackendConfig {
@@ -3129,6 +3134,7 @@ fn the_run_answers_the_builders_own_check_during_its_turn() {
         usage: None,
         self_check: Some(self_check::SelfCheck::new(Arc::new(SheetKind), 90.0)),
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     let mut builder = ChecksItsWork::new(&ws.root);
     let reply = w.turn(&mut ws, &mut builder, "Build it.", true, None).unwrap();
@@ -3415,6 +3421,7 @@ fn a_note_the_builder_took_at_a_step_joins_the_feed_and_isnt_sent_again() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     let dir = notes::notes_dir(&ws.inbox_dir());
     notes::hand_over(&dir, 1, "make the header blue").unwrap();
@@ -3719,6 +3726,7 @@ fn a_session_left_on_another_computer_starts_a_new_one_from_the_project() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     let first = resumed_elsewhere("THE BRIEF", &ws.manifest.last_reply, None);
     let reply = w.turn(&mut ws, &mut agent, "The person asks: make it blue", true, Some(first)).unwrap();
@@ -3774,6 +3782,7 @@ fn a_missing_session_with_nothing_to_start_from_is_said_plainly() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     let e = w
         .turn_with_wait(&mut ws, &mut agent, "Carry on.", true, None, |_, _| panic!("a missing session without a fresh start must not be retried"))
@@ -3840,6 +3849,7 @@ fn the_builders_conversation_travels_with_the_project() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
     let adapter = KeepsSessions(store.path().to_path_buf());
     // No session yet, or one this computer doesn't have: nothing to keep, nothing said.
@@ -3917,6 +3927,7 @@ fn a_build_says_when_it_waits_for_an_analysis_started_earlier() {
         usage: None,
         self_check: None,
         reset_progress_after_notes: false,
+        turn_close_grace: TURN_CLOSE_GRACE,
     };
 
     // Another process is already analysing this program: a fresh lock beside its project.

@@ -249,6 +249,20 @@ impl CraftApp {
         self.start_run_with(ws, opts);
     }
 
+    /// Check what a stopped build has made, without asking the builder anything: the checks a
+    /// finished turn gets, then Ready (and Play) when it works. For a build the builder finished
+    /// but that was left Building (its turn never closed, or the app closed before the checks).
+    pub fn check_now(&mut self) {
+        if self.running() {
+            return;
+        }
+        let Some(ws) = self.workspace.clone() else { return };
+        let Some(backend) = self.builder_backend(ws.manifest.builder.as_deref()) else { return self.need_builder(false) };
+        let ws = Workspace::open(&ws.root).unwrap_or(ws);
+        let opts = RunOptions { continuing: true, check_only: true, max_rounds: 0, ..self.run_options(Some(backend), None, None, Vec::new()) };
+        self.start_run_with(ws, opts);
+    }
+
     /// Ask a quiet build what it's doing (the status row's Nudge): a fixed note the builder
     /// reads at its next step, as `rebuild_note` sends one. Nothing when no build is running.
     pub fn nudge(&mut self) {
@@ -1252,8 +1266,11 @@ fn feed(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
     let items = &app.state.feed;
     // With a plan pinned below, it shows the work and the clock; one progress display, not two.
     let pinned = plan(items).is_some();
-    let status_row =
-        app.running() && !pinned && !matches!(items.last(), Some(FeedItem::Agent { streaming: true, .. }) | Some(FeedItem::Ask { answer: None, .. }));
+    let streaming_last = matches!(items.last(), Some(FeedItem::Agent { streaming: true, .. }));
+    let status_row = app.running() && !pinned && !streaming_last && !matches!(items.last(), Some(FeedItem::Ask { answer: None, .. }));
+    // Under the builder's own words too: a builder that said its last and went quiet (or whose
+    // turn never closed) still gets Stop, Nudge and its log, though the status row stays hidden.
+    let quiet_actions = status_row || (app.running() && !pinned && streaming_last);
     if status_row {
         // What it's on (the latest step) and how much it has done since, so progress is visible
         // even in Simple mode where the tool-by-tool work is hidden.
@@ -1286,7 +1303,7 @@ fn feed(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
         // The clock and the quiet time move once a second even when no event wakes the window.
         ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
     }
-    let clicks = if status_row { quiet_row(app, ui) } else { QuietClicks::default() };
+    let clicks = if quiet_actions { quiet_row(app, ui) } else { QuietClicks::default() };
     run_details(app, ui, status_row);
     for (id, a, shown) in answers {
         app.answer_request(&id, a, shown);
@@ -1574,6 +1591,9 @@ fn draw_items(
 ) {
     let t = Tokens::get(ui.ctx());
     let advanced = !app.beginner();
+    // The dots under a message the builder is still writing move only while its run works: a
+    // message left open by a run that ended (or never closed its turn) isn't being written.
+    let writing = app.open_run().is_some_and(RebuildRun::is_running);
     // Questions about the build, among the items they were asked after.
     let mut next_asked = 0;
     let mut questions_up_to = |app: &mut CraftApp, ui: &mut Ui, end: usize| {
@@ -1591,7 +1611,7 @@ fn draw_items(
             FeedItem::Agent { text, streaming } => {
                 chat::answer_bubble(ui, false, text.trim(), |ui| {
                     chat::rich_text(ui, text.trim(), !advanced);
-                    if *streaming {
+                    if *streaming && writing {
                         widgets::thinking(ui);
                     }
                 });
@@ -1733,7 +1753,7 @@ fn continue_card(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
     } else {
         ("Paused", "Everything so far is kept. Continue picks up where it stopped.")
     };
-    let mut go = false;
+    let (mut go, mut check) = (false, false);
     egui::Frame::new().fill(t.card).stroke(egui::Stroke::new(1.5, t.accent)).corner_radius(t.r_lg()).inner_margin(Margin::same(14)).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
@@ -1742,14 +1762,20 @@ fn continue_card(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
         });
         ui.add(egui::Label::new(RichText::new(tr(body)).color(t.text_dim)).wrap());
         ui.add_space(6.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             go = widgets::primary_icon(ui, Some("play"), "Continue", true).clicked();
+            // The builder may have finished already: check what's there, and it's Ready when it works.
+            check = widgets::secondary(ui, Some("circle-check"), "Check it now")
+                .on_hover_text(tr("Runs the checks on what's built now, without the builder. It's ready to try when they pass."))
+                .clicked();
             done_button(app, ui, ws);
         });
     });
     ui.add_space(chat::MESSAGE_GAP);
     if go {
         app.continue_build();
+    } else if check {
+        app.check_now();
     }
 }
 

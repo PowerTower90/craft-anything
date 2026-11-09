@@ -3393,6 +3393,114 @@ fn a_quiet_build_offers_stop_nudge_and_the_log_and_nudge_sends_a_note() {
     h.run_steps(2);
 }
 
+/// The quiet row also shows when the builder's own words are the last thing in the feed (its
+/// message still open): a builder that said its last and went quiet, or whose turn never closed,
+/// still offers Stop, Nudge and its log.
+#[test]
+fn a_quiet_build_whose_last_words_are_still_open_offers_stop_nudge_and_the_log() {
+    use craft_anything_ai::AgentEvent;
+    use craft_anything_ai::rebuild::{RunEvent, StandIns, Step};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    use craft_anything_ui_egui::state::FeedItem;
+    let d = tempfile::tempdir().unwrap();
+    let ws = Workspace::create(d.path(), "Alpha", "A notes app", TargetRef::None).unwrap();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().to_path_buf(), runs.clone());
+    let mut h = harness(move || stand_in_app(dir, &r));
+    h.run_steps(2);
+    h.state_mut().open_workspace(ws.clone());
+    h.state_mut().follow_up(Some("Add tags".into()));
+    assert!(runs.send(&ws.root, RunEvent::Step { step: Step::Build, text: "Building the first version…".into() }));
+    assert!(runs.send(&ws.root, RunEvent::Agent(AgentEvent::TextDelta { text: "All done: tags are in.\n".into() })));
+    h.run_steps(3);
+    assert!(matches!(h.state().state.feed.last(), Some(FeedItem::Agent { streaming: true, .. })), "{:?}", h.state().state.feed);
+    assert!(h.query_by_label("Nudge").is_none(), "recently heard from: nothing to offer yet");
+    assert!(runs.backdate(&ws.root, Duration::from_secs(7 * 60)));
+    h.run_steps(3);
+    h.get_by_label("Nothing new for 7 min");
+    h.get_by_label("Last said: All done: tags are in.");
+    h.get_by_label("Stop");
+    h.get_by_label("Open log");
+    h.get_by_label("Nudge");
+    assert!(runs.finish(&ws.root));
+    h.run_steps(2);
+}
+
+/// The three dots under a message the builder is writing (circles 3.5 points across).
+fn dots(h: &Harness<'static, CraftApp>) -> usize {
+    fn count(s: &egui::Shape) -> usize {
+        match s {
+            egui::Shape::Vec(v) => v.iter().map(count).sum(),
+            egui::Shape::Circle(c) if (c.radius - 3.5).abs() < 0.01 => 1,
+            _ => 0,
+        }
+    }
+    h.output().shapes.iter().map(|cs| count(&cs.shape)).sum()
+}
+
+/// The dots under the builder's message move only while its build runs: the run's end closes
+/// every message still open, and a message left open with no build running (a turn that never
+/// closed, then the app restarted) gets none.
+#[test]
+fn the_dots_under_a_message_move_only_while_its_build_runs() {
+    use craft_anything_ai::AgentEvent;
+    use craft_anything_ai::rebuild::{RunEvent, StandIns, Step};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    use craft_anything_ui_egui::state::FeedItem;
+    let d = tempfile::tempdir().unwrap();
+    let ws = Workspace::create(d.path(), "Alpha", "A notes app", TargetRef::None).unwrap();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().to_path_buf(), runs.clone());
+    let mut h = harness(move || stand_in_app(dir, &r));
+    h.run_steps(2);
+    h.state_mut().open_workspace(ws.clone());
+    h.state_mut().follow_up(Some("Add tags".into()));
+    assert!(runs.send(&ws.root, RunEvent::Step { step: Step::Build, text: "Building the first version…".into() }));
+    assert!(runs.send(&ws.root, RunEvent::Agent(AgentEvent::TextDelta { text: "Adding the tags now.".into() })));
+    // A status note after the words leaves them open before it.
+    assert!(runs.send(&ws.root, RunEvent::Agent(AgentEvent::Status { text: "Asking Claude Code…".into() })));
+    h.run_steps(3);
+    let writing = dots(&h);
+    assert!(writing >= 3, "the dots show while it works: {writing}");
+    assert!(runs.finish(&ws.root));
+    h.run_steps(3);
+    let open = |app: &CraftApp| app.state.feed.iter().filter(|f| matches!(f, FeedItem::Agent { streaming: true, .. })).count();
+    assert_eq!(open(h.state()), 0, "the run's end closes every open message: {:?}", h.state().state.feed);
+    let ended = dots(&h);
+    assert!(ended + 3 <= writing, "no dots once it ended: {ended} of {writing}");
+    // A message still open with no build running (as a turn that never closed leaves it).
+    h.state_mut().state.feed.push(FeedItem::Agent { text: "Left open.".into(), streaming: true });
+    h.run_steps(3);
+    assert_eq!(dots(&h), ended, "no dots without a running build");
+}
+
+/// A build left Building with no run (its last turn never closed, then the app restarted) offers
+/// "Check it now" beside Continue and "It's done": the checks run on what's built, without the
+/// builder, and it's Ready to try when they pass.
+#[test]
+fn a_build_left_building_can_be_checked_now() {
+    use craft_anything_ai::rebuild::StandIns;
+    use craft_anything_engine::workspace::{Status, TargetRef, Workspace};
+    let d = tempfile::tempdir().unwrap();
+    let mut ws = Workspace::create(d.path(), "Alpha", "A notes app", TargetRef::None).unwrap();
+    ws.set_status(Status::Building, "Building the first version…").unwrap();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().to_path_buf(), runs.clone());
+    let mut h = harness(move || stand_in_app(dir, &r));
+    h.run_steps(2);
+    h.state_mut().open_workspace(ws.clone());
+    h.run_steps(3);
+    h.get_by_label("This build stopped part-way");
+    h.get_by_label("Continue");
+    h.get_by_label("It's done");
+    h.get_by_label("Check it now").click();
+    h.run_steps(3);
+    assert_eq!(runs.checked(), vec![ws.root.clone()], "a check-only run started");
+    assert!(runs.continued().contains(&ws.root));
+    assert!(runs.finish(&ws.root));
+    h.run_steps(2);
+}
+
 /// The side panel's "This build" list: a row per stage, check (with its likeness and what
 /// differs), question (answered or waiting) and error, the latest highlighted; a long build
 /// shows its last rows and counts the earlier ones; a click scrolls the feed to the item.

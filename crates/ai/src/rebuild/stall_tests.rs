@@ -176,3 +176,146 @@ fn try_again_does_not_restart_a_build_that_never_works() {
     assert!(ws.manifest.checks.len() > total, "a new request runs checks again");
     assert!(ws.manifest.not_working_checks <= NOT_WORKING_CHECK_LIMIT, "{}", ws.manifest.not_working_checks);
 }
+
+/// A conversation that never sends `TurnDone`: it says something, then reports it isn't working
+/// from the `idle_from`th poll on (busy before then), and ends its turn properly at the
+/// `done_at`th poll, if given.
+struct NeverCloses {
+    polls: usize,
+    idle_from: usize,
+    done_at: Option<usize>,
+}
+
+impl Conversation for NeverCloses {
+    fn send(&mut self, _: &str) {}
+    fn poll(&mut self) -> Vec<AgentEvent> {
+        self.polls += 1;
+        if self.polls == 1 {
+            return vec![AgentEvent::TextDelta { text: "All done.".into() }];
+        }
+        if Some(self.polls) == self.done_at {
+            return vec![AgentEvent::TurnDone { backend: "scripted".into(), input_tokens: 1, output_tokens: 1, cost_usd: None, cost_is_estimate: false }];
+        }
+        Vec::new()
+    }
+    fn answer_consent(&mut self, _: &str, _: bool) {}
+    fn stop(&mut self) {}
+    fn is_busy(&self) -> bool {
+        self.polls < self.idle_from
+    }
+}
+
+fn closed_late(e: &RunEvent) -> bool {
+    matches!(e, RunEvent::Agent(AgentEvent::Status { text }) if text.contains("turn didn't close"))
+}
+
+/// The builder's conversation says it isn't working but never sends `TurnDone`: the run closes
+/// the turn itself after the grace, as a finished turn (the reply is kept, the checks come next),
+/// and says so. Time spent working doesn't count towards the grace.
+#[test]
+fn a_turn_the_builder_finished_but_never_closed_is_closed_after_the_grace() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut ws = Workspace::create(dir.path(), "Never closes", "Build an app", TargetRef::None).unwrap();
+    let mut worker = check_worker(&ws, false);
+    worker.turn_close_grace = Duration::from_millis(300);
+    let (tx, rx) = std::sync::mpsc::channel();
+    worker.tx = tx;
+    let mut agent = NeverCloses { polls: 0, idle_from: 2, done_at: None };
+    let began = Instant::now();
+    let reply = worker.converse(&mut ws, &mut agent, "Build it").unwrap();
+    assert_eq!(reply, "All done.");
+    assert!(began.elapsed() < Duration::from_secs(10), "{:?}", began.elapsed());
+    let events: Vec<_> = rx.try_iter().collect();
+    let notice = events.iter().position(closed_late).unwrap_or_else(|| panic!("{events:?}"));
+    let done = events.iter().position(|e| matches!(e, RunEvent::Agent(AgentEvent::TurnDone { .. }))).unwrap();
+    assert!(notice < done, "{events:?}");
+
+    // Busy for about a second (well past the grace), then done properly: nothing is closed early.
+    let (tx, rx) = std::sync::mpsc::channel();
+    worker.tx = tx;
+    let mut agent = NeverCloses { polls: 0, idle_from: 9, done_at: Some(9) };
+    worker.converse(&mut ws, &mut agent, "Build it").unwrap();
+    let events: Vec<_> = rx.try_iter().collect();
+    assert!(!events.iter().any(closed_late), "{events:?}");
+    assert_eq!(events.iter().filter(|e| matches!(e, RunEvent::Agent(AgentEvent::TurnDone { .. }))).count(), 1);
+}
+
+/// A kind whose one check passes or fails, as told.
+struct CheckedOnly(bool);
+
+struct FixedCheck(bool);
+
+impl Check for FixedCheck {
+    fn id(&self) -> &'static str {
+        "fixed"
+    }
+    fn run(&self, cx: &mut CheckCx) -> Result<CheckResult, ToolError> {
+        Ok(CheckResult::new(self.id(), cx.round, self.0, if self.0 { "It builds and runs." } else { "It doesn't build." }))
+    }
+}
+
+impl TargetKind for CheckedOnly {
+    fn id(&self) -> &'static str {
+        "checked-only"
+    }
+    fn words(&self) -> KindWords {
+        KindWords { button: "Build it", icon: "code", ready: "It's ready", change_hint: "Ask for a change" }
+    }
+    fn detect(&self, _cx: &DetectCx) -> Option<u32> {
+        Some(1000)
+    }
+    fn default_stack(&self, _cx: &DetectCx) -> &'static str {
+        "Scripted stack"
+    }
+    fn goal(&self) -> &'static str {
+        "a scripted app"
+    }
+    fn checks(&self, _ws: &Workspace) -> Vec<Box<dyn Check>> {
+        vec![Box::new(FixedCheck(self.0))]
+    }
+}
+
+/// "Check it now" on a build left Building (its last turn never closed): the checks a turn gets
+/// run on what's there, and the builder is never asked anything. A working build becomes Ready
+/// (so it can be played); one that doesn't work says what the check found.
+#[test]
+fn a_check_alone_marks_a_working_build_ready_without_asking_the_builder() {
+    for works in [true, false] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut ws = Workspace::create(dir.path(), "Left building", "Build an app", TargetRef::None).unwrap();
+        std::fs::create_dir_all(ws.app_dir()).unwrap();
+        std::fs::write(ws.app_dir().join("main.txt"), "built").unwrap();
+        ws.manifest.stack = "Scripted stack".into();
+        ws.set_status(Status::Building, "Building the first version…").unwrap();
+        let mut worker = check_worker(&ws, false);
+        let seen = Arc::default();
+        let model = Scripted { turns: Default::default(), seen: Arc::clone(&seen) };
+        let slot = ModelSlot { name: "Scripted".into(), model: Box::new(model), local: true, effort: None, max_turns: 10, context_tokens: 0 };
+        let api = ApiConversation::start(Arc::new(EngineHost(worker.engine.clone())), vec![slot], LoopConfig::default()).unwrap();
+        let entry = crate::BackendEntry {
+            config: crate::BackendConfig {
+                name: "Scripted".into(),
+                kind: BackendKind::OpenaiCompatible,
+                model: "scripted".into(),
+                base_url: None,
+                ssh_host: None,
+                enabled: true,
+            },
+            options: Default::default(),
+        };
+        let mut kinds = KindRegistry::built_in();
+        kinds.register(Arc::new(CheckedOnly(works)));
+        let opts = RunOptions { continuing: true, check_only: true, max_rounds: 0, kinds, ..RunOptions::default() };
+        let result = worker.run(&mut ws, entry, Some(api), None, &opts);
+        assert!(seen.lock().unwrap().is_empty(), "works {works}: the builder was asked something");
+        assert_eq!(ws.manifest.checks.len(), 1, "works {works}: one check round");
+        if works {
+            let summary = result.unwrap();
+            assert!(summary.starts_with("Ready"), "{summary}");
+            assert_eq!(ws.manifest.status, Status::Ready);
+        } else {
+            let error = result.unwrap_err();
+            assert!(error.message.contains("isn't working yet") && error.message.contains("doesn't build"), "{error:?}");
+        }
+    }
+}

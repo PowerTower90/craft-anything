@@ -357,6 +357,7 @@ impl Worker {
             usage: None,
             self_check: None,
             reset_progress_after_notes: false,
+            turn_close_grace: TURN_CLOSE_GRACE,
         }
     }
 }

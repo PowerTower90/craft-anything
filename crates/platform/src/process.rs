@@ -37,6 +37,9 @@ use std::time::{Duration, Instant};
 pub type Cancel = Arc<dyn Fn() -> bool + Send + Sync>;
 /// Receives each complete output line (without the line ending), lossily decoded as UTF-8.
 pub type LineSink = Arc<dyn Fn(&str) + Send + Sync>;
+/// Told once that the program has ended, before its group is cleaned up and its output drained:
+/// `true` when it exited on its own with success.
+pub type EndSink = Arc<dyn Fn(bool) + Send + Sync>;
 
 /// What the child's stdin is connected to.
 #[derive(Debug, Clone, Default)]
@@ -59,6 +62,8 @@ pub const DEFAULT_STDERR_CAP: usize = 1024 * 1024;
 /// How long to wait for the output threads after the child exits (an escaped grandchild may hold
 /// the pipe open; we stop waiting rather than hang).
 const DRAIN_GRACE: Duration = Duration::from_secs(2);
+/// How long to wait for a killed program to be gone before reporting anyway.
+const KILL_GRACE: Duration = Duration::from_secs(2);
 /// Longest partial line kept before it is delivered anyway. MCP servers answer `tools/list` as
 /// one JSON-RPC line that can be megabytes (a plugin with many richly described tools), so this
 /// must cover such a whole line: a fragment is not JSON, and the answer would never parse.
@@ -80,6 +85,7 @@ pub struct Process {
     cancel: Option<Cancel>,
     on_stdout: Option<LineSink>,
     on_stderr: Option<LineSink>,
+    on_end: Option<EndSink>,
     label: Option<String>,
     remediation: Option<String>,
     hands_off: bool,
@@ -131,6 +137,7 @@ impl Process {
             cancel: None,
             on_stdout: None,
             on_stderr: None,
+            on_end: None,
             label: None,
             remediation: None,
             hands_off: false,
@@ -230,6 +237,14 @@ impl Process {
 
     pub fn on_stderr_line(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
         self.on_stderr = Some(Arc::new(f));
+        self
+    }
+
+    /// Be told as soon as the program has ended (see [`EndSink`]), on the supervisor's thread,
+    /// before anything else is waited for: a caller can tell a finished program from a run whose
+    /// clean-up is slow.
+    pub fn on_end(mut self, f: impl Fn(bool) + Send + Sync + 'static) -> Self {
+        self.on_end = Some(Arc::new(f));
         self
     }
 
@@ -344,6 +359,7 @@ impl Process {
             idle: self.idle,
             hands_off: self.hands_off,
             cancel: self.cancel.clone(),
+            on_end: self.on_end.clone(),
             kill: kill.clone(),
             activity,
             readers,
@@ -759,6 +775,7 @@ struct Supervisor {
     idle: Option<Duration>,
     hands_off: bool,
     cancel: Option<Cancel>,
+    on_end: Option<EndSink>,
     kill: Arc<AtomicBool>,
     activity: Arc<AtomicU64>,
     readers: Vec<Option<JoinHandle<()>>>,
@@ -777,13 +794,13 @@ enum Stop {
 impl Supervisor {
     fn run(mut self) -> Result<Output, ToolError> {
         let stop = self.watch();
-        if !matches!(stop, Stop::Exited(_)) {
-            let _ = self.child.start_kill();
-            let _ = self.child.kill();
-        } else {
-            // The leader exited; take any leftover group members with it so they can't hold the pipes.
-            let _ = self.child.kill();
+        if let Some(end) = &self.on_end {
+            let ok = matches!(&stop, Stop::Exited(status) if status.success());
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| end(ok)));
         }
+        // Stopped, or the leader exited: take any leftover group members with it so they can't
+        // hold the pipes.
+        self.end_group();
         self.drain();
         let duration = self.start.elapsed();
         let (stdout, stdout_truncated) = take(&self.out_buf);
@@ -840,6 +857,27 @@ impl Supervisor {
             }
             std::thread::sleep(tick);
             tick = (tick * 2).min(Duration::from_millis(25));
+        }
+    }
+
+    /// Kill what's left of the group and reap the leader, waiting at most [`KILL_GRACE`]. Never
+    /// `ChildWrapper::kill`/`wait`: on Windows those wait on the Job Object's completion port for
+    /// one more message, and `try_wait` (polled in [`Supervisor::watch`]) takes one message off
+    /// that port on every call. When the polls had already taken the last ones (the leader's exit
+    /// and "no process left"), the wait never returned: the run never ended, though the agent had
+    /// exited long before, and its turn never closed.
+    fn end_group(&mut self) {
+        let _ = self.child.start_kill();
+        let deadline = Instant::now() + KILL_GRACE;
+        loop {
+            match self.child.try_wait() {
+                Ok(Some(_)) | Err(_) => return,
+                Ok(None) if Instant::now() >= deadline => {
+                    log::warn!("{}: still running {} s after it was killed; not waiting for it", self.name, KILL_GRACE.as_secs());
+                    return;
+                }
+                Ok(None) => std::thread::sleep(Duration::from_millis(5)),
+            }
         }
     }
 
@@ -1442,6 +1480,56 @@ mod launch_tests {
             assert!(out.success, "{fixture}: {}", out.stderr_text());
             assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0, "the unguarded {fixture} wrote files");
         }
+    }
+
+    /// The leader exited and the polls had already taken every message off its Job Object's
+    /// port (Windows): the clean-up after it waited on that port for good, so the run never
+    /// ended, and a builder's turn stayed open long after the agent had finished. It must end at
+    /// once, and say the program ended before anything else is waited for.
+    #[test]
+    fn a_run_ends_when_its_finished_group_has_nothing_left_to_report() {
+        let (program, args) = if cfg!(windows) { ("cmd", ["/C", "exit 0"]) } else { ("sh", ["-c", "exit 0"]) };
+        let mut wrap = CommandWrap::with_new(program, |cmd| {
+            cmd.args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        });
+        #[cfg(unix)]
+        wrap.wrap(process_wrap::std::ProcessGroup::leader());
+        #[cfg(windows)]
+        wrap.wrap(process_wrap::std::JobObject);
+        let mut child = wrap.spawn().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !matches!(child.try_wait(), Ok(Some(_))) {
+            assert!(Instant::now() < deadline, "the stand-in never exited");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        // Take whatever is left on the port, as the supervisor's polls can.
+        for _ in 0..32 {
+            let _ = child.try_wait();
+        }
+        let ended = Arc::new(AtomicBool::new(false));
+        let told = ended.clone();
+        let supervisor = Supervisor {
+            child,
+            name: "stand-in".into(),
+            start: Instant::now(),
+            wall: Duration::from_secs(120),
+            idle: None,
+            hands_off: false,
+            cancel: None,
+            on_end: Some(Arc::new(move |ok| told.store(ok, Ordering::SeqCst))),
+            kill: Arc::default(),
+            activity: Arc::default(),
+            readers: Vec::new(),
+            out_buf: Arc::new(Mutex::new(Capped::new(1024))),
+            err_buf: Arc::new(Mutex::new(Capped::new(1024))),
+        };
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(supervisor.run());
+        });
+        let out = rx.recv_timeout(Duration::from_secs(15)).expect("the run ended after its program exited").unwrap();
+        assert!(out.success);
+        assert!(ended.load(Ordering::SeqCst), "the program's end was reported");
     }
 
     fn exits_with(code: u8) -> Process {

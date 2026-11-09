@@ -135,6 +135,11 @@ pub struct RunOptions {
     /// told to carry on rather than given the brief again. A run with no message on a project
     /// whose builder has already worked does the same, so "Try again" never starts over.
     pub continuing: bool,
+    /// Only check what's built now: no builder turn, the checks a finished turn gets, then
+    /// Ready when the build works, or what the checks found. For a build left Building by a turn
+    /// that never closed, or that the person finished by hand. The builder isn't asked for
+    /// anything, whatever `max_rounds` says.
+    pub check_only: bool,
     /// Refinement rounds after the first build (each fixes what the last check found).
     pub max_rounds: u32,
     /// Stop refining once the build looks at least this alike (percent).
@@ -160,6 +165,7 @@ impl Default for RunOptions {
             shown: None,
             shown_pictures: Vec::new(),
             continuing: false,
+            check_only: false,
             max_rounds: 6,
             good_enough: 90.0,
             beginner: true,
@@ -298,6 +304,7 @@ impl RebuildRun {
             usage: Some(UsageClock { root: root.clone(), since: Instant::now() }),
             self_check: None,
             reset_progress_after_notes: false,
+            turn_close_grace: TURN_CLOSE_GRACE,
         };
         let r2 = running.clone();
         let key_store = hub.keys.clone();
@@ -510,7 +517,15 @@ struct Worker {
     self_check: Option<self_check::SelfCheck>,
     /// A hook consumed a new request; persist its reset only after the builder finishes.
     reset_progress_after_notes: bool,
+    /// How long the builder may say it isn't working before a turn that never closed is closed
+    /// ([`TURN_CLOSE_GRACE`]; shorter in tests).
+    turn_close_grace: Duration,
 }
+
+/// How long a builder's conversation may report it isn't working, with no `TurnDone`, before the
+/// run closes the turn itself and carries on: a turn that's done but never said so would
+/// otherwise keep the run waiting for good.
+const TURN_CLOSE_GRACE: Duration = Duration::from_secs(60);
 
 /// The project a run records its usage in, and when it last did.
 struct UsageClock {
@@ -764,10 +779,11 @@ impl Worker {
             progress.reset();
             progress.save(&ws.root)?;
         }
-        // Fail before any work when the agent's tools are missing or it can't sign in.
+        // Fail before any work when the agent's tools are missing or it can't sign in (a check
+        // alone doesn't ask the agent anything).
         let remote_host = entry.config.ssh_host.as_deref().map(str::trim).filter(|h| !h.is_empty());
         let remote = remote_host.is_some();
-        if api.is_none() {
+        if api.is_none() && !opts.check_only {
             let adapter = opts.adapters.for_backend(&entry.config.model, &entry.options);
             if let Some(host) = remote_host {
                 adapter.check_remote_tool_server(host, &self.stop)?;
@@ -803,7 +819,8 @@ impl Worker {
         self.editor = self.find_editor(&ws.manifest.stack)?;
         let api_resumed = api.as_ref().is_none_or(crate::agent::ApiConversation::resumed);
         let carrying_on = is_carrying_on(opts, ws, api_resumed);
-        let first = (opts.message.is_none() && !carrying_on) || !ws.capture_dir().exists();
+        // A check alone studies nothing: it checks what is there.
+        let first = !opts.check_only && ((opts.message.is_none() && !carrying_on) || !ws.capture_dir().exists());
         if first {
             self.study(ws, kind)?;
             if let Some((name, ex)) = extractor {
@@ -837,7 +854,9 @@ impl Worker {
         if resumed && let Some(a) = &keeper {
             self.restore_session(ws, a.as_ref());
         }
-        self.step(ws, Step::Build, Status::Building, "Getting the builder ready…")?;
+        if !opts.check_only {
+            self.step(ws, Step::Build, Status::Building, "Getting the builder ready…")?;
+        }
         // A coding agent that never saved a session starts over, so it needs the brief.
         let has_history = resumable && (api_loop || resumed);
         let mut agent: Box<dyn Conversation> = match api {
@@ -887,7 +906,7 @@ impl Worker {
                 ws.manifest.not_working_checks = 0;
                 ws.save()?;
             }
-        } else if ws.manifest.not_working_checks >= NOT_WORKING_CHECK_LIMIT {
+        } else if !opts.check_only && ws.manifest.not_working_checks >= NOT_WORKING_CHECK_LIMIT {
             return Err(not_working(ws));
         }
         let mut refinements = 0;
@@ -895,7 +914,7 @@ impl Worker {
         let must_decompile = deep && matches!(ws.manifest.target, TargetRef::Local { .. });
         let mut reminded = false;
         // The builder finished and only the check didn't: the build is there to check.
-        let mut only_check = carrying_on && !first && opts.message.is_none() && ws.manifest.awaiting_check;
+        let mut only_check = opts.check_only || (carrying_on && !first && opts.message.is_none() && ws.manifest.awaiting_check);
         loop {
             if !std::mem::take(&mut only_check) {
                 progress = BuildProgress::load(&ws.root)?;
@@ -1003,6 +1022,10 @@ impl Worker {
                 ws.manifest.not_working_checks = 0;
                 prompt = p;
                 continue;
+            }
+            // A check alone ends with what it found; it never asks the builder for a fix.
+            if opts.check_only {
+                break;
             }
             let not_good = checks.iter().find(|c| !c.good(opts.good_enough));
             if not_good.is_some() && progress_available && progress.stalled() {
@@ -1278,11 +1301,24 @@ impl Worker {
         }
         let mut reply = String::new();
         let mut failed = None;
+        // Since when the conversation has said it isn't working while its turn is still open.
+        let mut idle_since: Option<Instant> = None;
         loop {
             if self.stop.is_cancelled() {
                 agent.stop();
             }
-            for e in agent.poll() {
+            let mut events = agent.poll();
+            if agent.is_busy() || events.iter().any(|e| matches!(e, AgentEvent::TurnDone { .. })) {
+                idle_since = None;
+            } else if idle_since.get_or_insert_with(Instant::now).elapsed() >= self.turn_close_grace {
+                log::warn!(
+                    "The builder's conversation has said it isn't working for {} s, but its turn never closed; closing it now",
+                    self.turn_close_grace.as_secs()
+                );
+                events.push(AgentEvent::Status { text: "The builder finished but its turn didn't close; closing it now.".into() });
+                events.push(AgentEvent::TurnDone { backend: String::new(), input_tokens: 0, output_tokens: 0, cost_usd: None, cost_is_estimate: false });
+            }
+            for e in events {
                 if matches!(e, AgentEvent::ToolFinished { .. } | AgentEvent::TurnDone { .. }) {
                     let mut session = self.engine.session();
                     let project = session.project.clone().filter(|project| project.root == ws.investigation_dir());

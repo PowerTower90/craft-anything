@@ -25,6 +25,17 @@ pub fn specs() -> Vec<ToolSpec> {
             run: rebuild_start,
         },
         ToolSpec {
+            id: "rebuild_check_now",
+            title: "Check a build now",
+            summary: "Run the checks a builder turn gets on what a project has built now, without asking the builder anything: whether it builds and runs, and how close it is to the original. When it works the project becomes Ready (so it can be played or opened); otherwise the checks say what they found. For a build left Building or stopped part-way after the builder had finished (a turn that never closed, the app closed). It runs the project's own build, so it needs consent. Refused while the project is building.",
+            beginner: "Checks what's built so far and marks it ready when it works.",
+            toolset: Toolset::Projects,
+            effects: Effects::LAUNCHES_PROCESS.union(Effects::EXECUTES_FOREIGN_CODE).union(Effects::WRITES_FILESYSTEM).union(Effects::ACCESSES_NETWORK),
+            requires: Requires::Nothing,
+            input_schema: schema_of::<ProjectParams>,
+            run: rebuild_check_now,
+        },
+        ToolSpec {
             id: "rebuild_status",
             title: "Rebuild status",
             summary: "Whether a project's build is running in this session (or queued, and where), its status and note, the latest check, and how many questions are waiting. For a running build: `started_secs_ago`, `quiet_secs` (since its last event) and `now` (the action under way, in words), what the app's status row shows.",
@@ -380,6 +391,35 @@ fn rebuild_start(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolErr
     Ok(ToolOutput::Value(out))
 }
 
+/// A run that only checks the project's build ([`RunOptions::check_only`]).
+fn rebuild_check_now(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    let p: ProjectParams = parse_params(params)?;
+    let engine = engine(ctx).ok_or_else(|| {
+        ToolError::new(ErrorCode::FeatureMissing, "Checking a build isn't available in this engine.").with_remediation("Use the app or the CLI.")
+    })?;
+    let runs = runs(ctx);
+    let ws = open(&p.project)?;
+    let mut set = runs.0.lock().unwrap_or_else(PoisonError::into_inner);
+    refresh(ctx, &mut set);
+    if set.is_busy(&ws.root) {
+        return Err(ToolError::new(ErrorCode::BadInput, "This project is already building.")
+            .with_remediation("Its checks run when the builder's turn ends. To check now, stop it with rebuild_stop first."));
+    }
+    let root = ws.root.clone();
+    let opts =
+        RunOptions { continuing: true, check_only: true, max_rounds: 0, beginner: false, clean_room: Some(ctx.session.clean_room()), ..RunOptions::default() };
+    let hub = AiHub::with_stores(engine, ctx.session.config_dir().join("config.toml"), crate::KeyStore::system());
+    let out = match set.start(&hub, ws, opts)? {
+        Started::Running => json!({"project": root.display().to_string(), "started": true}),
+        Started::Queued { position } => {
+            drop(set);
+            runs::keep_queue_moving(&runs.0, &hub.engine, ctx.session.config_dir().join("config.toml"), QUEUE_TICK);
+            json!({"project": root.display().to_string(), "started": false, "queued": position})
+        }
+    };
+    Ok(ToolOutput::Value(out))
+}
+
 fn rebuild_status(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
     let p: ProjectParams = parse_params(params)?;
     let ws = open(&p.project)?;
@@ -710,6 +750,23 @@ mod tests {
         let notice = out["result"]["builder_notice"].as_str().unwrap_or_default();
         assert!(notice.contains("Off") && notice.contains("Claude"), "{out}");
         let _ = e.call("rebuild_stop", json!({"project": ws.root}), ok());
+    }
+
+    /// "Check it now" headless: it needs consent (it runs the project's own build), a real
+    /// project and a builder to resolve, and says plainly when it can't start.
+    #[test]
+    fn checking_a_build_now_needs_consent_a_project_and_a_builder() {
+        let d = tempfile::tempdir().unwrap();
+        let e = Engine::shared(craft_anything_engine::testing::session(), specs());
+        let ws = Workspace::create(d.path(), "Notes", "A notes app", TargetRef::None).unwrap();
+        let asked = e.call("rebuild_check_now", json!({"project": ws.root}), CallOptions::new(Caller::Mcp));
+        assert!(asked.is_err(), "it runs the project's build, so it asks first");
+        let ok = || CallOptions::new(Caller::Cli).with_consent(Consent::Granted);
+        assert!(e.call("rebuild_check_now", json!({"project": d.path().join("nope")}), ok()).is_err(), "not a project");
+        // No AI is set up in this session: nothing starts, and the error says why.
+        let err = e.call("rebuild_check_now", json!({"project": ws.root}), ok()).unwrap_err();
+        assert!(!err.message.is_empty(), "{err:?}");
+        assert_eq!(e.call("rebuild_status", json!({"project": ws.root}), ok()).unwrap().to_json()["result"]["running"], json!(false));
     }
 
     #[test]
