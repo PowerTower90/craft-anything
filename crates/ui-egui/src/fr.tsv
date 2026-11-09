@@ -1461,3 +1461,24 @@ In this project, {kind}: {choice}.	Dans ce projet, {kind} : {choice}.
 Couldn't change the approvals:	Impossible de modifier les autorisations :
 What the builder may do without asking you, in this project.	Ce que le constructeur peut faire sans vous demander, dans ce projet.
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	Par défaut suit le mode automatique : activé, ce qui peut être annulé se fait et le reste est refusé ; désactivé, le constructeur demande.
+under a minute	moins d’une minute
+{n} min	{n} min
+Status check: what are you doing right now?	Point d’étape : que fais-tu en ce moment ?
+Nothing new for {time}	Rien de nouveau depuis {time}
+Last said: {text}	Dernière parole : {text}
+Nudge	Relancer
+Stops the build. Continue picks up where it stopped.	Arrête la construction. Continuer reprend là où elle s’est arrêtée.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	Demande au constructeur de dire en une ligne ce qu’il fait ; s’il est bloqué, de terminer son tour et d’expliquer.
+This build	Cette construction
+{n} earlier	{n} plus tôt
+Check: {s}%	Vérification : {s} %
+Check: passed	Vérification : réussie
+Check: failed	Vérification : échouée
+{n} differ	{n} diffèrent
+Asked you: {text}	Question posée : {text}
+answered	répondu
+waiting	en attente
+The build stopped on an error	La construction s’est arrêtée sur une erreur
+{name} · quiet {time}	{name} · silencieux depuis {time}
+{name} · Building · {time}	{name} · En construction · {time}
+Building on another screen. Click to open it.	Construction en cours sur un autre écran. Cliquez pour l’ouvrir.

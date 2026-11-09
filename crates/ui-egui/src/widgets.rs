@@ -477,6 +477,16 @@ pub fn thinking(ui: &mut Ui) {
 /// How long a run may say nothing before the note points it out.
 const QUIET_NOTE_AFTER: std::time::Duration = std::time::Duration::from_secs(60);
 
+/// How long a run may say nothing before the status row offers something to do about it (stop
+/// it, nudge it, read its log), and the title bar calls it quiet.
+pub const QUIET_ACTIONS_AFTER: std::time::Duration = std::time::Duration::from_secs(5 * 60);
+
+/// A wait in whole minutes ("12 min"), for a glance; under a minute says so.
+pub fn minutes_words(d: std::time::Duration) -> String {
+    let mins = d.as_secs() / 60;
+    if mins == 0 { tr("under a minute") } else { crate::i18n::trf("{n} min", &[("n", &mins.to_string())]) }
+}
+
 fn wait_note(secs: u64, quiet: Option<std::time::Duration>) -> Option<String> {
     match quiet {
         Some(q) if q >= QUIET_NOTE_AFTER => Some(crate::i18n::trf(

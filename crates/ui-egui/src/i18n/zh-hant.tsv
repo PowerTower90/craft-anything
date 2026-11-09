@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	程式設計代理應用程式（透過 SS
 on another computer over SSH (not checked); set up when you start	位於另一台電腦，透過 SSH（未檢查）；啟動時設定
 On another computer over SSH (not checked)	位於另一台電腦，透過 SSH（未檢查）
 Install Claude Code on this computer and sign in once, then Look again.	在此電腦上安裝 Claude Code 並登入一次，然後點選「再找一次」。
+under a minute	不到一分鐘
+{n} min	{n} 分鐘
+Status check: what are you doing right now?	狀態檢查：你現在在做什麼？
+Nothing new for {time}	已有 {time} 沒有新進展
+Last said: {text}	最後說：{text}
+Nudge	催一下
+Stops the build. Continue picks up where it stopped.	停止建置。「繼續」會從停下的地方接著做。
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	請建置器用一行話說明正在做什麼；如果卡住了，請結束本輪並說明。
+This build	本次建置
+{n} earlier	更早 {n} 項
+Check: {s}%	檢查：{s}%
+Check: passed	檢查：通過
+Check: failed	檢查：未通過
+{n} differ	{n} 項不同
+Asked you: {text}	向你提問：{text}
+answered	已回答
+waiting	等待中
+The build stopped on an error	建置因錯誤而停止
+{name} · quiet {time}	{name} · 已安靜 {time}
+{name} · Building · {time}	{name} · 建置中 · {time}
+Building on another screen. Click to open it.	正在另一個畫面建置。點一下開啟。

@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	แอปเอเจนต์เขีย
 on another computer over SSH (not checked); set up when you start	ในเครื่องอื่นผ่าน SSH (ยังไม่ได้ตรวจสอบ) ตั้งค่าเมื่อคุณเริ่ม
 On another computer over SSH (not checked)	ในเครื่องอื่นผ่าน SSH (ยังไม่ได้ตรวจสอบ)
 Install Claude Code on this computer and sign in once, then Look again.	ติดตั้ง Claude Code ในเครื่องนี้ ลงชื่อเข้าใช้หนึ่งครั้ง แล้วกดค้นหาอีกครั้ง
+under a minute	ไม่ถึงหนึ่งนาที
+{n} min	{n} นาที
+Status check: what are you doing right now?	ตรวจสอบสถานะ: ตอนนี้คุณกำลังทำอะไรอยู่?
+Nothing new for {time}	ไม่มีอะไรใหม่มา {time} แล้ว
+Last said: {text}	พูดล่าสุด: {text}
+Nudge	สะกิด
+Stops the build. Continue picks up where it stopped.	หยุดการสร้าง ปุ่มดำเนินการต่อจะทำต่อจากจุดที่หยุดไว้
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	ขอให้ตัวสร้างบอกในหนึ่งบรรทัดว่ากำลังทำอะไร หากติดขัดให้จบเทิร์นและอธิบาย
+This build	การสร้างนี้
+{n} earlier	ก่อนหน้า {n} รายการ
+Check: {s}%	ตรวจสอบ: {s}%
+Check: passed	ตรวจสอบ: ผ่าน
+Check: failed	ตรวจสอบ: ไม่ผ่าน
+{n} differ	ต่างกัน {n} รายการ
+Asked you: {text}	ถามคุณ: {text}
+answered	ตอบแล้ว
+waiting	กำลังรอ
+The build stopped on an error	การสร้างหยุดเพราะข้อผิดพลาด
+{name} · quiet {time}	{name} · เงียบมา {time}
+{name} · Building · {time}	{name} · กำลังสร้าง · {time}
+Building on another screen. Click to open it.	กำลังสร้างอยู่ในหน้าจออื่น คลิกเพื่อเปิด

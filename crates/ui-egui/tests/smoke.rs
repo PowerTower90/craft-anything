@@ -2257,7 +2257,8 @@ fn a_build_that_stopped_part_way_offers_to_continue() {
     h.run_steps(3);
     assert_eq!(Workspace::open(&paused.root).unwrap().manifest.status, Status::Ready);
     assert!(h.query_by_label("Continue").is_none(), "nothing left to carry on");
-    h.get_by_label(craft_anything_engine::tools::project_tools::CALLED_DONE);
+    // In the feed, and as the last row of the side panel's build timeline.
+    assert_eq!(h.query_all_by_label(craft_anything_engine::tools::project_tools::CALLED_DONE).count(), 2);
     h.state_mut().open_workspace(cut.clone());
     h.run_steps(3);
     h.get_by_label("Beta, Interrupted");
@@ -3340,4 +3341,171 @@ fn a_look_that_fails_says_so_instead_of_spinning_for_ever() {
     h.state_mut().looks.start(Look::GameEngines, 0);
     h.run_steps(2);
     assert!(h.state().looks.error(Look::GameEngines).is_none());
+}
+
+/// Tier 1 feedback: a build quiet for five minutes gets a second line under the status row with
+/// how long, the last thing the builder said, and Stop, Nudge and Open log. Nudge is a note the
+/// builder reads at its next step, the same note `rebuild_note` would send.
+#[test]
+fn a_quiet_build_offers_stop_nudge_and_the_log_and_nudge_sends_a_note() {
+    use craft_anything_ai::AgentEvent;
+    use craft_anything_ai::rebuild::{RunEvent, StandIns, Step};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let d = tempfile::tempdir().unwrap();
+    let ws = Workspace::create(d.path(), "Alpha", "A notes app", TargetRef::None).unwrap();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().to_path_buf(), runs.clone());
+    let mut h = harness(move || stand_in_app(dir, &r));
+    h.run_steps(2);
+    h.state_mut().open_workspace(ws.clone());
+    h.state_mut().follow_up(Some("Add tags".into()));
+    assert!(runs.send(&ws.root, RunEvent::Step { step: Step::Build, text: "Building the first version…".into() }));
+    assert!(runs.send(&ws.root, RunEvent::Agent(AgentEvent::TextDelta { text: "I'll run the tests first.\n".into() })));
+    let tool = AgentEvent::ToolStarted { call_id: "a".into(), tool: "Bash".into(), input: serde_json::json!({"command": "cargo test"}) };
+    assert!(runs.send(&ws.root, RunEvent::Agent(tool)));
+    h.run_steps(3);
+    // Working and recently heard from: the row says what it's on and offers nothing more.
+    assert!(h.query_all_by_label_contains("Now: Running cargo test").count() >= 1);
+    assert!(h.query_by_label("Nudge").is_none());
+    // Seven quiet minutes later (the run is made to look older; the test doesn't wait).
+    assert!(runs.backdate(&ws.root, Duration::from_secs(7 * 60)));
+    h.run_steps(3);
+    h.get_by_label("Nothing new for 7 min");
+    h.get_by_label("Last said: I'll run the tests first.");
+    h.get_by_label("Stop");
+    h.get_by_label("Open log");
+    h.get_by_label("Nudge").click();
+    h.run_steps(2);
+    let waiting = h.state().runs.get(&ws.root).unwrap().waiting();
+    assert_eq!(waiting.len(), 1, "one note waits for the builder");
+    assert_eq!(waiting[0].text, craft_anything_ui_egui::project::NUDGE_NOTE);
+    // Stop goes the way Pause does: the build is asked to stop, and the box says so until it has.
+    h.get_by_label("Stop").click();
+    h.run_steps(2);
+    assert!(h.state().pausing.contains(&ws.root), "Stop is the pause path");
+    // The builder answers: the quiet ends and the second line goes.
+    assert!(runs.send(&ws.root, RunEvent::Agent(AgentEvent::TextDelta { text: "Still running the tests, nearly done.\n".into() })));
+    let read = AgentEvent::ToolStarted { call_id: "b".into(), tool: "Read".into(), input: serde_json::json!({"file_path": "a.rs"}) };
+    assert!(runs.send(&ws.root, RunEvent::Agent(read)));
+    h.run_steps(3);
+    assert!(h.query_by_label("Nudge").is_none(), "heard from: nothing to nudge");
+    assert!(runs.finish(&ws.root));
+    h.run_steps(2);
+}
+
+/// The side panel's "This build" list: a row per stage, check (with its likeness and what
+/// differs), question (answered or waiting) and error, the latest highlighted; a long build
+/// shows its last rows and counts the earlier ones; a click scrolls the feed to the item.
+#[test]
+fn the_side_panel_lists_the_builds_milestones() {
+    use craft_anything_ui_egui::state::FeedItem;
+    let mut h = harness(|| {
+        let mut a = demo::app(demo::engine(Mode::Beginner, true));
+        demo::fill_project(&mut a);
+        a
+    });
+    h.run_steps(3);
+    h.get_by_label("This build");
+    assert_eq!(h.query_all_by_label("Building the first version…").count(), 2, "the step: in the feed and on the timeline");
+    h.get_by_label("Check: 93% · 1 differ");
+    assert_eq!(h.query_all_by_label_contains("Asked you: Is example.com your site").count(), 1);
+    assert_eq!(h.query_all_by_label_contains("Asked you: Run a command").count(), 1, "the open approval is a row");
+    assert_eq!(h.query_all_by_label_contains("· waiting").count(), 1, "and it says it waits");
+    assert_eq!(h.query_all_by_label_contains("· answered").count(), 1);
+    assert_eq!(h.query_all_by_label_contains(" earlier").count(), 0, "every row fits: nothing counted above");
+    // A click scrolls the feed to the item (no crash, and the request is used up by the frame).
+    h.get_by_label("Check: 93% · 1 differ").click();
+    h.run_steps(3);
+    assert!(h.state().feed_jump.is_none());
+    // A long build keeps the list short and says how many rows came before.
+    let more: Vec<FeedItem> =
+        (0..10).map(|i| FeedItem::Step { step: craft_anything_ai::rebuild::Step::Build, text: format!("Round {i}: fixing the layout…") }).collect();
+    h.state_mut().state.feed.extend(more);
+    h.state_mut().state.feed.push(FeedItem::Error { message: "The agent app closed unexpectedly.".into(), remediation: None, log: None });
+    h.run_steps(3);
+    // 7 rows before, 11 added: 18, of which 12 show.
+    h.get_by_label("6 earlier");
+    assert_eq!(h.query_all_by_label("Round 9: fixing the layout…").count(), 2);
+    assert_eq!(h.query_all_by_label("Building the first version…").count(), 1, "an early row is folded into the count; the feed keeps it");
+    assert_eq!(
+        h.query_all_by_label("The agent app closed unexpectedly.").count(),
+        3,
+        "the error: in the feed, on the timeline and on the banner above the prompt box"
+    );
+}
+
+/// A build that stopped on an error says so above the prompt box, with the fix and Try again,
+/// beside the card in the feed; the banner goes once a new run starts.
+#[test]
+fn a_build_that_stopped_on_an_error_says_so_above_the_prompt_box_with_try_again() {
+    use craft_anything_ai::AgentEvent;
+    use craft_anything_ai::rebuild::{RunEvent, StandIns};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let d = tempfile::tempdir().unwrap();
+    let ws = Workspace::create(d.path(), "Alpha", "A notes app", TargetRef::None).unwrap();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().to_path_buf(), runs.clone());
+    let mut h = harness(move || stand_in_app(dir, &r));
+    h.run_steps(2);
+    h.state_mut().open_workspace(ws.clone());
+    h.state_mut().follow_up(Some("Add tags".into()));
+    h.run_steps(2);
+    assert!(h.query_by_label("The build stopped on an error").is_none());
+    let log = d.path().join("agent.log");
+    std::fs::write(&log, "stderr\n").unwrap();
+    let error =
+        AgentEvent::Error { message: "The agent app closed unexpectedly.".into(), remediation: Some("Sign in to Claude Code again.".into()), log: Some(log) };
+    assert!(runs.send(&ws.root, RunEvent::Agent(error)));
+    assert!(runs.send(&ws.root, RunEvent::Finished { ok: false, message: "The agent app closed unexpectedly.".into(), paused: false }));
+    h.run_steps(3);
+    h.get_by_label("The build stopped on an error");
+    assert_eq!(h.query_all_by_label("Sign in to Claude Code again.").count(), 2, "the fix is on the card and the banner");
+    assert_eq!(h.query_all_by_label("Open log").count(), 2);
+    let retries: Vec<_> = h.query_all_by_label("Try again").collect();
+    assert_eq!(retries.len(), 2, "the card in the feed and the banner");
+    // The banner's is the lower one, right above the prompt box.
+    let banner = retries.iter().max_by(|a, b| a.rect().top().total_cmp(&b.rect().top())).unwrap();
+    banner.click();
+    h.run_steps(3);
+    assert_eq!(runs.started().len(), 2, "Try again starts another run");
+    assert!(h.query_by_label("The build stopped on an error").is_none(), "gone once a new run starts");
+    assert!(runs.finish(&ws.root));
+    h.run_steps(2);
+}
+
+/// A build going on a screen the person isn't looking at is named in the title bar, with how
+/// long it has gone (or how long it has been quiet); clicking it opens that project.
+#[test]
+fn a_build_on_another_screen_is_named_in_the_title_bar_and_opens_from_it() {
+    use craft_anything_ai::rebuild::StandIns;
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    use craft_anything_ui_egui::state::Screen;
+    let d = tempfile::tempdir().unwrap();
+    let a = Workspace::create(d.path(), "Alpha", "A notes app", TargetRef::None).unwrap();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().to_path_buf(), runs.clone());
+    let mut h = harness(move || stand_in_app(dir, &r));
+    h.run_steps(2);
+    h.state_mut().open_workspace(a.clone());
+    h.state_mut().follow_up(Some("Add tags".into()));
+    h.run_steps(2);
+    assert_eq!(h.query_all_by_label_contains("Alpha · ").count(), 0, "not while the person watches it");
+    h.state_mut().state.screen = Screen::Home;
+    h.run_steps(2);
+    h.get_by_label("Alpha · Building · under a minute");
+    h.state_mut().state.settings_open = true;
+    h.run_steps(2);
+    h.get_by_label("Alpha · Building · under a minute");
+    h.state_mut().state.settings_open = false;
+    // Quiet for seven minutes: the pill says so instead.
+    assert!(runs.backdate(&a.root, Duration::from_secs(7 * 60)));
+    h.run_steps(2);
+    assert!(h.query_by_label("Alpha · Building · 7 min").is_none());
+    h.get_by_label("Alpha · quiet 7 min").click();
+    h.run_steps(3);
+    assert!(matches!(h.state().state.screen, Screen::Project));
+    assert_eq!(h.state().workspace.as_ref().map(|w| w.root.clone()), Some(a.root.clone()));
+    assert_eq!(h.query_all_by_label_contains("Alpha · ").count(), 0, "back on its screen: no pill");
+    assert!(runs.finish(&a.root));
+    h.run_steps(2);
 }

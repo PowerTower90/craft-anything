@@ -19,6 +19,10 @@ use std::path::{Path, PathBuf};
 
 // ---- controller -------------------------------------------------------------------------------
 
+/// What Nudge tells a quiet builder. Fixed words (not translated): they're for the agent.
+pub const NUDGE_NOTE: &str =
+    "Status check from the person: say in one line what you are doing right now; if you are stuck or waiting, finish the turn and explain.";
+
 impl CraftApp {
     pub fn refresh_projects(&mut self) {
         let locations = self.settings.project_locations();
@@ -243,6 +247,25 @@ impl CraftApp {
         let ws = Workspace::open(&ws.root).unwrap_or(ws);
         let opts = RunOptions { continuing: true, ..self.run_options(Some(backend), None, None, Vec::new()) };
         self.start_run_with(ws, opts);
+    }
+
+    /// Ask a quiet build what it's doing (the status row's Nudge): a fixed note the builder
+    /// reads at its next step, as `rebuild_note` sends one. Nothing when no build is running.
+    pub fn nudge(&mut self) {
+        let Some(run) = self.open_run().filter(|r| r.is_running()) else { return };
+        run.add_note(NUDGE_NOTE.to_string(), tr("Status check: what are you doing right now?"), Vec::new());
+    }
+
+    /// Show the project at `root` (the title bar's pill for a build on another screen).
+    pub fn open_project_at(&mut self, root: &Path) {
+        let ws = match self.projects.iter().find(|p| p.root == root) {
+            Some(ws) => ws.clone(),
+            None => match Workspace::open(root) {
+                Ok(ws) => ws,
+                Err(e) => return self.toast(e.message, true),
+            },
+        };
+        self.open_workspace(ws);
     }
 
     pub fn pause(&mut self) {
@@ -954,6 +977,7 @@ fn side(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
     ui.add_space(14.0);
     steps(app, ui, ws);
     ui.add_space(14.0);
+    timeline(app, ui);
     open_questions(app, ui);
     asset_line(app, ui, ws);
     if outcome(app).is_some() {
@@ -1259,13 +1283,191 @@ fn feed(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
                 .join("  ·  ");
         let (began, quiet) = app.open_run().map_or((None, None), |r| (Some(r.started()), Some(r.quiet_for())));
         widgets::working_since(ui, title.unwrap_or("Working on it"), (!detail.is_empty()).then_some(detail.as_str()), began, quiet);
+        // The clock and the quiet time move once a second even when no event wakes the window.
+        ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
     }
+    let clicks = if status_row { quiet_row(app, ui) } else { QuietClicks::default() };
     run_details(app, ui, status_row);
     for (id, a, shown) in answers {
         app.answer_request(&id, a, shown);
     }
     if retry {
         app.follow_up(None);
+    }
+    if clicks.stop {
+        app.pause();
+    }
+    if clicks.nudge {
+        app.nudge();
+    }
+    if let Some(log) = clicks.open_log {
+        app.open_log(&log);
+    }
+}
+
+/// What the quiet row's buttons were asked for this frame.
+#[derive(Default)]
+struct QuietClicks {
+    stop: bool,
+    nudge: bool,
+    open_log: Option<PathBuf>,
+}
+
+/// The longest the quiet row quotes of what the builder last said.
+const LAST_SAID_LENGTH: usize = 120;
+
+/// The status row's second line once a run has been quiet for a while
+/// ([`widgets::QUIET_ACTIONS_AFTER`]): how long, the last thing the builder said, and something
+/// to do about it: stop it, nudge it (a note asking what it's on), or read its log.
+fn quiet_row(app: &CraftApp, ui: &mut Ui) -> QuietClicks {
+    let mut out = QuietClicks::default();
+    let Some(run) = app.open_run().filter(|r| r.is_running()) else { return out };
+    let quiet = run.quiet_for();
+    if quiet < widgets::QUIET_ACTIONS_AFTER {
+        return out;
+    }
+    let t = Tokens::get(ui.ctx());
+    ui.add_space(6.0);
+    egui::Frame::new()
+        .fill(t.card)
+        .stroke(egui::Stroke::new(1.0, t.warning.gamma_multiply(0.6)))
+        .corner_radius(t.r_lg())
+        .inner_margin(Margin::symmetric(16, 12))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                icons::show(ui, "history", 16.0, t.warning);
+                let since = trf("Nothing new for {time}", &[("time", &widgets::minutes_words(quiet))]);
+                ui.label(RichText::new(since).font(theme::semibold(theme::SMALL)).color(t.text));
+            });
+            if let Some(said) = run.last_said() {
+                let said = trf("Last said: {text}", &[("text", &cut_chars(&said, LAST_SAID_LENGTH))]);
+                ui.add(egui::Label::new(RichText::new(said).color(t.text_dim).size(theme::SMALL)).wrap());
+            }
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                out.stop =
+                    widgets::secondary(ui, Some("circle-stop"), "Stop").on_hover_text(tr("Stops the build. Continue picks up where it stopped.")).clicked();
+                out.nudge = widgets::secondary(ui, Some("zap"), "Nudge")
+                    .on_hover_text(tr("Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain."))
+                    .clicked();
+                if widgets::open_log_button(ui, &run.activity_log()) {
+                    out.open_log = Some(run.activity_log());
+                }
+            });
+        });
+    out
+}
+
+/// The first `most` characters, with an ellipsis when there were more.
+fn cut_chars(s: &str, most: usize) -> String {
+    match s.char_indices().nth(most) {
+        Some((end, _)) => format!("{}…", s.get(..end).unwrap_or_default().trim_end()),
+        None => s.to_string(),
+    }
+}
+
+/// One row of the side panel's "This build" list: what happened, and which feed item it is.
+struct TimelineRow {
+    /// The feed item it stands for (a click scrolls the feed there).
+    at: usize,
+    icon: &'static str,
+    text: String,
+    /// Something is wrong or waiting on the person.
+    attention: bool,
+}
+
+/// How many rows the timeline shows; the rest are counted above it.
+const TIMELINE_ROWS: usize = 12;
+/// The longest a row quotes of a question or an error.
+const TIMELINE_QUOTE: usize = 48;
+
+/// The build's milestones, from the feed: each stage, each check, each question and each error.
+fn timeline_rows(feed: &[FeedItem]) -> Vec<TimelineRow> {
+    let mut rows = Vec::new();
+    for (at, item) in feed.iter().enumerate() {
+        let row = match item {
+            FeedItem::Step { text, .. } => TimelineRow { at, icon: "chevron-right", text: text.clone(), attention: false },
+            FeedItem::Check(c) => {
+                let mut text = match c.similarity {
+                    Some(s) => trf("Check: {s}%", &[("s", &format!("{s:.0}"))]),
+                    None if c.passed => tr("Check: passed"),
+                    None => tr("Check: failed"),
+                };
+                // What the check found wanting: a claim that doesn't hold, or a page it couldn't picture.
+                let differing = c.claims.iter().filter(|c| !c.passed).count().saturating_add(c.unknowns.len());
+                if differing > 0 {
+                    text = format!("{text} · {}", trf("{n} differ", &[("n", &differing.to_string())]));
+                }
+                TimelineRow { at, icon: "scan-search", text, attention: !c.passed || differing > 0 }
+            }
+            FeedItem::Ask { request, answer } => {
+                let asked = trf("Asked you: {text}", &[("text", &cut_chars(&one_line(&request.title), TIMELINE_QUOTE))]);
+                let state = if answer.is_some() { tr("answered") } else { tr("waiting") };
+                TimelineRow { at, icon: "circle-help", text: format!("{asked} · {state}"), attention: answer.is_none() }
+            }
+            FeedItem::Error { message, .. } => TimelineRow { at, icon: "triangle-alert", text: cut_chars(&one_line(message), TIMELINE_QUOTE), attention: true },
+            _ => continue,
+        };
+        rows.push(row);
+    }
+    rows
+}
+
+/// "This build": the side panel's compact list of what the build has been through, newest last
+/// and highlighted. A click scrolls the feed to that item.
+fn timeline(app: &mut CraftApp, ui: &mut Ui) {
+    const ROW_H: f32 = 24.0;
+    let rows = timeline_rows(&app.state.feed);
+    if rows.is_empty() {
+        return;
+    }
+    let t = Tokens::get(ui.ctx());
+    let mut jump = None;
+    widgets::card(&t).inner_margin(Margin::symmetric(16, 14)).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        widgets::caption(ui, "This build");
+        ui.add_space(6.0);
+        let earlier = rows.len().saturating_sub(TIMELINE_ROWS);
+        if earlier > 0 {
+            ui.label(RichText::new(trf("{n} earlier", &[("n", &earlier.to_string())])).color(t.text_faint).size(theme::CAPTION));
+        }
+        let shown = &rows[earlier..];
+        for (i, row) in shown.iter().enumerate() {
+            let latest = i + 1 == shown.len();
+            let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_H), egui::Sense::click());
+            let h = widgets::hover_t(ui, &resp);
+            if latest {
+                ui.painter().rect_filled(rect, t.radius_sm, t.accent_soft);
+            } else if h > 0.0 {
+                ui.painter().rect_filled(rect, t.radius_sm, t.hover.gamma_multiply(h));
+            }
+            let ink = if row.attention {
+                t.warning
+            } else if latest {
+                t.text
+            } else {
+                t.text_dim
+            };
+            let icon = egui::Rect::from_center_size(egui::pos2(rect.left() + 12.0, rect.center().y), Vec2::splat(14.0));
+            icons::paint(ui, icon, row.icon, 13.0, if row.attention { t.warning } else { t.text_faint });
+            // One line, cut with an ellipsis where the panel ends.
+            let font = if latest { theme::semibold(theme::CAPTION) } else { theme::medium(theme::CAPTION) };
+            let mut job = egui::text::LayoutJob::simple_singleline(row.text.clone(), font, ink);
+            job.wrap.max_width = (rect.width() - 26.0).max(10.0);
+            job.wrap.max_rows = 1;
+            job.wrap.break_anywhere = true;
+            let galley = ui.fonts_mut(|f| f.layout_job(job));
+            ui.painter().galley(egui::pos2(rect.left() + 24.0, rect.center().y - galley.size().y / 2.0), galley, ink);
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &row.text));
+            if resp.on_hover_text(&row.text).clicked() {
+                jump = Some(row.at);
+            }
+        }
+    });
+    ui.add_space(14.0);
+    if jump.is_some() {
+        app.feed_jump = jump;
     }
 }
 
@@ -1382,7 +1584,7 @@ fn draw_items(
     };
     for (i, item) in items.iter().enumerate() {
         questions_up_to(app, ui, i);
-        ui.push_id(i, |ui| match item {
+        let drawn = ui.push_id(i, |ui| match item {
             FeedItem::User(text) => chat::user_bubble(ui, text.text(), false),
             FeedItem::Step { text, .. } => chat::activity_row(ui, RichText::new(text).color(t.text_dim).size(theme::SMALL)),
             FeedItem::Paused => chat::activity_row(ui, RichText::new(tr("Paused.")).color(t.text_dim).size(theme::SMALL)),
@@ -1445,8 +1647,13 @@ fn draw_items(
                     });
             }
         });
+        // The side panel's timeline asked for this item: bring it into view.
+        if app.feed_jump == Some(i) {
+            drawn.response.scroll_to_me(Some(egui::Align::TOP));
+        }
         ui.add_space(chat::MESSAGE_GAP);
     }
+    app.feed_jump = None;
     questions_up_to(app, ui, usize::MAX);
 }
 
@@ -1804,6 +2011,7 @@ fn composer(app: &mut CraftApp, ui: &mut Ui, width: f32, t: &Tokens) {
     if let Some(id) = take_back {
         app.unsend(id);
     }
+    error_banner(app, ui, width, t);
     // Pause was pressed and the build hasn't stopped yet: the button says so until it does.
     let open_root = app.workspace.as_ref().map(|w| w.root.clone());
     if !running && let Some(root) = &open_root {
@@ -1883,6 +2091,57 @@ fn composer(app: &mut CraftApp, ui: &mut Ui, width: f32, t: &Tokens) {
         }
         questions_switch(app, ui);
     });
+}
+
+/// The error the last run stopped on, while nothing has started since: the feed's last item
+/// (its plan card aside) is an error and no run is going.
+fn stopped_error(app: &CraftApp) -> Option<(String, Option<String>, Option<PathBuf>)> {
+    if app.running() {
+        return None;
+    }
+    let last = app.state.feed.iter().rev().find(|i| !matches!(i, FeedItem::Plan(_) | FeedItem::PlanDismissed))?;
+    match last {
+        FeedItem::Error { message, remediation, log } => Some((message.clone(), remediation.clone(), log.clone())),
+        _ => None,
+    }
+}
+
+/// A build that stopped on an error says so right above the prompt box, where it can't be
+/// missed, with the fix when there is one, Try again and the log. It goes once a new run starts;
+/// the error card stays in the feed.
+fn error_banner(app: &mut CraftApp, ui: &mut Ui, width: f32, t: &Tokens) {
+    let Some((message, remediation, log)) = stopped_error(app) else { return };
+    let mut retry = false;
+    let mut open_log = None;
+    ui.allocate_ui(Vec2::new(width, 0.0), |ui| {
+        egui::Frame::new().fill(t.card).stroke(egui::Stroke::new(1.5, t.danger)).corner_radius(t.r_lg()).inner_margin(Margin::same(14)).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                icons::show(ui, "triangle-alert", 18.0, t.danger);
+                ui.add(egui::Label::new(RichText::new(tr("The build stopped on an error")).font(theme::semibold(theme::BODY))).wrap());
+            });
+            ui.add(egui::Label::new(RichText::new(&message).color(t.text)).wrap());
+            if let Some(r) = &remediation {
+                ui.add(egui::Label::new(RichText::new(r).color(t.text_dim).size(theme::SMALL)).wrap());
+            }
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                retry = widgets::primary_icon(ui, Some("refresh-cw"), "Try again", true).clicked();
+                if let Some(l) = &log
+                    && widgets::open_log_button(ui, l)
+                {
+                    open_log = Some(l.clone());
+                }
+            });
+        });
+    });
+    ui.add_space(8.0);
+    if retry {
+        app.follow_up(None);
+    }
+    if let Some(l) = open_log {
+        app.open_log(&l);
+    }
 }
 
 /// Send what's in the prompt box: a question (the switch, or /btw) is answered without building.

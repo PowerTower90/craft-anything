@@ -27,7 +27,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "rebuild_status",
             title: "Rebuild status",
-            summary: "Whether a project's build is running in this session (or queued, and where), its status and note, the latest check, and how many questions are waiting.",
+            summary: "Whether a project's build is running in this session (or queued, and where), its status and note, the latest check, and how many questions are waiting. For a running build: `started_secs_ago`, `quiet_secs` (since its last event) and `now` (the action under way, in words), what the app's status row shows.",
             beginner: "Shows how a build is going.",
             toolset: Toolset::Projects,
             effects: Effects::READ_ONLY,
@@ -387,15 +387,21 @@ fn rebuild_status(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolEr
     let mut set = runs.0.lock().unwrap_or_else(PoisonError::into_inner);
     refresh(ctx, &mut set);
     let m = &ws.manifest;
+    // What the app's status row shows for a running build, so a CLI watcher sees the same.
+    let run = set.get(&ws.root).filter(|r| r.is_running());
     Ok(ToolOutput::Value(json!({
         "project": ws.root.display().to_string(),
-        "running": set.is_running(&ws.root),
+        "running": run.is_some(),
         "queued": set.position(&ws.root),
         "status": m.status,
         "status_label": m.status.label(),
         "note": m.note,
         "last_check": m.checks.last(),
         "waiting": Inbox::new(ws.inbox_dir()).pending().len(),
+        "started_secs_ago": run.map(|r| r.started().elapsed().as_secs()),
+        "quiet_secs": run.map(|r| r.quiet_for().as_secs()),
+        "now": run.and_then(|r| r.activity_now().words()),
+        "last_said": run.and_then(RebuildRun::last_said),
     })))
 }
 
@@ -552,6 +558,12 @@ mod tests {
         let st = e.call("rebuild_status", json!({"project": ws.root}), ok()).unwrap().to_json();
         assert_eq!(st["result"]["running"], false);
         assert_eq!(st["result"]["queued"], Value::Null);
+        // Nothing running: the live fields are there and empty, so a watcher can tell "quiet"
+        // from "not running".
+        for field in ["started_secs_ago", "quiet_secs", "now", "last_said"] {
+            assert!(st["result"].get(field).is_some(), "{field} missing: {st}");
+            assert_eq!(st["result"][field], Value::Null, "{field}: {st}");
+        }
         assert!(e.call("rebuild_note", json!({"project": ws.root, "text": "blue"}), ok()).is_err());
         assert!(e.call("rebuild_note_withdraw", json!({"project": ws.root, "id": 1}), ok()).is_err());
         assert!(e.call("rebuild_stop", json!({"project": ws.root}), ok()).is_err());
@@ -570,6 +582,49 @@ mod tests {
             assert!(err.message.contains(expected), "{backend}: {err:?}");
             assert_eq!(std::fs::read_dir(d.path()).unwrap().count(), 0, "{backend}: a refused start must not make a project");
         }
+    }
+
+    /// A CLI watcher sees what the app's status row shows: how long the build has gone, how long
+    /// it has been quiet, and what it's on in words.
+    #[test]
+    fn rebuild_status_says_how_long_a_build_has_gone_and_been_quiet_and_what_it_is_on() {
+        use crate::rebuild::{RunEvent, StandIns, Step};
+        let d = tempfile::tempdir().unwrap();
+        let mut s = craft_anything_engine::testing::session();
+        s.settings.ai = toml::from_str("[[backends]]\nname = \"Agent\"\nkind = \"agent_cli\"\nmodel = \"claude-code\"\n").unwrap();
+        s.settings.save_to(&s.config_dir().join("config.toml")).unwrap();
+        // The session's builds are stand-ins, driven from here.
+        let fake = StandIns::new();
+        s.ext.insert(Arc::new(Runs(Arc::new(Mutex::new(RunSet::new(1).with_starter(fake.starter()))))));
+        let e = Engine::shared(s, specs());
+        let ws = Workspace::create(d.path(), "Notes", "A notes app", TargetRef::None).unwrap();
+        let ok = || CallOptions::new(Caller::Cli).with_consent(Consent::Granted);
+        let started = e.call("rebuild_start", json!({"project": ws.root, "request": "make it blue"}), ok()).unwrap().to_json();
+        assert_eq!(started["result"]["started"], true, "{started}");
+        assert!(fake.send(&ws.root, RunEvent::Step { step: Step::Build, text: "Building".into() }));
+        assert!(fake.send(
+            &ws.root,
+            RunEvent::Agent(crate::AgentEvent::ToolStarted { call_id: "1".into(), tool: "Bash".into(), input: json!({"command": "cargo test --quiet"}) })
+        ));
+        let st = e.call("rebuild_status", json!({"project": ws.root}), ok()).unwrap().to_json();
+        assert_eq!(st["result"]["running"], true, "{st}");
+        assert!(st["result"]["quiet_secs"].as_u64().is_some_and(|q| q < 60), "{st}");
+        assert!(st["result"]["now"].as_str().is_some_and(|n| n.starts_with("Now: Running cargo test --quiet (")), "{st}");
+        assert_eq!(st["result"]["last_said"], Value::Null, "{st}");
+        // Six quiet minutes later (the run is made to look older; the test doesn't wait).
+        assert!(fake.backdate(&ws.root, Duration::from_secs(6 * 60)));
+        let st = e.call("rebuild_status", json!({"project": ws.root}), ok()).unwrap().to_json();
+        assert!(st["result"]["quiet_secs"].as_u64().is_some_and(|q| q >= 360), "{st}");
+        assert!(st["result"]["started_secs_ago"].as_u64().is_some_and(|q| q >= 360), "{st}");
+        // Said, then nothing: the last line it said is there for whoever is watching.
+        assert!(fake.send(&ws.root, RunEvent::Agent(crate::AgentEvent::TextDelta { text: "Looking at the tests now.\n".into() })));
+        let st = e.call("rebuild_status", json!({"project": ws.root}), ok()).unwrap().to_json();
+        assert_eq!(st["result"]["last_said"], "Looking at the tests now.", "{st}");
+        assert!(st["result"]["quiet_secs"].as_u64().is_some_and(|q| q < 60), "an event ends the quiet: {st}");
+        assert!(fake.finish(&ws.root));
+        let st = e.call("rebuild_status", json!({"project": ws.root}), ok()).unwrap().to_json();
+        assert_eq!(st["result"]["running"], false, "{st}");
+        assert_eq!(st["result"]["quiet_secs"], Value::Null, "{st}");
     }
 
     /// #1102: a tool holds the session while it runs, so starting a build on an API backend must not

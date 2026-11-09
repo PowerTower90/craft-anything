@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	Aplikace programovacího agenta (přes SSH
 on another computer over SSH (not checked); set up when you start	v jiném počítači přes SSH (neověřeno); nastaví se při spuštění
 On another computer over SSH (not checked)	V jiném počítači přes SSH (neověřeno)
 Install Claude Code on this computer and sign in once, then Look again.	Nainstalujte Claude Code do tohoto počítače, jednou se přihlaste a pak zvolte Hledat znovu.
+under a minute	méně než minutu
+{n} min	{n} min
+Status check: what are you doing right now?	Kontrola stavu: co právě děláš?
+Nothing new for {time}	Nic nového už {time}
+Last said: {text}	Naposledy řekl: {text}
+Nudge	Pobídnout
+Stops the build. Continue picks up where it stopped.	Zastaví sestavení. Pokračovat naváže tam, kde skončilo.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	Požádá tvůrce, aby na jeden řádek řekl, co dělá; pokud uvízl, aby dokončil tah a vysvětlil to.
+This build	Toto sestavení
+{n} earlier	{n} dřívějších
+Check: {s}%	Kontrola: {s} %
+Check: passed	Kontrola: prošla
+Check: failed	Kontrola: neprošla
+{n} differ	{n} se liší
+Asked you: {text}	Zeptal se tě: {text}
+answered	zodpovězeno
+waiting	čeká
+The build stopped on an error	Sestavení se zastavilo na chybě
+{name} · quiet {time}	{name} · ticho {time}
+{name} · Building · {time}	{name} · Sestavuje se · {time}
+Building on another screen. Click to open it.	Sestavuje se na jiné obrazovce. Kliknutím ji otevřeš.

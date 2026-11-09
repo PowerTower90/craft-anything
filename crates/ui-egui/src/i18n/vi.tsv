@@ -1470,3 +1470,24 @@ Coding agent app (over SSH to {host})	Ứng dụng tác tử lập trình (qua S
 on another computer over SSH (not checked); set up when you start	trên máy tính khác qua SSH (chưa kiểm tra); sẽ được thiết lập khi bạn bắt đầu
 On another computer over SSH (not checked)	Trên máy tính khác qua SSH (chưa kiểm tra)
 Install Claude Code on this computer and sign in once, then Look again.	Cài Claude Code trên máy tính này, đăng nhập một lần, rồi chọn Tìm lại.
+under a minute	dưới một phút
+{n} min	{n} phút
+Status check: what are you doing right now?	Kiểm tra trạng thái: bạn đang làm gì ngay lúc này?
+Nothing new for {time}	Không có gì mới trong {time}
+Last said: {text}	Lần cuối nói: {text}
+Nudge	Thúc
+Stops the build. Continue picks up where it stopped.	Dừng bản dựng. Tiếp tục sẽ nối lại từ chỗ đã dừng.
+Asks the builder to say in one line what it is doing; if it is stuck, to finish the turn and explain.	Yêu cầu trình dựng nói trong một dòng nó đang làm gì; nếu bị kẹt, hãy kết thúc lượt và giải thích.
+This build	Bản dựng này
+{n} earlier	{n} mục trước đó
+Check: {s}%	Kiểm tra: {s}%
+Check: passed	Kiểm tra: đạt
+Check: failed	Kiểm tra: không đạt
+{n} differ	{n} khác biệt
+Asked you: {text}	Đã hỏi bạn: {text}
+answered	đã trả lời
+waiting	đang chờ
+The build stopped on an error	Bản dựng đã dừng vì lỗi
+{name} · quiet {time}	{name} · im lặng {time}
+{name} · Building · {time}	{name} · Đang dựng · {time}
+Building on another screen. Click to open it.	Đang dựng ở màn hình khác. Nhấp để mở.
