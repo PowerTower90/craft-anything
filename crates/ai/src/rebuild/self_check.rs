@@ -62,11 +62,14 @@ pub(super) struct SelfCheck {
     pub(super) good_enough: f64,
     running: Option<RunningSelfCheck>,
     pub(super) asked_this_turn: u32,
+    /// Asks answered this turn, so one listed again (its files not yet taken by the builder)
+    /// isn't answered twice.
+    answered: std::collections::HashSet<String>,
 }
 
 impl SelfCheck {
     pub(super) fn new(kind: Arc<dyn kinds::TargetKind>, good_enough: f64) -> SelfCheck {
-        SelfCheck { kind, good_enough, running: None, asked_this_turn: 0 }
+        SelfCheck { kind, good_enough, running: None, asked_this_turn: 0, answered: std::collections::HashSet::new() }
     }
 }
 
@@ -275,6 +278,9 @@ impl Worker {
             return Ok(());
         }
         for r in asks.pending() {
+            if !sc.answered.insert(r.id.clone()) {
+                continue;
+            }
             if sc.asked_this_turn >= SELF_CHECK_LIMIT {
                 asks.answer(&r.id, &Answer { text: Some(over_limit_report()), ..Default::default() })?;
                 let line = format!("The builder asked for another check after {SELF_CHECK_LIMIT} this turn; the build is checked after the turn instead.");
