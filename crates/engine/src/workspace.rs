@@ -987,6 +987,7 @@ pub const OWN_NAMES: &[&str] = &[
     ACTIVITY_LOG,
     ACTIVITY_LOG_OLD,
     ASSETS,
+    crate::inventory::INVENTORY,
     "transcript.json",
     "extract-transcript.json",
     AGENT_SESSION_FILE,

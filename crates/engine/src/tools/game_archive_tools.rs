@@ -176,7 +176,7 @@ pub struct ExtractParams {
     pub limit: usize,
 }
 
-fn read_at(file: &mut File, path: &Path, at: u64, len: u64) -> Result<Vec<u8>, ToolError> {
+pub(crate) fn read_at(file: &mut File, path: &Path, at: u64, len: u64) -> Result<Vec<u8>, ToolError> {
     if len > MAX_INDEX {
         return Err(ToolError::new(ErrorCode::OverLimit, format!("the pak's index is {len} bytes; the limit is {MAX_INDEX}")));
     }
@@ -186,20 +186,20 @@ fn read_at(file: &mut File, path: &Path, at: u64, len: u64) -> Result<Vec<u8>, T
 }
 
 /// An opened pak: its footer and the files its index lists.
-struct Pak {
+pub(crate) struct Pak {
     file: File,
     path: PathBuf,
     len: u64,
-    name: String,
-    footer: Footer,
+    pub(crate) name: String,
+    pub(crate) footer: Footer,
     /// None when the index is encrypted.
     mount_point: Option<String>,
     file_count: u64,
-    files: Vec<Entry>,
-    lims: Vec<Limitation>,
+    pub(crate) files: Vec<Entry>,
+    pub(crate) lims: Vec<Limitation>,
 }
 
-fn open_pak(ctx: &Ctx<'_>, raw: &str) -> Result<Pak, ToolError> {
+pub(crate) fn open_pak(ctx: &Ctx<'_>, raw: &str) -> Result<Pak, ToolError> {
     let path = PathBuf::from(raw);
     if !path.is_absolute() {
         return Err(ToolError::invalid(format!("{raw:?} is not an absolute path")).with_remediation("Pass the full path of the .pak file."));
@@ -252,7 +252,7 @@ fn shown_path(path: &str) -> &str {
     path.trim_start_matches("../")
 }
 
-fn shown(e: &Entry) -> &str {
+pub(crate) fn shown(e: &Entry) -> &str {
     shown_path(&e.path)
 }
 
@@ -531,13 +531,13 @@ fn game_unity_list(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolE
 }
 
 /// Whether a Unity version was left out when the file was built (it then reads `0.0.0`).
-fn stripped(version: &str) -> bool {
+pub(crate) fn stripped(version: &str) -> bool {
     unity_serialized::version_numbers(version).is_none_or(|v| v == (0, 0))
 }
 
 /// The Unity version that wrote a file. Bundles built with the version stripped don't say; the
 /// game's globalgamemanagers, in the `<Game>_Data` folder above them, does.
-fn known_version(version: &str, path: &Path) -> String {
+pub(crate) fn known_version(version: &str, path: &Path) -> String {
     if !stripped(version) {
         return version.to_string();
     }
@@ -714,7 +714,7 @@ pub struct ExportParams {
 const MAX_PIXELS: u64 = 8192 * 8192;
 
 /// A serialized file to read objects from: a file of its own, or one inside a bundle.
-enum Serialized {
+pub(crate) enum Serialized {
     File {
         file: File,
         path: PathBuf,
@@ -732,7 +732,7 @@ enum Serialized {
 }
 
 impl Serialized {
-    fn open(raw: &str, inner: Option<&str>) -> Result<Self, ToolError> {
+    pub(crate) fn open(raw: &str, inner: Option<&str>) -> Result<Self, ToolError> {
         let path = PathBuf::from(raw);
         if !path.is_absolute() {
             return Err(ToolError::invalid(format!("{raw:?} is not an absolute path")).with_remediation("Pass the full path of the .assets file or bundle."));
@@ -758,7 +758,7 @@ impl Serialized {
     }
 
     /// The serialized file's size.
-    fn len(&self) -> u64 {
+    pub(crate) fn len(&self) -> u64 {
         match self {
             Serialized::File { len, .. } => *len,
             Serialized::Bundle { node, .. } => node.size,
@@ -766,7 +766,7 @@ impl Serialized {
     }
 
     /// Bytes of the serialized file.
-    fn read(&mut self, offset: u64, len: u64) -> Result<Vec<u8>, ToolError> {
+    pub(crate) fn read(&mut self, offset: u64, len: u64) -> Result<Vec<u8>, ToolError> {
         if offset.checked_add(len).is_none_or(|end| end > self.len()) {
             return Err(damaged("an object lies outside its file"));
         }
@@ -778,7 +778,7 @@ impl Serialized {
 
     /// Bytes of the file an object streams its data from (a `.resS` beside the file, or a file in
     /// the same bundle). Only the stream path's last part is used, so it can't point elsewhere.
-    fn stream(&mut self, stream_path: &str, offset: u64, len: u64) -> Result<Vec<u8>, ToolError> {
+    pub(crate) fn stream(&mut self, stream_path: &str, offset: u64, len: u64) -> Result<Vec<u8>, ToolError> {
         let name = stream_path.rsplit(['/', '\\']).next().unwrap_or(stream_path);
         match self {
             Serialized::File { path, .. } => {
@@ -795,6 +795,36 @@ impl Serialized {
             }
         }
     }
+}
+
+/// A Texture2D object's description and its largest picture, decoded to RGBA. `version` is the
+/// Unity version that wrote the file ([`known_version`]).
+pub(crate) fn unity_texture_image(
+    src: &mut Serialized,
+    version: &str,
+    big_endian: bool,
+    object: &unity_serialized::Object,
+) -> Result<(unity_texture::Texture, Image), ToolError> {
+    if stripped(version) {
+        return Err(ToolError::unsupported("This file doesn't say which Unity version wrote it, so its textures' layout isn't known.")
+            .with_remediation("Pass a bundle that's inside the game's <Game>_Data folder, beside its globalgamemanagers file."));
+    }
+    let bytes = src.read(object.offset, u64::from(object.size))?;
+    let t = unity_texture::parse(&bytes, version, big_endian).map_err(|e| format_err(e, "a Unity texture"))?;
+    let format = unity_texture::format_name(t.format);
+    if u64::from(t.width) * u64::from(t.height) > MAX_PIXELS {
+        return Err(ToolError::new(ErrorCode::OverLimit, format!("{} is {}×{}; the limit is 8192×8192", t.name, t.width, t.height)));
+    }
+    let need = unity_texture::mip0_size(t.format, t.width, t.height)
+        .ok_or_else(|| ToolError::unsupported(format!("{} is a {format} texture, which isn't decoded here.", t.name)))? as u64;
+    let pixels = match (&t.inline, &t.stream) {
+        (Some((start, len)), _) => bytes.get(*start..start.saturating_add(*len)).map(<[u8]>::to_vec).unwrap_or_default(),
+        (None, Some(s)) => src.stream(&s.path, s.offset, need.min(u64::from(s.size)))?,
+        (None, None) => Vec::new(),
+    };
+    let rgba = unity_texture::decode(t.format, t.width, t.height, &pixels).map_err(|e| format_err(e, "a Unity texture's pixels"))?;
+    let image = Image { width: t.width, height: t.height, rgba };
+    Ok((t, image))
 }
 
 fn game_unity_asset_export(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
@@ -817,25 +847,9 @@ fn game_unity_asset_export(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutpu
     }
     ctx.report(None, format!("Reading texture {}", p.path_id));
     let version = known_version(&m.unity_version, Path::new(&p.path));
-    if stripped(&version) {
-        return Err(ToolError::unsupported("This file doesn't say which Unity version wrote it, so its textures' layout isn't known.")
-            .with_remediation("Pass a bundle that's inside the game's <Game>_Data folder, beside its globalgamemanagers file."));
-    }
-    let bytes = src.read(object.offset, u64::from(object.size))?;
-    let t = unity_texture::parse(&bytes, &version, h.big_endian).map_err(|e| format_err(e, "a Unity texture"))?;
+    let (t, image) = unity_texture_image(&mut src, &version, h.big_endian, object)?;
     let format = unity_texture::format_name(t.format);
-    if u64::from(t.width) * u64::from(t.height) > MAX_PIXELS {
-        return Err(ToolError::new(ErrorCode::OverLimit, format!("{} is {}×{}; the limit is 8192×8192", t.name, t.width, t.height)));
-    }
-    let need = unity_texture::mip0_size(t.format, t.width, t.height)
-        .ok_or_else(|| ToolError::unsupported(format!("{} is a {format} texture, which isn't decoded here.", t.name)))? as u64;
-    let pixels = match (&t.inline, &t.stream) {
-        (Some((start, len)), _) => bytes.get(*start..*start + *len).map(<[u8]>::to_vec).unwrap_or_default(),
-        (None, Some(s)) => src.stream(&s.path, s.offset, need.min(u64::from(s.size)))?,
-        (None, None) => Vec::new(),
-    };
-    let rgba = unity_texture::decode(t.format, t.width, t.height, &pixels).map_err(|e| format_err(e, "a Unity texture's pixels"))?;
-    let png = encode_png(&Image { width: t.width, height: t.height, rgba })?;
+    let png = encode_png(&image)?;
     crate::project::write_atomic(&out, &png)?;
     let sha256 = craft_anything_evidence::sha256_hex(&png);
     let result = json!({
@@ -876,7 +890,7 @@ pub struct UnrealTextureParams {
 }
 
 /// Where a package's files come from.
-enum PackageSource {
+pub(crate) enum PackageSource {
     /// Inside a pak: the entries named `<stem>.<extension>` (`stem` lower case, as shown).
     Pak { pak: Box<Pak>, stem: String },
     /// Loose files: `<stem>.<extension>` on disk.
@@ -903,6 +917,87 @@ impl PackageSource {
             }
         }
     }
+}
+
+/// An Unreal texture decoded: its largest mip the game ships, as RGBA.
+pub(crate) struct UnrealTexture {
+    pub(crate) export_name: String,
+    pub(crate) pixel_format: String,
+    /// The texture's full size.
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) mip_index: usize,
+    pub(crate) mip: unreal_texture::Mip,
+    /// The file the pixels came from (`uexp`, `ubulk`…).
+    pub(crate) from: &'static str,
+    pub(crate) image: Image,
+}
+
+/// Decode the Texture2D in a cooked package (`.uasset` + `.uexp`, and `.ubulk` when it streams).
+pub(crate) fn unreal_texture_image(source: &mut PackageSource, shown_name: &str, cancel: &CancelToken) -> Result<UnrealTexture, ToolError> {
+    let missing = |ext: &str| {
+        ToolError::new(ErrorCode::NotFound, format!("There's no .{ext} for {shown_name}."))
+            .with_remediation("A cooked texture is a .uasset with a .uexp beside it; game_pak_list shows what the pak holds.")
+    };
+    let uasset = source.part("uasset", cancel)?.ok_or_else(|| missing("uasset"))?;
+    let uexp = source.part("uexp", cancel)?.ok_or_else(|| missing("uexp"))?;
+    let package = unreal_texture::package(&uasset).map_err(|e| format_err(e, "an Unreal package"))?;
+    let export = package.exports.iter().find(|e| e.class == "Texture2D").ok_or_else(|| {
+        let classes: Vec<&str> = package.exports.iter().map(|e| e.class.as_str()).collect();
+        ToolError::unsupported(format!("{shown_name} isn't a texture (it holds {}).", classes.join(", ")))
+    })?;
+    let start = export.serial_offset.checked_sub(package.header_size).ok_or_else(|| damaged("a texture's data lies before its .uexp"))?;
+    let data = usize::try_from(start)
+        .ok()
+        .and_then(|s| uexp.get(s..s.checked_add(usize::try_from(export.serial_size).ok()?)?))
+        .ok_or_else(|| damaged("a texture's data lies outside its .uexp"))?;
+    let texture = unreal_texture::texture(data, &package.names).map_err(|e| format_err(e, "an Unreal texture"))?;
+    let layout = unreal_texture::layout(&texture.pixel_format)
+        .ok_or_else(|| ToolError::unsupported(format!("{} is a {} texture, which isn't decoded here.", export.name, texture.pixel_format)))?;
+    // The largest mip whose pixels the game ships (bigger ones can be stripped or kept elsewhere).
+    let mut other: BTreeMap<&str, Option<Vec<u8>>> = BTreeMap::new();
+    let mut chosen = None;
+    for (index, mip) in texture.mips.iter().enumerate() {
+        if u64::from(mip.width) * u64::from(mip.height) > MAX_PIXELS {
+            continue;
+        }
+        let bytes = match &mip.data {
+            unreal_texture::MipData::Inline(s, n) => data.get(*s..s.saturating_add(*n)).map(<[u8]>::to_vec),
+            unreal_texture::MipData::File { extension, offset, length } => {
+                if !other.contains_key(extension) {
+                    let part = source.part(extension, cancel)?;
+                    other.insert(*extension, part);
+                }
+                other.get(extension).and_then(Option::as_ref).and_then(|f| {
+                    let s = usize::try_from(*offset).ok()?;
+                    f.get(s..s.checked_add(usize::try_from(*length).ok()?)?).map(<[u8]>::to_vec)
+                })
+            }
+            unreal_texture::MipData::Missing => None,
+        };
+        if let Some(bytes) = bytes {
+            let from = match &mip.data {
+                unreal_texture::MipData::File { extension, .. } => *extension,
+                _ => "uexp",
+            };
+            chosen = Some((index, mip.clone(), bytes, from));
+            break;
+        }
+    }
+    let (index, mip, bytes, from) = chosen.ok_or_else(|| {
+        ToolError::unsupported(format!("None of {}'s mips are stored where they can be read, or they're larger than 8192×8192.", export.name))
+    })?;
+    let rgba = pixels::decode(layout, mip.width, mip.height, &bytes).map_err(|e| format_err(e, "an Unreal texture's pixels"))?;
+    Ok(UnrealTexture {
+        export_name: export.name.clone(),
+        pixel_format: texture.pixel_format.clone(),
+        width: texture.width,
+        height: texture.height,
+        mip_index: index,
+        image: Image { width: mip.width, height: mip.height, rgba },
+        mip,
+        from,
+    })
 }
 
 fn game_unreal_texture_export(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
@@ -938,73 +1033,22 @@ fn game_unreal_texture_export(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOu
         (PackageSource::Pak { pak: Box::new(pak), stem }, file.to_string())
     };
     ctx.report(None, format!("Reading {shown_name}"));
-    let missing = |ext: &str| {
-        ToolError::new(ErrorCode::NotFound, format!("There's no .{ext} for {shown_name}."))
-            .with_remediation("A cooked texture is a .uasset with a .uexp beside it; game_pak_list shows what the pak holds.")
-    };
-    let uasset = source.part("uasset", &cancel)?.ok_or_else(|| missing("uasset"))?;
-    let uexp = source.part("uexp", &cancel)?.ok_or_else(|| missing("uexp"))?;
-    let package = unreal_texture::package(&uasset).map_err(|e| format_err(e, "an Unreal package"))?;
-    let export = package.exports.iter().find(|e| e.class == "Texture2D").ok_or_else(|| {
-        let classes: Vec<&str> = package.exports.iter().map(|e| e.class.as_str()).collect();
-        ToolError::unsupported(format!("{shown_name} isn't a texture (it holds {}).", classes.join(", ")))
-    })?;
-    let start = export.serial_offset.checked_sub(package.header_size).ok_or_else(|| damaged("a texture's data lies before its .uexp"))?;
-    let data = usize::try_from(start)
-        .ok()
-        .and_then(|s| uexp.get(s..s.checked_add(usize::try_from(export.serial_size).ok()?)?))
-        .ok_or_else(|| damaged("a texture's data lies outside its .uexp"))?;
-    let texture = unreal_texture::texture(data, &package.names).map_err(|e| format_err(e, "an Unreal texture"))?;
-    let layout = unreal_texture::layout(&texture.pixel_format)
-        .ok_or_else(|| ToolError::unsupported(format!("{} is a {} texture, which isn't decoded here.", export.name, texture.pixel_format)))?;
-    // The largest mip whose pixels the game ships (bigger ones can be stripped or kept elsewhere).
-    let mut other: BTreeMap<&str, Option<Vec<u8>>> = BTreeMap::new();
-    let mut chosen = None;
-    for (index, mip) in texture.mips.iter().enumerate() {
-        if u64::from(mip.width) * u64::from(mip.height) > MAX_PIXELS {
-            continue;
-        }
-        let bytes = match &mip.data {
-            unreal_texture::MipData::Inline(s, n) => data.get(*s..s.saturating_add(*n)).map(<[u8]>::to_vec),
-            unreal_texture::MipData::File { extension, offset, length } => {
-                if !other.contains_key(extension) {
-                    let part = source.part(extension, &cancel)?;
-                    other.insert(*extension, part);
-                }
-                other.get(extension).and_then(Option::as_ref).and_then(|f| {
-                    let s = usize::try_from(*offset).ok()?;
-                    f.get(s..s.checked_add(usize::try_from(*length).ok()?)?).map(<[u8]>::to_vec)
-                })
-            }
-            unreal_texture::MipData::Missing => None,
-        };
-        if let Some(bytes) = bytes {
-            let from = match &mip.data {
-                unreal_texture::MipData::File { extension, .. } => *extension,
-                _ => "uexp",
-            };
-            chosen = Some((index, mip.clone(), bytes, from));
-            break;
-        }
-    }
-    let (index, mip, bytes, from) = chosen.ok_or_else(|| {
-        ToolError::unsupported(format!("None of {}'s mips are stored where they can be read, or they're larger than 8192×8192.", export.name))
-    })?;
-    let rgba = pixels::decode(layout, mip.width, mip.height, &bytes).map_err(|e| format_err(e, "an Unreal texture's pixels"))?;
-    let png = encode_png(&Image { width: mip.width, height: mip.height, rgba })?;
+    let UnrealTexture { export_name, pixel_format, width, height, mip_index: index, mip, from, image } =
+        unreal_texture_image(&mut source, &shown_name, &cancel)?;
+    let png = encode_png(&image)?;
     crate::project::write_atomic(&out, &png)?;
     let mut lims = Vec::new();
-    if (mip.width, mip.height) != (texture.width, texture.height) {
+    if (mip.width, mip.height) != (width, height) {
         lims.push(Limitation::new(
             "smaller_than_full",
-            format!("The game ships this texture at most {}×{}; its full {}×{} isn't stored.", mip.width, mip.height, texture.width, texture.height),
+            format!("The game ships this texture at most {}×{}; its full {}×{} isn't stored.", mip.width, mip.height, width, height),
         ));
     }
     let result = json!({
-        "name": export.name,
-        "pixel_format": texture.pixel_format,
-        "width": texture.width,
-        "height": texture.height,
+        "name": export_name,
+        "pixel_format": pixel_format,
+        "width": width,
+        "height": height,
         "saved": {"width": mip.width, "height": mip.height, "mip": index, "from": from},
         "output": out.display().to_string(),
         "size": png.len(),
@@ -1012,7 +1056,7 @@ fn game_unreal_texture_export(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOu
     });
     let b = builder(ctx, "game_unreal_texture_export", Subject { kind: "archive".into(), sha256: None, name: Some(shown_name) }, params_json(&p))
         .result(result)
-        .summary(format!("Saved texture \"{}\" ({}×{}, {}) as {}.", export.name, mip.width, mip.height, texture.pixel_format, out.display()))
+        .summary(format!("Saved texture \"{}\" ({}×{}, {}) as {}.", export_name, mip.width, mip.height, pixel_format, out.display()))
         .confidence(Confidence::Observed)
         .limitations(lims)
         .coverage(Coverage::complete(1))
@@ -1061,7 +1105,7 @@ fn godot_declared_files(path: &Path) -> Option<u64> {
 }
 
 /// What kind of archive a file is, and the tool that lists it; None when it isn't one.
-fn archive_kind(path: &Path) -> Option<(&'static str, &'static str)> {
+pub(crate) fn archive_kind(path: &Path) -> Option<(&'static str, &'static str)> {
     let name = path.file_name()?.to_string_lossy().to_lowercase();
     let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     let head = |n: u64| -> Option<Vec<u8>> {
@@ -1188,7 +1232,7 @@ fn inside(root: &Path, rel: &str) -> Option<PathBuf> {
 }
 
 /// Whether a pak entry can be read here, and whether it's zlib-compressed.
-fn readable(e: &Entry) -> Result<bool, ToolError> {
+pub(crate) fn readable(e: &Entry) -> Result<bool, ToolError> {
     let file = shown(e);
     if e.encrypted {
         return Err(ToolError::unsupported(format!("{file} is encrypted with the game's AES key; it can't be taken out without it.")));
@@ -1297,7 +1341,7 @@ fn encrypted_index(pak: &Pak) -> ToolError {
 }
 
 /// Write `e` into the new file `out`; returns its size and SHA-256. A failed copy leaves nothing behind.
-fn take_out(pak: &mut Pak, e: &Entry, out: &Path, cancel: &CancelToken) -> Result<(u64, String), ToolError> {
+pub(crate) fn take_out(pak: &mut Pak, e: &Entry, out: &Path, cancel: &CancelToken) -> Result<(u64, String), ToolError> {
     let zlib = readable(e)?;
     let target = std::fs::OpenOptions::new().write(true).create_new(true).open(out).map_err(|err| ToolError::io(out.display(), err))?;
     let mut sink = Sink { file: target, hash: Default::default(), written: 0 };

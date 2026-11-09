@@ -15,6 +15,7 @@ version up to the current one, then turn the document into Rust types. The step 
 | `<project>/app/mechanics.json` | `engine::mechanics` (written by the builder, read by `MechanicsCheck`) | `MECHANICS_VERSION` = 1 (`version`; missing = 1) | — | the check fails and says so |
 | `<project>/checks/round-N/self-test.json` | `engine::self_test` (written by the built game's `--self-test`, read by `SelfTestCheck`) | 1 (`version`; missing = 1) | — | the check fails and says so |
 | `<project>/usage.json` | `engine::workspace` (`ProjectUsage`; written only by the rebuild run) | `USAGE_VERSION` = 1 (`version`; missing = 0) | read as before, saved as current | read as far as its fields are known, never written over |
+| `<project>/inventory.json` | `engine::inventory` (`Inventory`; written by `project_inventory_scan` and `project_inventory_mark`) | `INVENTORY_VERSION` = 1 (`version`; missing = 0) | brought forward, saved as current | read as far as its fields are known, never written over |
 | `<project>/questions.json` | `engine::questions` (`AskedQuestion`, written by `rebuild_question_ask`) | `QUESTIONS_VERSION` = 1 (`{version, items}`) | read as before | read as far as its fields are known |
 | `<project>/pinned/<n>/pin.json` | `engine::pins` (`Pin`) | `PIN_VERSION` = 2 (`version`; missing = 1; 2 records the selected program for a copied direct launch) | brought forward | read as far as its fields are known |
 | `<folder>/standin.json` | `engine::tools::standin_tools` (`analysis::standin::StandIn`; written only by `web_standin_build`) | `STANDIN_VERSION` = 1 (`version`, required) | brought forward | refused, with "update Craft Anything", and never written over |
@@ -59,5 +60,5 @@ out of the project list.
    list and the constant disagree.
 3. Add a test that reads a literal sample of the old file (keep the existing samples; old files
    must keep loading forever).
-4. For `craft.json`, `inbox/build-progress.json`, `mechanics.json` and `self-test.json`, run `cargo xtask schemas` and commit `docs/schemas/`.
+4. For `craft.json`, `inbox/build-progress.json`, `mechanics.json`, `self-test.json` and `inventory.json`, run `cargo xtask schemas` and commit `docs/schemas/`.
    `cargo xtask schemas --check` (and an engine test) fail when the published schema is stale.

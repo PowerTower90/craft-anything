@@ -67,6 +67,11 @@ pub const TOOLS: &[&str] = &[
     "project_pin_stop",
     "project_pin_rename",
     "project_pin_delete",
+    // The inventory of the build; project_inventory_scan reads the original only in Deep mode
+    // (it checks), and the list and mark tools leave the original's items out in Clean room.
+    "project_inventory_scan",
+    "project_inventory_list",
+    "project_inventory_mark",
     "rebuild_start",
     "rebuild_status",
     "rebuild_activity_show",

@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Inventory",
+  "description": "The inventory file.",
+  "type": "object",
+  "properties": {
+    "build_scanned_ms": {
+      "description": "When the build was last scanned (ms since the epoch).",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "default": null,
+      "minimum": 0
+    },
+    "items": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Item"
+      }
+    },
+    "notes": {
+      "description": "What the last scan of each source left out or couldn't do, in words.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "default": {}
+    },
+    "original_folder": {
+      "description": "The original's folder at that scan.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "original_scanned_ms": {
+      "description": "When the original was last scanned.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "default": null,
+      "minimum": 0
+    },
+    "version": {
+      "description": "The format version ([`INVENTORY_VERSION`]).",
+      "type": "integer",
+      "format": "uint32",
+      "default": 0,
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "Item": {
+      "description": "One asset.",
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "description": "Its size on disk (or inside the original, when it wasn't taken out).",
+          "type": "integer",
+          "format": "uint64",
+          "default": 0,
+          "minimum": 0
+        },
+        "detail": {
+          "description": "What it is in more words (an Unreal package's class, a sound bank's codec, what a generated\nasset was made from).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "duration_secs": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        },
+        "height": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "id": {
+          "description": "Stable: a hash of the source and the item's key (`path` for the build, `origin` for the\noriginal), so it survives rescans.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "marked_ms": {
+          "description": "When the person last set its status or note (ms since the epoch); a rescan keeps a marked\nitem's status and note.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "name": {
+          "description": "What it's called (the file's name, or the asset's name inside the original).",
+          "type": "string"
+        },
+        "note": {
+          "description": "The person's note.",
+          "type": "string",
+          "default": ""
+        },
+        "origin": {
+          "description": "For the original: where it is in the original, relative to the original's folder\n(`<archive>[:<file inside>]#<object id>`, or a loose file's path).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "path": {
+          "description": "The file, relative to the project folder (`/`-separated). None for an item of the original\nthat wasn't taken out (`problem` or `detail` says why).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "problem": {
+          "description": "What went wrong reading or taking it out, when something did.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "thumb": {
+          "description": "A picture of it at most 256 pixels on a side (a PNG under reference/thumbs/), relative to\nthe project folder.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "width": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "kind",
+        "name",
+        "status"
+      ]
+    },
+    "Kind": {
+      "description": "What an item is.",
+      "type": "string",
+      "enum": [
+        "texture",
+        "sprite",
+        "model",
+        "sound",
+        "music",
+        "font",
+        "video",
+        "map",
+        "material",
+        "engine_asset",
+        "other"
+      ]
+    },
+    "Source": {
+      "description": "Where an item is.",
+      "oneOf": [
+        {
+          "description": "A file of the build (app/).",
+          "type": "string",
+          "const": "build"
+        },
+        {
+          "description": "Taken out of the original (Deep mode only), into reference/assets/.",
+          "type": "string",
+          "const": "original"
+        }
+      ]
+    },
+    "Status": {
+      "description": "Where an item stands, for the person.",
+      "oneOf": [
+        {
+          "description": "The original's own asset.",
+          "type": "string",
+          "const": "original"
+        },
+        {
+          "description": "Made by an asset generator (listed in assets.json).",
+          "type": "string",
+          "const": "generated"
+        },
+        {
+          "description": "From a library or pack (a marketplace or starter pack, an engine's own content).",
+          "type": "string",
+          "const": "library"
+        },
+        {
+          "description": "A stand-in the builder made or took; the starting status of the build's files.",
+          "type": "string",
+          "const": "placeholder"
+        },
+        {
+          "description": "The person wants it replaced.",
+          "type": "string",
+          "const": "needs_replacing"
+        },
+        {
+          "description": "The person replaced it.",
+          "type": "string",
+          "const": "replaced"
+        }
+      ]
+    }
+  }
+}
