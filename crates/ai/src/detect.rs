@@ -157,6 +157,13 @@ pub fn agent_clis() -> Vec<Detected> {
         .collect()
 }
 
+/// A suggestion for an agent on another computer, reached over SSH from an alias in
+/// `~/.ssh/config`. Nothing checked that the agent is installed there: it is an offer, not a find,
+/// so it never stands in for an agent on this computer.
+pub fn over_ssh(d: &Detected) -> bool {
+    d.suggestion.ssh_host.as_deref().is_some_and(|h| !h.trim().is_empty())
+}
+
 /// What a scan found that isn't an AI to use but explains why one is missing.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -164,6 +171,9 @@ pub enum DetectHint {
     /// The Claude desktop app is installed, but not Claude Code, the `claude` command builds run:
     /// "Claude" installed from its website wasn't found and nothing said why (#259).
     ClaudeDesktopWithoutCli { app: PathBuf },
+    /// No coding agent program is on this computer. SSH aliases may still offer agents on other
+    /// computers, unchecked; building here wants one installed and signed in here.
+    NoLocalCodingAgent,
 }
 
 impl DetectHint {
@@ -172,12 +182,14 @@ impl DetectHint {
             Self::ClaudeDesktopWithoutCli { app } => {
                 format!("The Claude desktop app is installed ({}), but Claude Code, the `claude` command-line tool building uses, isn't.", app.display())
             }
+            Self::NoLocalCodingAgent => "No coding agent (Claude Code, Codex, Gemini CLI…) was found on this computer.".into(),
         }
     }
 
     pub fn remediation(&self) -> &'static str {
         match self {
             Self::ClaudeDesktopWithoutCli { .. } => "Install Claude Code apart from the desktop app, sign in to it once in a terminal, then look again.",
+            Self::NoLocalCodingAgent => "Install Claude Code on this computer and sign in once, then look again.",
         }
     }
 }
@@ -189,7 +201,18 @@ pub fn hints() -> Vec<DetectHint> {
     }
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
     let local_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
-    claude_desktop_app(home.as_deref(), local_data.as_deref()).map(|app| DetectHint::ClaudeDesktopWithoutCli { app }).into_iter().collect()
+    let any_agent = crate::cli_agents::KNOWN.iter().any(|(_, prog, _)| crate::cli_agents::find_program(prog).is_some());
+    hints_for(any_agent, claude_desktop_app(home.as_deref(), local_data.as_deref()))
+}
+
+/// [`hints`] from what was looked up: whether any known agent program is on this computer, and
+/// where the Claude desktop app is, if anywhere. (`claude` itself being found gives no hints.)
+fn hints_for(any_agent: bool, desktop_app: Option<PathBuf>) -> Vec<DetectHint> {
+    let mut out: Vec<DetectHint> = desktop_app.map(|app| DetectHint::ClaudeDesktopWithoutCli { app }).into_iter().collect();
+    if !any_agent {
+        out.push(DetectHint::NoLocalCodingAgent);
+    }
+    out
 }
 
 /// The Claude desktop app's Store package family (name and publisher id), whose folder Windows
@@ -428,6 +451,30 @@ mod tests {
         let oc = &found[1].suggestion;
         assert_eq!(oc.name, "OpenCode on test-box");
         assert_eq!(oc.ssh_host.as_deref(), Some("test-box"));
+        // An SSH alias is an unchecked offer, told apart from an agent found here ("Claude Code
+        // on <host>" is not "found on this computer").
+        assert!(found.iter().all(over_ssh));
+        assert!(found.iter().all(|d| d.reason.contains("check that")), "{:?}", found.iter().map(|d| &d.reason).collect::<Vec<_>>());
+        let local = Detected { suggestion: cfg("Codex", BackendKind::AgentCli, "codex"), reason: "Found Codex".into(), needs_key: false };
+        assert!(!over_ssh(&local));
+        let mut blank = local.clone();
+        blank.suggestion.ssh_host = Some("  ".into());
+        assert!(!over_ssh(&blank), "a blank host is no host");
+    }
+
+    /// With no agent program on this computer, the hints say so (next to the desktop-app hint
+    /// when that applies), so the UI and `ai detect` can tell people to install one here, whatever
+    /// `~/.ssh/config` offers elsewhere.
+    #[test]
+    fn no_local_agent_is_a_hint() {
+        assert_eq!(hints_for(false, None), [DetectHint::NoLocalCodingAgent]);
+        assert!(hints_for(true, None).is_empty());
+        let app = PathBuf::from("Claude.app");
+        assert_eq!(hints_for(false, Some(app.clone())), [DetectHint::ClaudeDesktopWithoutCli { app: app.clone() }, DetectHint::NoLocalCodingAgent]);
+        assert_eq!(hints_for(true, Some(app.clone())), [DetectHint::ClaudeDesktopWithoutCli { app }]);
+        let hint = DetectHint::NoLocalCodingAgent;
+        assert!(hint.message().contains("this computer") && hint.remediation().contains("Install Claude Code"), "{}", hint.message());
+        assert_eq!(serde_json::to_value(&hint).unwrap()["kind"], "no_local_coding_agent");
     }
 
     #[test]

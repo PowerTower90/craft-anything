@@ -2,11 +2,120 @@
 //! run through `checks/asks/` (the inbox's folder protocol, in a folder only the run reads), and
 //! the run answers during the builder's turn with the same checks it runs after the turn, as
 //! round 0 (`checks/round-0/`), not counted as a round.
+//!
+//! The check runs on a thread of its own, so the run keeps relaying the builder's events while
+//! it works, says every few minutes that it's still going, and stops it before `rebuild_check`'s
+//! own wait ends so the builder gets an answer either way. At most [`SELF_CHECK_LIMIT`] checks
+//! run in one turn; after that the builder is told to finish the turn and let the run check.
 
 use super::*;
+use serde::{Deserialize, Serialize};
+use std::thread::JoinHandle;
 
 /// The round a builder's own check is run as; real rounds start at 1.
 pub const SELF_CHECK_ROUND: u32 = 0;
+
+/// Most checks the builder may ask for in one turn. Beyond it, each ask is answered with a note
+/// to finish the turn: the run checks after it anyway, and a builder that re-checks without end
+/// never finishes (brief step 4 says so too).
+pub const SELF_CHECK_LIMIT: u32 = 5;
+
+/// How often a running check says it's still going.
+const STILL_CHECKING_EVERY: Duration = Duration::from_secs(150);
+
+/// How long before `rebuild_check` gives up waiting the run stops the check, so its answer gets
+/// there first.
+const ANSWER_GRACE: Duration = Duration::from_secs(30);
+
+/// What `rebuild_check` puts in its request's `detail`: how long it waits for the answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CheckAsk {
+    pub wait_secs: u64,
+}
+
+impl CheckAsk {
+    /// What an ask without a wait (an older tool server) is taken to wait: the tool's default.
+    pub const DEFAULT_WAIT: Duration = Duration::from_secs(20 * 60);
+
+    /// The request detail for a tool that waits `wait`.
+    pub fn detail(wait: Duration) -> String {
+        serde_json::to_string(&CheckAsk { wait_secs: wait.as_secs() }).unwrap_or_default()
+    }
+
+    /// The ask a request's detail carries; the default wait when it carries none.
+    pub fn parse(detail: &str) -> CheckAsk {
+        serde_json::from_str(detail).unwrap_or(CheckAsk { wait_secs: Self::DEFAULT_WAIT.as_secs() })
+    }
+
+    /// How long the run lets the check go: the tool's wait less a margin for the answer to
+    /// arrive, and never under half the wait.
+    pub fn check_deadline(self) -> Duration {
+        let wait = Duration::from_secs(self.wait_secs);
+        wait.saturating_sub(ANSWER_GRACE).max(wait / 2)
+    }
+}
+
+/// The builder's own checks in a run: how they're judged, the one running now and how many this
+/// turn has had.
+pub(super) struct SelfCheck {
+    pub(super) kind: Arc<dyn kinds::TargetKind>,
+    pub(super) good_enough: f64,
+    running: Option<RunningSelfCheck>,
+    pub(super) asked_this_turn: u32,
+}
+
+impl SelfCheck {
+    pub(super) fn new(kind: Arc<dyn kinds::TargetKind>, good_enough: f64) -> SelfCheck {
+        SelfCheck { kind, good_enough, running: None, asked_this_turn: 0 }
+    }
+}
+
+/// A check running on its own thread for one of the builder's asks.
+struct RunningSelfCheck {
+    id: String,
+    started: Instant,
+    deadline: Duration,
+    stop: CancelToken,
+    handle: JoinHandle<Result<Vec<CheckResult>, ToolError>>,
+    last_said: Instant,
+    what: String,
+    /// The ask was answered already (the deadline passed), so the result is dropped when it ends.
+    answered: bool,
+}
+
+/// What the builder is told when its check ran past `rebuild_check`'s wait.
+pub fn timed_out_report(elapsed: Duration) -> String {
+    format!("The check ran out of time after {} minutes; finish the turn and Craft Anything will check it after.", minutes(elapsed))
+}
+
+/// What the builder is told when it asks for a check past [`SELF_CHECK_LIMIT`] in one turn.
+pub fn over_limit_report() -> String {
+    format!(
+        "You've already checked {SELF_CHECK_LIMIT} times this turn, the most for one turn, so this check didn't run. Finish the turn: Craft Anything checks the build after it and tells you what differs."
+    )
+}
+
+/// The feed line while a check is still going ("Still checking: 7 min, building with cargo…").
+pub fn still_checking_line(elapsed: Duration, what: &str) -> String {
+    format!("Still checking: {} min, {what}…", minutes(elapsed))
+}
+
+/// Whole minutes, at least one.
+fn minutes(d: Duration) -> u64 {
+    (d.as_secs() / 60).max(1)
+}
+
+/// What a check of this project spends its time on, for the still-going line.
+pub fn checking_what(ws: &Workspace) -> String {
+    let app = ws.app_dir();
+    match game::Builder::from_stack(&ws.manifest.stack) {
+        Some(b) if b != game::Builder::Rust => format!("building with {}", b.name()),
+        _ if app.join("Cargo.toml").is_file() => "building with cargo".into(),
+        _ if app.join("package.json").is_file() => "building with npm".into(),
+        _ if ws.manifest.target == TargetRef::None => "testing the build".into(),
+        _ => "comparing it with the original".into(),
+    }
+}
 
 /// Where `rebuild_check` asks a project's run for a check.
 pub fn asks_dir(project: &Path) -> PathBuf {
@@ -114,29 +223,135 @@ pub fn report(checks: &[CheckResult], good_enough: f64, open: &[craft_anything_e
 }
 
 impl Worker {
-    /// Answer the builder's own check requests during its turn (once the build loop has started).
+    /// Answer the builder's own check requests during its turn (once the build loop has started):
+    /// start the next one on its own thread, say when a running one is still going, stop one
+    /// whose ask has run out of time, and hand a finished one's report back. Never blocks the
+    /// turn's poll loop.
     pub(super) fn answer_self_checks(&mut self, ws: &mut Workspace) -> Result<(), ToolError> {
-        let Some((kind, good_enough)) = self.self_check.clone() else { return Ok(()) };
+        let Some(mut sc) = self.self_check.take() else { return Ok(()) };
+        let r = self.drive_self_checks(ws, &mut sc);
+        self.self_check = Some(sc);
+        r
+    }
+
+    fn drive_self_checks(&self, ws: &mut Workspace, sc: &mut SelfCheck) -> Result<(), ToolError> {
         let asks = Inbox::new(asks_dir(&ws.root));
+        if let Some(run) = sc.running.as_mut() {
+            if self.stop.is_cancelled() {
+                run.stop.cancel();
+            }
+            if run.handle.is_finished() {
+                let Some(run) = sc.running.take() else { return Ok(()) };
+                let result = run.handle.join().unwrap_or_else(|_| Err(ToolError::internal("The check hit a bug and stopped safely.")));
+                if run.answered {
+                    return Ok(());
+                }
+                let (text, line) = match result {
+                    Ok(checks) => {
+                        let line = format!("The builder checked its work: {}.", summary(&checks, sc.good_enough));
+                        (report(&checks, sc.good_enough, &open_questions(ws)), line)
+                    }
+                    Err(e) if e.code == ErrorCode::Cancelled => return Err(e),
+                    Err(e) => (format!("The check couldn't run: {}", e.message), "The builder's check couldn't run.".to_string()),
+                };
+                asks.answer(&run.id, &Answer { text: Some(text), ..Default::default() })?;
+                return self.step(ws, Step::Build, Status::Building, &line);
+            }
+            let elapsed = run.started.elapsed();
+            if !run.answered && elapsed >= run.deadline {
+                // The tool stops waiting soon: answer now, and stop the check (its result would
+                // reach nobody). The run checks the build after the turn as usual.
+                run.stop.cancel();
+                run.answered = true;
+                asks.answer(&run.id, &Answer { text: Some(timed_out_report(elapsed)), ..Default::default() })?;
+                let line = format!("The builder's check ran out of time after {} min; the build is checked after the turn.", minutes(elapsed));
+                return self.step(ws, Step::Build, Status::Building, &line);
+            }
+            if run.last_said.elapsed() >= STILL_CHECKING_EVERY {
+                run.last_said = Instant::now();
+                let line = still_checking_line(elapsed, &run.what);
+                return self.step(ws, Step::Build, Status::Building, &line);
+            }
+            return Ok(());
+        }
         for r in asks.pending() {
+            if sc.asked_this_turn >= SELF_CHECK_LIMIT {
+                asks.answer(&r.id, &Answer { text: Some(over_limit_report()), ..Default::default() })?;
+                let line = format!("The builder asked for another check after {SELF_CHECK_LIMIT} this turn; the build is checked after the turn instead.");
+                self.step(ws, Step::Build, Status::Building, &line)?;
+                continue;
+            }
+            sc.asked_this_turn = sc.asked_this_turn.saturating_add(1);
             let checking = if ws.manifest.target == TargetRef::None {
                 "The builder is checking its work…"
             } else {
                 "The builder is checking its work against the original…"
             };
             self.step(ws, Step::Build, Status::Building, checking)?;
-            let (text, line) = match self.run_checks(ws, kind.as_ref(), SELF_CHECK_ROUND) {
-                Ok(checks) => {
-                    let line = format!("The builder checked its work: {}.", summary(&checks, good_enough));
-                    (report(&checks, good_enough, &open_questions(ws)), line)
+            let stop = CancelToken::default();
+            let twin = self.twin(stop.clone());
+            let (ws2, kind) = (ws.clone(), sc.kind.clone());
+            let spawned = std::thread::Builder::new().name("self-check".into()).spawn(move || twin.run_checks(&ws2, kind.as_ref(), SELF_CHECK_ROUND));
+            match spawned {
+                Ok(handle) => {
+                    let now = Instant::now();
+                    sc.running = Some(RunningSelfCheck {
+                        id: r.id.clone(),
+                        started: now,
+                        deadline: CheckAsk::parse(&r.detail).check_deadline(),
+                        stop,
+                        handle,
+                        last_said: now,
+                        what: checking_what(ws),
+                        answered: false,
+                    });
+                    return Ok(());
                 }
-                Err(e) if e.code == ErrorCode::Cancelled => return Err(e),
-                Err(e) => (format!("The check couldn't run: {}", e.message), "The builder's check couldn't run.".to_string()),
-            };
-            asks.answer(&r.id, &Answer { text: Some(text), ..Default::default() })?;
-            self.step(ws, Step::Build, Status::Building, &line)?;
+                Err(e) => {
+                    asks.answer(&r.id, &Answer { text: Some(format!("The check couldn't run: {e}")), ..Default::default() })?;
+                    self.step(ws, Step::Build, Status::Building, "The builder's check couldn't run.")?;
+                }
+            }
         }
         Ok(())
+    }
+
+    /// End the builder's own check if one is still running: the turn is over (or the run is),
+    /// and the run's own checks must not overlap it. Its ask, if unanswered, gets the timed-out
+    /// answer so nothing waits on it; an answer that can't be written is this run's error (the
+    /// project's inbox is broken), never the builder's.
+    pub(super) fn finish_self_checks(&mut self, ws: &Workspace) -> Result<(), ToolError> {
+        let Some(run) = self.self_check.as_mut().and_then(|sc| sc.running.take()) else { return Ok(()) };
+        run.stop.cancel();
+        let answered = if run.answered {
+            Ok(())
+        } else {
+            Inbox::new(asks_dir(&ws.root)).answer(&run.id, &Answer { text: Some(timed_out_report(run.started.elapsed())), ..Default::default() })
+        };
+        let _ = run.handle.join();
+        answered
+    }
+
+    /// A worker for the check thread: the same engine, feed and preview as this run, with its own
+    /// stop (cancelled when the ask runs out of time or the run stops).
+    fn twin(&self, stop: CancelToken) -> Worker {
+        Worker {
+            wake: self.wake.clone(),
+            engine: self.engine.clone(),
+            tx: self.tx.clone(),
+            stop,
+            preview: self.preview.clone(),
+            seen: HashSet::new(),
+            inbox: self.inbox.clone(),
+            editor: self.editor.clone(),
+            notes: self.notes.clone(),
+            feed: self.feed.clone(),
+            assets: self.assets,
+            decompiled: self.decompiled,
+            usage: None,
+            self_check: None,
+            reset_progress_after_notes: false,
+        }
     }
 }
 
@@ -208,6 +423,30 @@ mod tests {
         assert_eq!(questions, ["Which font is the menu set in?", "Jump height?"], "unresolved only, most severe first");
         let r = report(&[CheckResult::new(CheckResult::BUILD, 0, true, "Build succeeded.")], 90.0, &open);
         assert!(r.contains("Your open questions: Which font is the menu set in? (unk_") && r.contains("close it with core_unknown_edit"), "{r}");
+    }
+
+    #[test]
+    fn an_ask_carries_its_wait_and_the_run_stops_the_check_before_it_ends() {
+        let ask = CheckAsk::parse(&CheckAsk::detail(Duration::from_secs(20 * 60)));
+        assert_eq!(ask.wait_secs, 1200);
+        assert_eq!(ask.check_deadline(), Duration::from_secs(1170), "half a minute before the tool gives up");
+        assert_eq!(CheckAsk::parse("").wait_secs, 1200, "an older tool server's ask waits the default");
+        assert_eq!(CheckAsk::parse("not json").check_deadline(), Duration::from_secs(1170));
+        assert_eq!(CheckAsk { wait_secs: 60 }.check_deadline(), Duration::from_secs(30));
+        assert_eq!(CheckAsk { wait_secs: 1 }.check_deadline(), Duration::from_millis(500), "never under half the wait");
+        assert_eq!(still_checking_line(Duration::from_secs(7 * 60 + 20), "building with cargo"), "Still checking: 7 min, building with cargo…");
+        assert_eq!(still_checking_line(Duration::from_secs(5), "testing the build"), "Still checking: 1 min, testing the build…");
+        assert!(timed_out_report(Duration::from_secs(19 * 60 + 40)).starts_with("The check ran out of time after 19 minutes; finish the turn"));
+        assert!(over_limit_report().contains("5 times this turn") && over_limit_report().contains("Finish the turn"));
+        let d = tempfile::tempdir().unwrap();
+        let ws = Workspace::create(d.path(), "Arena", "Recreate this game", TargetRef::None).unwrap();
+        assert_eq!(checking_what(&ws), "testing the build");
+        std::fs::create_dir_all(ws.app_dir()).unwrap();
+        std::fs::write(ws.app_dir().join("Cargo.toml"), "[package]").unwrap();
+        assert_eq!(checking_what(&ws), "building with cargo");
+        let mut godot = Workspace::create(d.path(), "Tower", "Recreate this game", TargetRef::None).unwrap();
+        godot.manifest.stack = "Godot".into();
+        assert_eq!(checking_what(&godot), "building with Godot");
     }
 
     #[test]

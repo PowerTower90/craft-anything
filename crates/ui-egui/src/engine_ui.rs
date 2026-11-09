@@ -9,7 +9,7 @@
 use crate::i18n::{tr, trf};
 use crate::state::{MakeDraft, Modal, Screen};
 use crate::theme::{self, Tokens};
-use crate::{CraftApp, Done, icons, widgets};
+use crate::{CraftApp, Done, Look, icons, widgets};
 use craft_anything_ai::rebuild::KindRegistry;
 use craft_anything_engine::{CallOptions, Caller};
 use craft_anything_engines::assets::{AssetProvider, AssetProviders, fal};
@@ -43,7 +43,8 @@ impl CraftApp {
         }
         self.engine_flow.checking = true;
         let store = self.settings.engine_store_dir();
-        self.jobs.spawn("Look for game engines", false, move |_| Ok(Done::GameEngines(game::inventory(&game::Places::here(store)))));
+        let id = self.jobs.spawn("Look for game engines", false, move |_| Ok(Done::GameEngines(game::inventory(&game::Places::here(store)))));
+        self.looks.start(Look::GameEngines, id);
     }
 
     pub fn engines_found(&mut self, inv: Inventory) {
@@ -115,11 +116,21 @@ impl CraftApp {
     }
 }
 
+/// How often Ghidra is looked for again while the app is open (it may be installed meanwhile,
+/// by the CLI or by hand, and the look only stats a few paths on a worker).
+pub const GHIDRA_RECHECK: Duration = Duration::from_secs(5);
+
 /// Getting Ghidra for Deep mode: asked first, then downloaded, checked and set up in the background.
 #[derive(Debug, Default)]
 pub struct GhidraFlow {
-    /// Whether Ghidra was found; `None` until looked for again (after a settings change or install).
+    /// Whether Ghidra was found by the last look; `None` until the first look finishes.
     pub ready: Option<bool>,
+    /// Ghidra's headless launcher, as of the last look.
+    pub launcher: Option<PathBuf>,
+    /// When the last look finished (or failed).
+    pub checked_at: Option<Instant>,
+    /// The look running, as a job.
+    pub looking: Option<u64>,
     /// The download running, as a job.
     pub job: Option<u64>,
     /// The project to start once Ghidra is ready (or the person goes on without it): the draft
@@ -128,15 +139,55 @@ pub struct GhidraFlow {
 }
 
 impl CraftApp {
-    /// Ghidra is here for Deep mode to use (looked up once, then remembered).
+    /// Ghidra is here for Deep mode to use, as of the last look (looked for again every
+    /// [`GHIDRA_RECHECK`], and at once when the window comes back, Settings → Engines or the Ghidra
+    /// dialog opens, or the settings change). Not known yet counts as not here.
     pub fn ghidra_ready(&mut self) -> bool {
-        let settings = &self.settings;
-        *self.ghidra.ready.get_or_insert_with(|| settings.ghidra_launcher().is_some())
+        self.ghidra_look(false);
+        self.ghidra.ready == Some(true)
     }
 
     /// Deep mode is on, but it can't use Ghidra yet.
     pub fn ghidra_missing(&mut self) -> bool {
         self.settings.deep_mode && !self.ghidra_ready()
+    }
+
+    /// Look for Ghidra on a worker (it stats paths), unless a look is running or, without
+    /// `now`, the last one is recent. The last answer stands until the new one comes.
+    pub fn ghidra_look(&mut self, now: bool) {
+        if self.ghidra.looking.is_some() {
+            return;
+        }
+        if !now && self.ghidra.checked_at.is_some_and(|at| at.elapsed() < GHIDRA_RECHECK) {
+            return;
+        }
+        let settings = self.settings.clone();
+        let id = self.jobs.spawn("Look for Ghidra", false, move |_| Ok(Done::GhidraLooked(settings.ghidra_launcher())));
+        self.ghidra.looking = Some(id);
+    }
+
+    /// A look for Ghidra finished: Deep mode uses it from now on if it has just appeared.
+    pub fn ghidra_looked(&mut self, launcher: Option<PathBuf>) {
+        let was = self.ghidra.ready;
+        let found = launcher.is_some();
+        self.ghidra.launcher = launcher;
+        self.ghidra.ready = Some(found);
+        self.ghidra.checked_at = Some(Instant::now());
+        self.ghidra.looking = None;
+        if found && was == Some(false) && self.settings.deep_mode && self.ghidra.job.is_none() {
+            self.toast(tr("Ghidra is ready. Deep mode uses it from now on."), false);
+        }
+        // While it isn't here, the next look comes by itself, so an install elsewhere shows up
+        // even in a window nobody touches.
+        if !found && let Some(c) = self.jobs.repaint_ctx() {
+            c.request_repaint_after(GHIDRA_RECHECK);
+        }
+    }
+
+    /// A look for Ghidra failed: the last answer stands, and the next look waits its turn.
+    pub fn ghidra_look_failed(&mut self) {
+        self.ghidra.looking = None;
+        self.ghidra.checked_at = Some(Instant::now());
     }
 
     /// Download Ghidra and its Java in the background (the person already agreed).
@@ -157,7 +208,13 @@ impl CraftApp {
     pub fn ghidra_got(&mut self) {
         let waiting = self.ghidra.start_after.take();
         self.ghidra = GhidraFlow::default();
-        if self.ghidra_ready() {
+        // The install just finished: one look here (a few stats, once, after minutes of
+        // download), so the project waiting for it starts now rather than being asked again.
+        let launcher = self.settings.ghidra_launcher();
+        self.ghidra.ready = Some(launcher.is_some());
+        self.ghidra.launcher = launcher;
+        self.ghidra.checked_at = Some(Instant::now());
+        if self.ghidra.ready == Some(true) {
             self.toast(tr("Ghidra is ready. Deep mode uses it from now on."), false);
         }
         if let Some(draft) = waiting {
@@ -364,13 +421,18 @@ pub fn ghidra_status(app: &mut CraftApp, ui: &mut Ui) {
     if let Some((fraction, message)) = app.ghidra_download() {
         progress_bar(ui, fraction, &message);
     } else if app.ghidra_ready() {
-        let at = app.settings.ghidra_launcher().map(|p| p.display().to_string()).unwrap_or_default();
+        let at = app.ghidra.launcher.as_ref().map(|p| p.display().to_string()).unwrap_or_default();
         widgets::pill(ui, "Installed", t.success, t.raised).on_hover_text(at);
+    } else if app.ghidra.ready.is_none() {
+        ui.horizontal(|ui| {
+            ui.add(crate::widgets::Spinner::new().size(14.0).color(t.accent));
+            ui.label(RichText::new(tr("Looking for Ghidra…")).color(t.text_dim).size(theme::SMALL));
+        });
     } else {
         ui.horizontal(|ui| {
             widgets::pill(ui, "Not installed", t.warning, t.raised);
             if widgets::secondary(ui, Some("download"), "Get Ghidra").clicked() {
-                app.state.modal = Some(Modal::Ghidra);
+                app.ask_ghidra();
             }
         });
     }
@@ -389,7 +451,8 @@ impl CraftApp {
             return;
         }
         let hub = self.hub.clone();
-        self.jobs.spawn("Check the asset keys", false, move |_| Ok(Done::AssetKeys(stored_keys(&hub))));
+        let id = self.jobs.spawn("Check the asset keys", false, move |_| Ok(Done::AssetKeys(stored_keys(&hub))));
+        self.looks.start(Look::AssetKeys, id);
     }
 
     /// Whether a fal.ai key is set up: it makes the generated pictures and models.
@@ -573,6 +636,8 @@ pub fn assets_settings(app: &mut CraftApp, ui: &mut Ui) {
         )
         .wrap(),
     );
+    // The keychain couldn't be read: say so, rather than show every key as missing.
+    look_failed(app, ui, Look::AssetKeys);
     let all = AssetProviders::built_in();
     for provider in all.ids().into_iter().filter_map(|id| all.get(id)) {
         ui.add_space(6.0);
@@ -682,14 +747,36 @@ fn cpp_step(os: &str) -> (&'static str, &'static str, Option<&'static str>) {
     }
 }
 
+/// A background look that failed, where its spinner was: why, and a way to try again. `true` when
+/// one is shown (the spinner isn't), so no list spins for ever over a failure.
+pub fn look_failed(app: &mut CraftApp, ui: &mut Ui, look: Look) -> bool {
+    let Some(why) = app.looks.error(look).map(str::to_string) else { return false };
+    let t = Tokens::get(ui.ctx());
+    ui.horizontal_wrapped(|ui| {
+        icons::show(ui, "triangle-alert", 16.0, t.warning);
+        ui.label(RichText::new(trf("Couldn't look: {why}", &[("why", &why)])).color(t.text_dim).size(theme::SMALL));
+        if widgets::link(ui, "Try again").clicked() {
+            match look {
+                Look::Detect => app.detect_backends(),
+                Look::Backends => app.refresh_backends(),
+                Look::GameEngines => app.refresh_game_engines(),
+                Look::AssetKeys => app.check_asset_keys(),
+            }
+        }
+    });
+    true
+}
+
 /// "Ready — Unity 6000.0.23f1" or "Not on this computer yet" with the way to get it.
 fn status_line(app: &mut CraftApp, ui: &mut Ui, b: Builder, offer: bool) {
     let t = Tokens::get(ui.ctx());
     let inv = app.game_engines.clone();
     ui.horizontal_wrapped(|ui| match &inv {
         None => {
-            ui.add(crate::widgets::Spinner::new().size(14.0).color(t.accent));
-            ui.label(RichText::new(tr("Looking for game engines on this computer…")).color(t.text_dim).size(theme::SMALL));
+            if !look_failed(app, ui, Look::GameEngines) {
+                ui.add(crate::widgets::Spinner::new().size(14.0).color(t.accent));
+                ui.label(RichText::new(tr("Looking for game engines on this computer…")).color(t.text_dim).size(theme::SMALL));
+            }
         }
         Some(inv) if inv.ready(b) => {
             icons::show(ui, "check", 16.0, t.success);
@@ -802,10 +889,12 @@ pub fn modal(app: &mut CraftApp, ui: &mut Ui, b: Builder, close: &mut bool) {
     ui.set_width(520.0);
     let Some(inv) = app.game_engines.clone() else {
         ui.horizontal(|ui| {
-            ui.add(crate::widgets::Spinner::new().size(16.0).color(t.accent));
-            ui.label(tr("Looking for game engines on this computer…"));
+            if !look_failed(app, ui, Look::GameEngines) {
+                ui.add(crate::widgets::Spinner::new().size(16.0).color(t.accent));
+                ui.label(tr("Looking for game engines on this computer…"));
+                app.refresh_game_engines();
+            }
         });
-        app.refresh_game_engines();
         return;
     };
     let ready = inv.ready(b);
@@ -942,7 +1031,7 @@ pub fn progress_bar(ui: &mut Ui, fraction: Option<f32>, message: &str) {
 /// Settings → Engines: each game engine, whether it's here, and the way to get it.
 pub fn settings_section(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    if app.game_engines.is_none() {
+    if app.game_engines.is_none() && app.looks.error(Look::GameEngines).is_none() {
         app.refresh_game_engines();
     }
     ui.label(RichText::new(tr("Game engines")).font(theme::medium(theme::SMALL)));

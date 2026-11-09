@@ -21,7 +21,7 @@ pub use screenshot::ScreenshotCheck;
 pub use self_test::SelfTestCheck;
 pub use website::{WebVisualCheck, WebsiteKind};
 
-use super::check::build_check;
+use super::check::build_check_saying;
 use super::*;
 
 /// What a kind is recognised from: the person's words, the target and the stack (when chosen).
@@ -174,6 +174,11 @@ impl CheckCx<'_> {
         &self.worker.stop
     }
 
+    /// A line for the person while a long check runs ("Still building with cargo: 7 min so far…").
+    pub fn say(&self, text: String) {
+        self.worker.emit(RunEvent::Agent(AgentEvent::Status { text }));
+    }
+
     /// How builds are judged (`[build]` in settings).
     pub fn build_settings(&self) -> craft_anything_engine::settings::BuildSettings {
         self.worker.engine.session().settings.build.clone()
@@ -255,7 +260,7 @@ impl Check for BuildCheck {
         CheckResult::BUILD
     }
     fn run(&self, cx: &mut CheckCx) -> Result<CheckResult, ToolError> {
-        let (passed, note) = build_check(&cx.ws.app_dir(), cx.ws.app_place(), &cx.ws.manifest.stack, cx.editor(), cx.stop());
+        let (passed, note) = build_check_saying(&cx.ws.app_dir(), cx.ws.app_place(), &cx.ws.manifest.stack, cx.editor(), cx.stop(), &|t| cx.say(t));
         // #736: a failed build of an empty app/ says first that nothing was written.
         let note = if !passed && app_is_empty(cx.ws) { format!("{} {note}", no_files_yet(cx.ws)) } else { note };
         Ok(CheckResult::new(self.id(), cx.round, passed, note))

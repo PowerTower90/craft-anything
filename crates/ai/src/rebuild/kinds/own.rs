@@ -2,7 +2,7 @@
 //! compare it with and nothing may be added to it for our sake (no `--screenshot` option, no
 //! mechanics sheet), so it's judged by what it does for itself: its build, then its tests.
 
-use super::super::check::{own_build_check, own_tests_check};
+use super::super::check::{own_build_check_saying, own_tests_check_saying};
 use super::*;
 
 pub struct OwnBuildCheck;
@@ -13,7 +13,7 @@ impl Check for OwnBuildCheck {
     }
 
     fn run(&self, cx: &mut CheckCx) -> Result<CheckResult, ToolError> {
-        let (passed, note) = own_build_check(&cx.ws.app_dir(), cx.ws.app_place(), &cx.ws.manifest.stack, cx.editor(), cx.stop());
+        let (passed, note) = own_build_check_saying(&cx.ws.app_dir(), cx.ws.app_place(), &cx.ws.manifest.stack, cx.editor(), cx.stop(), &|t| cx.say(t));
         Ok(CheckResult::new(self.id(), cx.round, passed, note))
     }
 }
@@ -31,7 +31,7 @@ impl Check for OwnTestsCheck {
 
     fn run(&self, cx: &mut CheckCx) -> Result<CheckResult, ToolError> {
         let app = cx.ws.app_dir();
-        let (passed, note) = own_tests_check(&app, stacks::toolchain_in(&app), cx.stop());
+        let (passed, note) = own_tests_check_saying(&app, stacks::toolchain_in(&app), cx.stop(), &|t| cx.say(t));
         Ok(CheckResult::new(self.id(), cx.round, passed, note))
     }
 }

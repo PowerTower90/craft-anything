@@ -334,7 +334,7 @@ fn backend_picker(app: &mut CraftApp, ui: &mut Ui) {
             .show_ui(ui, |ui| {
                 for b in &app.backends {
                     let on = app.state.backend.as_ref() == Some(&b.name);
-                    if ui.selectable_label(on, &b.name).on_hover_text(format!("{:?} · {}", b.kind, b.model)).clicked() {
+                    if ui.selectable_label(on, &b.name).on_hover_text(format!("{} · {}", tr(b.kind.title()), b.model)).clicked() {
                         choice = Some(Some(b.name.clone()));
                     }
                 }
@@ -353,8 +353,6 @@ fn backend_picker(app: &mut CraftApp, ui: &mut Ui) {
         app.choose_backend(c);
     }
     if setup {
-        app.state.settings_open = true;
-        app.state.settings_tab = crate::state::SettingsTab::Ai;
-        app.detect_backends();
+        app.open_settings(crate::state::SettingsTab::Ai);
     }
 }

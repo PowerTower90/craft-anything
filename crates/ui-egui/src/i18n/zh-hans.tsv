@@ -1462,3 +1462,11 @@ In this project, {kind}: {choice}.	在这个项目中，{kind}：{choice}。
 Couldn't change the approvals:	无法更改审批：
 What the builder may do without asking you, in this project.	在这个项目中，构建助手无需问你就可以做的事。
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	默认跟随自动模式：开启时，可撤销的操作会执行，其余的会被拒绝；关闭时，构建助手会询问。
+Looking for Ghidra…	正在查找 Ghidra…
+Couldn't look: {why}	无法查看：{why}
+Looked just now	刚刚查看过
+Looked {n} s ago	{n} 秒前查看过
+Coding agent app (over SSH to {host})	编程智能体应用（通过 SSH 连接 {host}）
+on another computer over SSH (not checked); set up when you start	位于另一台计算机，通过 SSH（未检查）；启动时配置
+On another computer over SSH (not checked)	位于另一台计算机，通过 SSH（未检查）
+Install Claude Code on this computer and sign in once, then Look again.	在此计算机上安装 Claude Code 并登录一次，然后点击“再找一次”。

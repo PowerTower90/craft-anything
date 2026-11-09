@@ -1462,3 +1462,11 @@ In this project, {kind}: {choice}.	Bu projede {kind}: {choice}.
 Couldn't change the approvals:	Onaylar değiştirilemedi:
 What the builder may do without asking you, in this project.	Oluşturucunun bu projede size sormadan yapabilecekleri.
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	Varsayılan, otomatik modu izler: açıkken geri alınabilenler yapılır, gerisi reddedilir; kapalıyken oluşturucu sorar.
+Looking for Ghidra…	Ghidra aranıyor…
+Couldn't look: {why}	Bakılamadı: {why}
+Looked just now	Az önce bakıldı
+Looked {n} s ago	{n} sn önce bakıldı
+Coding agent app (over SSH to {host})	Kodlama ajanı uygulaması ({host} üzerinde, SSH ile)
+on another computer over SSH (not checked); set up when you start	başka bir bilgisayarda SSH ile (denetlenmedi); başladığınızda kurulur
+On another computer over SSH (not checked)	Başka bir bilgisayarda SSH ile (denetlenmedi)
+Install Claude Code on this computer and sign in once, then Look again.	Claude Code'u bu bilgisayara kurun, bir kez oturum açın, sonra Yeniden bak'a basın.

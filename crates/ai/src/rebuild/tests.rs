@@ -749,6 +749,31 @@ mod typed_retries {
         }
     }
 
+    /// A turn that ran out of time (the agent went silent, or its wall clock ended) is picked up
+    /// once; a second timeout ends the run instead of three more hours of the same.
+    #[test]
+    fn a_timed_out_turn_is_retried_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut ws = Workspace::create(dir.path(), "x", "Build a thing", TargetRef::None).unwrap();
+        let mut worker = check_worker(&ws, false);
+        let timed_out = TurnFailure::new(FailureKind::TimedOut);
+        let mut agent = FailingConversation::new([Some(timed_out); 3], true);
+        let mut waits = Vec::new();
+        let error = worker
+            .turn_with_wait(&mut ws, &mut agent, "Build it", true, None, |_, seconds| {
+                waits.push(seconds);
+                Ok(())
+            })
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::ProgramFailed);
+        assert_eq!(agent.sent.len(), 2, "the first attempt and one retry");
+        assert_eq!(waits, [30]);
+        assert_eq!(agent.sent[1], crate::failure::CONTINUE_TURN, "picked up where it stopped");
+        // One timeout followed by a good turn finishes.
+        let mut agent = FailingConversation::new([Some(timed_out), None], true);
+        assert_eq!(worker.turn_with_wait(&mut ws, &mut agent, "Build it", true, None, |_, _| Ok(())).unwrap(), "Done");
+    }
+
     /// Retries stop at the cap, and a cancelled wait sends no further turn.
     #[test]
     fn retries_are_bounded_and_cancelled_waits_send_nothing_more() {
@@ -847,7 +872,7 @@ mod typed_retries {
         let asks = Inbox::new(self_check::asks_dir(&ws.root));
         let id = asks.post(craft_anything_engine::inbox::RequestKind::Question, "Check the build", "", Vec::new(), false, None).unwrap();
         let mut worker = check_worker(&ws, false);
-        worker.self_check = Some((Arc::new(BlockReply { answer: asks.dir().join(format!("{id}.answer.json")) }), 90.0));
+        worker.self_check = Some(self_check::SelfCheck::new(Arc::new(BlockReply { answer: asks.dir().join(format!("{id}.answer.json")) }), 90.0));
         let mut agent = RateLimited { sent: 0, first_poll: false };
         let mut waits = Vec::new();
         let error = worker
@@ -2989,35 +3014,50 @@ fn menus_are_studied_on_a_phone_too() {
     assert_eq!(pictured_states(&ws), ["states/state-1.png (Products, menu, 1440 px)", "states-390/state-1.png (Menu, menu, 390 px)"]);
 }
 
-/// A builder whose turn lasts until its own check (asked like `rebuild_check` from another process)
-/// has been answered by the run, then ends with that answer as its reply.
+/// A builder whose turn lasts until its own checks (asked like `rebuild_check` from another
+/// process, one after another, `times` in all, each waiting `wait`) have been answered by the run,
+/// then ends with the answers as its reply, one per line.
 struct ChecksItsWork {
     root: PathBuf,
+    wait: Duration,
+    times: usize,
     asked: Option<std::thread::JoinHandle<Option<String>>>,
-    reply: Option<String>,
+    answers: Vec<String>,
+}
+
+impl ChecksItsWork {
+    fn new(root: &Path) -> ChecksItsWork {
+        ChecksItsWork { root: root.to_path_buf(), wait: Duration::from_secs(60), times: 1, asked: None, answers: Vec::new() }
+    }
+
+    fn ask(&mut self) {
+        let asks = Inbox::new(self_check::asks_dir(&self.root));
+        let detail = self_check::CheckAsk::detail(self.wait);
+        self.asked = Some(std::thread::spawn(move || {
+            let id = asks.post(craft_anything_engine::inbox::RequestKind::Question, "Check the build", &detail, Vec::new(), false, None).ok()?;
+            asks.wait(&id, Duration::from_secs(20), &|| false).and_then(|a| a.text)
+        }));
+    }
 }
 
 impl Conversation for ChecksItsWork {
     fn send(&mut self, _text: &str) {
-        let asks = Inbox::new(self_check::asks_dir(&self.root));
-        self.asked = Some(std::thread::spawn(move || {
-            let id = asks.post(craft_anything_engine::inbox::RequestKind::Question, "Check the build", "", Vec::new(), false, None).ok()?;
-            asks.wait(&id, Duration::from_secs(20), &|| false).and_then(|a| a.text)
-        }));
+        self.ask();
     }
     fn poll(&mut self) -> Vec<AgentEvent> {
         if self.asked.as_ref().is_some_and(|h| h.is_finished()) {
-            self.reply = self.asked.take().and_then(|h| h.join().ok()).flatten();
-        }
-        match self.reply.take() {
-            Some(text) => {
-                vec![
-                    AgentEvent::TextDelta { text },
-                    AgentEvent::TurnDone { backend: "test".into(), input_tokens: 0, output_tokens: 0, cost_usd: None, cost_is_estimate: false },
-                ]
+            let answer = self.asked.take().and_then(|h| h.join().ok()).flatten().unwrap_or_else(|| "(no answer)".into());
+            self.answers.push(answer);
+            if self.answers.len() < self.times {
+                self.ask();
+                return Vec::new();
             }
-            None => Vec::new(),
+            return vec![
+                AgentEvent::TextDelta { text: self.answers.join("\n---\n") },
+                AgentEvent::TurnDone { backend: "test".into(), input_tokens: 0, output_tokens: 0, cost_usd: None, cost_is_estimate: false },
+            ];
         }
+        Vec::new()
     }
     fn answer_consent(&mut self, _call_id: &str, _allow: bool) {}
     fn stop(&mut self) {}
@@ -3087,10 +3127,10 @@ fn the_run_answers_the_builders_own_check_during_its_turn() {
         assets: false,
         decompiled: false,
         usage: None,
-        self_check: Some((Arc::new(SheetKind), 90.0)),
+        self_check: Some(self_check::SelfCheck::new(Arc::new(SheetKind), 90.0)),
         reset_progress_after_notes: false,
     };
-    let mut builder = ChecksItsWork { root: ws.root.clone(), asked: None, reply: None };
+    let mut builder = ChecksItsWork::new(&ws.root);
     let reply = w.turn(&mut ws, &mut builder, "Build it.", true, None).unwrap();
     // The same check the run makes after a turn, as round 0, with what to do next.
     assert!(reply.starts_with("mechanics: failed") && reply.contains("no app/mechanics.json") && reply.contains("check again with rebuild_check"), "{reply}");
@@ -3098,6 +3138,95 @@ fn the_run_answers_the_builders_own_check_during_its_turn() {
     let steps: Vec<String> = rx.try_iter().filter_map(|e| if let RunEvent::Step { text, .. } = e { Some(text) } else { None }).collect();
     assert!(steps.iter().any(|s| s.contains("checking its work")) && steps.iter().any(|s| s.contains("checked its work")), "the person sees it: {steps:?}");
     assert!(Inbox::new(self_check::asks_dir(&ws.root)).pending().is_empty(), "nothing left waiting");
+}
+
+/// A builder that keeps re-checking gets its first five checks in a turn, and after that an
+/// answer that says to finish the turn (the run checks after it) instead of another check.
+#[test]
+fn the_builders_own_checks_are_capped_per_turn() {
+    let d = tempfile::tempdir().unwrap();
+    let mut ws = Workspace::create(d.path(), "Arena", "Recreate this game", TargetRef::None).unwrap();
+    let mut w = check_worker(&ws, true);
+    let (tx, rx) = std::sync::mpsc::channel();
+    w.tx = tx;
+    w.self_check = Some(self_check::SelfCheck::new(Arc::new(SheetKind), 90.0));
+    let mut builder = ChecksItsWork::new(&ws.root);
+    builder.times = self_check::SELF_CHECK_LIMIT as usize + 2;
+    let reply = w.turn(&mut ws, &mut builder, "Build it.", true, None).unwrap();
+    let answers: Vec<&str> = reply.split("\n---\n").collect();
+    assert_eq!(answers.len(), 7, "{reply}");
+    assert!(answers[..5].iter().all(|a| a.starts_with("mechanics: failed")), "the first five ran: {reply}");
+    assert!(answers[5..].iter().all(|a| *a == self_check::over_limit_report()), "the rest are told to finish the turn: {reply}");
+    let steps: Vec<String> = rx.try_iter().filter_map(|e| if let RunEvent::Step { text, .. } = e { Some(text) } else { None }).collect();
+    assert_eq!(steps.iter().filter(|s| s.contains("checked its work")).count(), 5, "{steps:?}");
+    assert_eq!(steps.iter().filter(|s| s.contains("asked for another check after 5")).count(), 2, "{steps:?}");
+    // A new turn starts the count again.
+    let mut again = ChecksItsWork::new(&ws.root);
+    let reply = w.turn(&mut ws, &mut again, "Fix it.", true, None).unwrap();
+    assert!(reply.starts_with("mechanics: failed"), "{reply}");
+}
+
+/// A kind whose one check runs until the run stops it, and records that it was stopped.
+struct StallKind(Arc<AtomicBool>);
+
+impl Check for StallKind {
+    fn id(&self) -> &'static str {
+        "stall"
+    }
+    fn run(&self, cx: &mut CheckCx) -> Result<CheckResult, ToolError> {
+        let started = Instant::now();
+        while !cx.stop().is_cancelled() {
+            assert!(started.elapsed() < Duration::from_secs(30), "the run never stopped the check");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        self.0.store(true, Ordering::SeqCst);
+        Err(ToolError::cancelled())
+    }
+}
+
+impl TargetKind for StallKind {
+    fn id(&self) -> &'static str {
+        "stall"
+    }
+    fn words(&self) -> KindWords {
+        SlidesKind.words()
+    }
+    fn detect(&self, _: &DetectCx) -> Option<u32> {
+        Some(1)
+    }
+    fn default_stack(&self, cx: &DetectCx) -> &'static str {
+        SlidesKind.default_stack(cx)
+    }
+    fn goal(&self) -> &'static str {
+        SlidesKind.goal()
+    }
+    fn checks(&self, _: &Workspace) -> Vec<Box<dyn Check>> {
+        vec![Box::new(StallKind(self.0.clone()))]
+    }
+}
+
+/// A check that runs past the builder's wait is stopped and answered as timed out, before the
+/// tool itself gives up; the builder's turn goes on meanwhile (the poll loop never blocked).
+#[test]
+fn a_check_that_runs_past_the_builders_wait_is_stopped_and_answered() {
+    let d = tempfile::tempdir().unwrap();
+    let mut ws = Workspace::create(d.path(), "Arena", "Recreate this game", TargetRef::None).unwrap();
+    let mut w = check_worker(&ws, true);
+    let (tx, rx) = std::sync::mpsc::channel();
+    w.tx = tx;
+    let stopped = Arc::new(AtomicBool::new(false));
+    w.self_check = Some(self_check::SelfCheck::new(Arc::new(StallKind(stopped.clone())), 90.0));
+    let mut builder = ChecksItsWork::new(&ws.root);
+    // The tool would wait a second: the run stops the check after half of it.
+    builder.wait = Duration::from_secs(1);
+    let started = Instant::now();
+    let reply = w.turn(&mut ws, &mut builder, "Build it.", true, None).unwrap();
+    assert!(started.elapsed() < Duration::from_secs(20), "answered before the tool's own wait would end");
+    assert!(reply.starts_with("The check ran out of time after 1 minutes; finish the turn"), "{reply}");
+    let steps: Vec<String> = rx.try_iter().filter_map(|e| if let RunEvent::Step { text, .. } = e { Some(text) } else { None }).collect();
+    assert!(steps.iter().any(|s| s.contains("ran out of time")), "{steps:?}");
+    assert!(stopped.load(Ordering::SeqCst), "the check thread was stopped, not left running");
+    assert!(ws.manifest.checks.is_empty(), "not a round");
 }
 
 #[test]

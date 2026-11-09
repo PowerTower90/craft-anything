@@ -112,6 +112,15 @@ impl Availability {
 pub struct Engine {
     registry: Registry,
     session: Mutex<Session>,
+    /// How long a tool call waits for the session before it gives up with an error that names
+    /// the call holding it. Tools are long jobs (the lock waits for a labelled job without end),
+    /// so this is the only thing that stops a call from waiting forever behind one (#phase1-hangs).
+    session_wait: std::time::Duration,
+}
+
+/// The default [`Engine::session_wait`]: the lock's own limit for a holder that isn't a job.
+fn default_session_wait() -> std::time::Duration {
+    craft_anything_platform::sync::Limits::default().give_up_after
 }
 
 /// A handle to the engine a tool runs in, for tools that start work which calls back into it (a
@@ -120,7 +129,7 @@ pub struct EngineRef(pub std::sync::Weak<Engine>);
 
 impl Engine {
     pub fn new(session: Session) -> Self {
-        Engine { registry: Registry::with_all_tools(), session: Mutex::new(session) }
+        Engine { registry: Registry::with_all_tools(), session: Mutex::new(session), session_wait: default_session_wait() }
     }
 
     /// The engine as most apps use it: shared, with tools from higher layers (`extra`, e.g. the
@@ -139,7 +148,7 @@ impl Engine {
         std::sync::Arc::new_cyclic(|me| {
             let mut session = session;
             session.ext.insert(std::sync::Arc::new(EngineRef(me.clone())));
-            Engine { registry: Registry::new(tools).with_runtime(runtime), session: Mutex::new(session) }
+            Engine { registry: Registry::new(tools).with_runtime(runtime), session: Mutex::new(session), session_wait: default_session_wait() }
         })
     }
 
@@ -225,7 +234,11 @@ impl Engine {
         if let (Some(m), serde_json::Value::Object(o)) = (entry.as_object_mut(), outcome) {
             m.extend(o);
         }
-        self.journal("tool_call", entry);
+        // A call that gave up waiting for the session can't journal either (the journal needs the
+        // session for the project's folder): it would wait on the same holder again.
+        if !matches!(&result, Err(e) if e.details.as_ref().is_some_and(|d| d.get("session_busy").is_some())) {
+            self.journal("tool_call", entry);
+        }
         result
     }
 
@@ -242,11 +255,15 @@ impl Engine {
             ToolError::invalid(format!("No tool named {id}")).with_remediation("List tools with `craft-anything-cli commands` or the command palette.")
         })?;
         // Stop works while waiting for the session, and a holder that looks stuck is an error here,
-        // not a wait forever. Tools are long jobs: the label says so (they have their own deadlines).
+        // not a wait forever. Tools are long jobs: the label says so (they have their own deadlines),
+        // so a wait behind one ends only with `session_wait`, as an error that names the holder.
         let cancel = opts.cancel.clone();
-        let mut session = match self.session.lock_unless(&|| cancel.is_cancelled()) {
+        let waited = std::time::Instant::now();
+        let limit = self.session_wait;
+        let mut session = match self.session.lock_unless(&|| cancel.is_cancelled() || waited.elapsed() >= limit) {
             Ok(g) => g.unwrap_or_else(PoisonError::into_inner),
-            Err(craft_anything_platform::sync::GaveUp::Stopped) => return Err(ToolError::cancelled()),
+            Err(craft_anything_platform::sync::GaveUp::Stopped) if cancel.is_cancelled() => return Err(ToolError::cancelled()),
+            Err(craft_anything_platform::sync::GaveUp::Stopped) => return Err(session_busy(&spec, self.session.holder(), waited.elapsed())),
             Err(craft_anything_platform::sync::GaveUp::Stuck(why)) => {
                 return Err(ToolError::new(ErrorCode::TimedOut, format!("{} couldn't start because another part of the app is stuck.", spec.title))
                     .with_remediation("Restart the app; your work is kept.")
@@ -282,23 +299,51 @@ impl Engine {
             }
         }
         let run = spec.run;
+        let bug = |panic: Box<dyn std::any::Any + Send>| {
+            let what = panic.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| panic.downcast_ref::<String>().cloned()).unwrap_or_default();
+            log::error!("tool {id} panicked: {what}");
+            ToolError::internal(format!("{} hit a bug and stopped safely. Your work is kept. ({what})", spec.title))
+        };
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut ctx = Ctx { tool: spec.id, session: &mut session, cancel: opts.cancel.clone(), progress: opts.progress, caller: opts.caller };
-            run(&mut ctx, params)
+            let mut ctx = Ctx { tool: spec.id, session: &mut session, cancel: opts.cancel.clone(), progress: opts.progress, caller: opts.caller, after: None };
+            let out = run(&mut ctx, params);
+            (out, ctx.after.take())
         }));
-        let output = match result {
-            Ok(r) => r?,
-            Err(panic) => {
-                let what = panic.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| panic.downcast_ref::<String>().cloned()).unwrap_or_default();
-                log::error!("tool {id} panicked: {what}");
-                return Err(ToolError::internal(format!("{} hit a bug and stopped safely. Your work is kept. ({what})", spec.title)));
-            }
+        let (output, after) = match result {
+            Ok((r, after)) => (r?, after),
+            Err(panic) => return Err(bug(panic)),
         };
         if let ToolOutput::Evidence(ev) = &output {
             session.record((**ev).clone())?;
         }
+        let Some(after) = after else { return Ok(output) };
+        // The tool left a long wait for after the session is released, so other calls go on.
+        drop(session);
+        let cancel = opts.cancel.clone();
+        let output = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || after(cancel))) {
+            Ok(r) => r?,
+            Err(panic) => return Err(bug(panic)),
+        };
+        if let ToolOutput::Evidence(ev) = &output {
+            self.session().record((**ev).clone())?;
+        }
         Ok(output)
     }
+}
+
+/// The error for a tool call that waited its whole `session_wait` for the session: who holds it
+/// (the tool, by its label, running for how long), so the person knows what to stop.
+fn session_busy(spec: &ToolSpec, holder: Option<craft_anything_platform::sync::Holder>, waited: std::time::Duration) -> ToolError {
+    let (who, details) = match &holder {
+        Some(h) => (
+            format!("another tool call is holding the session: {}, running for {} s", h.job.unwrap_or("work that isn't a tool"), h.held_for.as_secs()),
+            serde_json::json!({"session_busy": true, "holder": h.job, "held_for_secs": h.held_for.as_secs(), "thread": h.thread}),
+        ),
+        None => ("the session stayed busy the whole time".to_string(), serde_json::json!({"session_busy": true, "holder": null})),
+    };
+    ToolError::new(ErrorCode::TimedOut, format!("{} waited {} s to start and gave up: {who}.", spec.title, waited.as_secs()))
+        .with_remediation("Wait for that call to finish or stop it, then try again.")
+        .with_details(details)
 }
 
 #[cfg(test)]
@@ -310,6 +355,28 @@ mod tests {
         let e = Engine::new(crate::testing::session());
         let err = e.call("no_such_tool", Value::Null, CallOptions::new(Caller::Cli)).unwrap_err();
         assert_eq!(err.code, ErrorCode::BadInput);
+    }
+
+    /// A tool call behind a long job used to wait forever (the lock waits for a labelled job
+    /// without end); now it gives up after `session_wait` and names the holder.
+    #[test]
+    fn a_call_waiting_on_a_busy_session_gives_up_and_names_the_holder() {
+        let mut e = Engine::new(crate::testing::session());
+        e.session_wait = std::time::Duration::from_millis(300);
+        let e = std::sync::Arc::new(e);
+        let held = e.session();
+        held.label("web_site_capture");
+        let (tx, rx) = std::sync::mpsc::channel();
+        let e2 = e.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(e2.call("project_list", serde_json::json!({}), CallOptions::new(Caller::Cli)));
+        });
+        let err = rx.recv_timeout(std::time::Duration::from_secs(10)).expect("it gave up instead of waiting forever").unwrap_err();
+        assert_eq!(err.code, ErrorCode::TimedOut);
+        assert!(err.message.contains("holding the session: web_site_capture, running for"), "{err:?}");
+        assert_eq!(err.details.as_ref().and_then(|d| d.get("holder")).and_then(Value::as_str), Some("web_site_capture"));
+        drop(held);
+        assert!(e.call("project_list", serde_json::json!({}), CallOptions::new(Caller::Cli)).is_ok(), "free again");
     }
 
     /// #841: Try again repeated "install a browser" for a person who had set a path to theirs.

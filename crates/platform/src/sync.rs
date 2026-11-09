@@ -59,6 +59,15 @@ pub struct Problem {
     pub log: Option<std::path::PathBuf>,
 }
 
+/// Who holds a [`Mutex`] right now ([`Mutex::holder`]), for a waiter that gives up to say.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Holder {
+    /// The job it was labelled as ([`MutexGuard::label`]), if any.
+    pub job: Option<&'static str>,
+    pub thread: String,
+    pub held_for: Duration,
+}
+
 /// Why [`Mutex::lock_unless`] came back without the lock.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GaveUp {
@@ -117,6 +126,11 @@ impl<T: ?Sized> Mutex<T> {
     #[track_caller]
     pub fn lock_unless(&self, stop: &dyn Fn() -> bool) -> Result<LockResult<MutexGuard<'_, T>>, GaveUp> {
         self.wait(Location::caller(), stop, Limits::default(), true)
+    }
+
+    /// Who holds this lock right now, if anyone: what a waiter that gave up names.
+    pub fn holder(&self) -> Option<Holder> {
+        tracker::holder(self.id())
     }
 
     fn wait(&self, at: &'static Location<'static>, stop: &dyn Fn() -> bool, limits: Limits, early: bool) -> Result<LockResult<MutexGuard<'_, T>>, GaveUp> {
@@ -266,6 +280,9 @@ mod tracker {
     pub fn held(_: usize, _: &'static Location<'static>) {}
     pub fn released(_: usize) {}
     pub fn label(_: usize, _: &'static str) {}
+    pub fn holder(_: usize) -> Option<Holder> {
+        None
+    }
     pub fn begin_wait(_: usize, _: &'static Location<'static>) {}
     pub fn end_wait() {}
     pub fn pause(_: Duration) {}
@@ -347,6 +364,10 @@ mod tracker {
         if let Some(h) = registry().holds.get_mut(&id) {
             h.job = Some(job);
         }
+    }
+
+    pub fn holder(id: usize) -> Option<Holder> {
+        registry().holds.get(&id).map(|h| Holder { job: h.job, thread: h.thread_name.clone(), held_for: h.since.elapsed() })
     }
 
     pub fn begin_wait(lock: usize, at: &'static Location<'static>) {
@@ -574,8 +595,12 @@ mod tests {
     #[test]
     fn a_long_job_is_waited_for_however_short_the_limits() {
         let m = Arc::new(Mutex::new(0));
+        assert_eq!(m.holder(), None);
         let g = m.lock().unwrap();
         g.label("big-job");
+        let holder = m.holder().expect("held");
+        assert_eq!(holder.job, Some("big-job"));
+        assert!(holder.held_for < Duration::from_secs(5));
         let (m2, (done, finished)) = (m.clone(), channel());
         std::thread::spawn(move || {
             let limits = Limits { stuck_after: Duration::ZERO, give_up_after: Duration::ZERO, slow_job_after: Duration::ZERO };

@@ -143,6 +143,9 @@ pub enum Route {
     Silent,
 }
 
+/// How old the last look for AI on this computer may be before a focus or Settings → AI repeats it.
+pub const DETECT_STALE: Duration = Duration::from_secs(30);
+
 /// What a worker hands back to the UI thread.
 pub enum Done {
     Tool {
@@ -267,7 +270,61 @@ pub enum Done {
         path: PathBuf,
         image: Option<egui::TextureHandle>,
     },
+    /// Ghidra's headless launcher, if it's on this computer (looked for on a worker: it stats paths).
+    GhidraLooked(Option<PathBuf>),
     Nothing,
+}
+
+/// A background look that fills one of the app's lists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Look {
+    /// AI found on this computer (`detect_backends`).
+    Detect,
+    /// The AI set up (`refresh_backends`).
+    Backends,
+    /// Game engines on this computer (`refresh_game_engines`).
+    GameEngines,
+    /// Which asset providers have a key (`check_asset_keys`).
+    AssetKeys,
+}
+
+/// The background looks that fill the app's lists: which job each is, and why the last one failed,
+/// so a list that couldn't be filled says so where its spinner was instead of spinning for ever.
+#[derive(Debug, Default)]
+pub struct Looks {
+    running: std::collections::BTreeMap<Look, u64>,
+    errors: std::collections::BTreeMap<Look, String>,
+}
+
+impl Looks {
+    /// `job` is now the look for `look`; its last error is cleared.
+    pub fn start(&mut self, look: Look, job: u64) {
+        self.running.insert(look, job);
+        self.errors.remove(&look);
+    }
+
+    /// A job finished with an error: the look it was, if it was one, with the error kept.
+    pub fn failed(&mut self, job: u64, error: &str) -> Option<Look> {
+        let look = *self.running.iter().find(|(_, id)| **id == job)?.0;
+        self.running.remove(&look);
+        self.errors.insert(look, error.to_string());
+        Some(look)
+    }
+
+    /// `look` has its result.
+    pub fn finished(&mut self, look: Look) {
+        self.running.remove(&look);
+        self.errors.remove(&look);
+    }
+
+    /// Why the last `look` failed, until the next one starts.
+    pub fn error(&self, look: Look) -> Option<&str> {
+        self.errors.get(&look).map(String::as_str)
+    }
+
+    pub fn running(&self, look: Look) -> bool {
+        self.running.contains_key(&look)
+    }
 }
 
 /// An AI server added by its address (Settings → AI): another computer's Ollama or LM Studio, or a
@@ -453,6 +510,10 @@ pub struct CraftApp {
     /// Why an expected coding agent may be missing, from the last scan.
     pub detect_hints: Vec<craft_anything_ai::detect::DetectHint>,
     pub detecting: bool,
+    /// When the last look for AI on this computer finished (`None`: not yet).
+    pub detected_at: Option<Instant>,
+    /// The background looks that fill the lists, and why the last one failed.
+    pub looks: Looks,
     /// Counts AI choices, so an add that finishes later doesn't undo one made meanwhile.
     pub backend_choices: u64,
     pub log: Vec<LogLine>,
@@ -572,6 +633,8 @@ impl CraftApp {
             detected: None,
             detect_hints: Vec::new(),
             detecting: false,
+            detected_at: None,
+            looks: Looks::default(),
             backend_choices: 0,
             log: Vec::new(),
             key_inputs: Default::default(),
@@ -766,22 +829,29 @@ impl CraftApp {
     /// Changed settings go into the session at once, and to disk a moment after the last change.
     fn flush_settings(&mut self, ctx: &egui::Context) {
         const QUIET: Duration = Duration::from_millis(600);
+        // Whether the settings went into the session this frame, and whether the `ai` table there
+        // differed from the copy the lists were read from (then they are read again).
+        let mut flushed = None;
         if self.settings_dirty
             && let Some(mut s) = self.engine.try_session()
         {
-            // The Ghidra folder changed: look for it again.
-            if s.settings.engines.ghidra.install_dir != self.settings.engines.ghidra.install_dir {
-                self.ghidra.ready = None;
-            }
             // The `ai` table belongs to the ai crate (it edits it in the session); keep its copy.
+            let ai_changed = s.settings.ai != self.settings.ai;
             self.settings.ai = s.settings.ai.clone();
             s.settings = self.settings.clone();
-            drop(s);
+            flushed = Some(ai_changed);
+        }
+        if let Some(ai_changed) = flushed {
             self.settings_dirty = false;
             self.view_dirty = true;
             if self.persist {
                 self.save_due = Some(Instant::now() + QUIET);
             }
+            if ai_changed {
+                self.refresh_backends();
+            }
+            // The Ghidra folder or engine store may have changed: look for it again.
+            self.ghidra_look(true);
         }
         let Some(due) = self.save_due.filter(|_| self.saving.is_none()) else { return };
         let wait = due.saturating_duration_since(Instant::now());
@@ -822,9 +892,53 @@ impl CraftApp {
             self.log(false, if on { "Deep mode on" } else { "Clean room on" });
             // Deep mode wants Ghidra: offer to get it now rather than quietly going without.
             if on && self.ghidra_missing() && self.ghidra.job.is_none() {
-                self.state.modal = Some(state::Modal::Ghidra);
+                self.ask_ghidra();
             }
         }
+    }
+
+    /// Open Settings on `tab`, looking again for what the tab lists (Engines: Ghidra; AI: what's
+    /// on this computer, when the last look is old).
+    pub fn open_settings(&mut self, tab: state::SettingsTab) {
+        self.state.settings_open = true;
+        self.state.settings_tab = tab;
+        self.settings_tab_opened(tab);
+    }
+
+    /// `tab` is now showing in Settings: refresh what it lists.
+    pub fn settings_tab_opened(&mut self, tab: state::SettingsTab) {
+        match tab {
+            state::SettingsTab::Engines => self.ghidra_look(true),
+            state::SettingsTab::Ai if self.detect_stale() => self.detect_backends(),
+            _ => {}
+        }
+    }
+
+    /// Offer Ghidra for Deep mode (the dialog), looking for it again first: it may have been
+    /// installed meanwhile (by the CLI, say) without the app noticing.
+    pub fn ask_ghidra(&mut self) {
+        self.ghidra_look(true);
+        self.state.modal = Some(state::Modal::Ghidra);
+    }
+
+    /// Back from another window: what other programs changed meanwhile is read again (projects, the
+    /// AI set up by the CLI, Ghidra put in the engine store), and AI on this computer is looked for
+    /// again when the last look is old (it is a bounded scan, so not on every switch).
+    pub fn window_focused(&mut self) {
+        if !self.headless {
+            self.refresh_projects();
+            self.refresh_side_panel();
+        }
+        self.refresh_backends();
+        self.ghidra_look(true);
+        if self.detect_stale() {
+            self.detect_backends();
+        }
+    }
+
+    /// The last look for AI on this computer is old enough to repeat (or never happened).
+    pub fn detect_stale(&self) -> bool {
+        !self.detecting && self.detected_at.is_none_or(|at| at.elapsed() >= DETECT_STALE)
     }
 
     pub fn finish_first_run(&mut self) {
@@ -1189,7 +1303,8 @@ impl CraftApp {
 
     pub fn refresh_backends(&mut self) {
         let hub = self.hub.clone();
-        self.jobs.spawn("Read AI settings", false, move |_| Ok(backends(&hub)));
+        let id = self.jobs.spawn("Read AI settings", false, move |_| Ok(backends(&hub)));
+        self.looks.start(Look::Backends, id);
     }
 
     /// Choose the backend that builds or extracts (`None`: its default).
@@ -1207,7 +1322,8 @@ impl CraftApp {
         }
         self.detecting = true;
         let hub = self.hub.clone();
-        self.jobs.spawn("Look for AI on this computer", true, move |_| Ok(Done::Detected(hub.detect(), hub.detect_hints())));
+        let id = self.jobs.spawn("Look for AI on this computer", true, move |_| Ok(Done::Detected(hub.detect(), hub.detect_hints())));
+        self.looks.start(Look::Detect, id);
     }
 
     pub fn add_backend(&mut self, config: BackendConfig, key: Option<String>) {
@@ -1400,7 +1516,15 @@ impl CraftApp {
         let done = match done.result {
             Ok(d) => d,
             Err(e) => {
-                self.detecting = false;
+                // A list that couldn't be filled says so where its spinner was (`Looks::error`).
+                match self.looks.failed(job, &e) {
+                    Some(Look::Detect) => self.detecting = false,
+                    Some(Look::GameEngines) => self.engine_flow.checking = false,
+                    Some(Look::Backends | Look::AssetKeys) | None => {}
+                }
+                if self.ghidra.looking == Some(job) {
+                    self.ghidra_look_failed();
+                }
                 self.facts_read(job, None);
                 // A failed or cancelled engine download frees the button to try again.
                 if self.engine_flow.job.is_some_and(|(_, id)| id == job) {
@@ -1469,12 +1593,15 @@ impl CraftApp {
                 }
             },
             Done::Detected(d, hints) => {
+                self.looks.finished(Look::Detect);
+                self.detected_at = Some(Instant::now());
                 self.detect_hints = hints;
                 self.detecting = false;
                 self.log(false, format!("Found {} AI option(s) on this computer", d.len()));
                 self.detected = Some(d);
             }
             Done::Backends(b, builder, extractor, options) => {
+                self.looks.finished(Look::Backends);
                 if self.state.backend.as_ref().is_some_and(|n| !b.iter().any(|c| &c.name == n)) {
                     self.state.backend = None;
                 }
@@ -1615,7 +1742,10 @@ impl CraftApp {
             Done::Pasted { project, files, refused } => self.pasted(project, files, refused),
             Done::PicturesChecked { files, refused, target } => self.pictures_checked(files, refused, target),
             Done::Attached { root, text, attachments, files } => self.deliver(root, text, attachments, files),
-            Done::GameEngines(inv) => self.engines_found(inv),
+            Done::GameEngines(inv) => {
+                self.looks.finished(Look::GameEngines);
+                self.engines_found(inv);
+            }
             Done::GameFound { path, found } => {
                 // Only if that game is still the one picked.
                 if self.state.make.target == (craft_anything_engine::workspace::TargetRef::Local { path }) {
@@ -1624,7 +1754,11 @@ impl CraftApp {
             }
             Done::EngineGot { builder, installer } => self.engine_got(builder, installer),
             Done::GhidraGot => self.ghidra_got(),
-            Done::AssetKeys(keys) => self.asset_keys = Some(keys),
+            Done::GhidraLooked(launcher) => self.ghidra_looked(launcher),
+            Done::AssetKeys(keys) => {
+                self.looks.finished(Look::AssetKeys);
+                self.asset_keys = Some(keys);
+            }
             Done::Wrote { what, path } => {
                 if let Some(p) = path {
                     self.toast(format!("{} {}", tr("Saved"), p.display()), false);
@@ -1723,10 +1857,9 @@ impl CraftApp {
         guard("conversation", || self.poll_conversation());
         guard("rebuild", || self.poll_run());
         guard("pins", || self.poll_pins(ctx));
-        // Back from another window: projects may have been added, moved or removed meanwhile.
-        if !self.headless && ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::WindowFocused(true)))) {
-            self.refresh_projects();
-            self.refresh_side_panel();
+        // Back from another window: projects, AI and engines may have changed meanwhile.
+        if ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::WindowFocused(true)))) {
+            self.window_focused();
         }
         // Another project shown (or none read yet): read its files.
         if let Some(root) = self.workspace.as_ref().map(|w| &w.root).filter(|r| **r != self.facts.root) {

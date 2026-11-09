@@ -341,14 +341,31 @@ fn build_command_run(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, Too
     approve(ctx, "Bash", &json!({"command": p.command}))?.map_err(refused)?;
     let app = ws.app_dir();
     std::fs::create_dir_all(&app).map_err(|e| ToolError::io(app.display(), e))?;
-    let inner = app.join("app");
-    let had_inner = inner.is_dir();
+    let had_inner = app.join("app").is_dir();
     let (shell, flag) = if cfg!(windows) { ("cmd", "/C") } else { ("sh", "-c") };
-    let cancel = ctx.cancel.clone();
     ctx.report(None, format!("Running {}", p.command.chars().take(120).collect::<String>()));
+    // The command may run for an hour or two: it runs with the session released, so the builder's
+    // other tool calls (and the person's) go on meanwhile (#phase1-hangs).
+    let started = json!({"command": p.command, "ran_in": ws.app_place(), "started": true});
+    ctx.after_unlocking(move |cancel| run_command(&ws, p, &app, had_inner, shell, flag, cancel));
+    Ok(ToolOutput::Value(started))
+}
+
+/// Run the build command and report how it went (the second half of `build_command_run`, with
+/// the session released).
+fn run_command(
+    ws: &Workspace,
+    p: CommandParams,
+    app: &Path,
+    had_inner: bool,
+    shell: &str,
+    flag: &str,
+    cancel: crate::CancelToken,
+) -> Result<ToolOutput, ToolError> {
+    let inner = app.join("app");
     let out = Process::new(shell)
         .args([flag, p.command.as_str()])
-        .cwd(&app)
+        .cwd(app)
         .timeout(Duration::from_secs(p.timeout_secs.unwrap_or(600).clamp(1, 7200)))
         .stdout_cap(4 * 1024 * 1024)
         .stderr_cap(4 * 1024 * 1024)
@@ -376,7 +393,7 @@ fn build_command_run(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, Too
     let first = p.command.split(['&', ';', '\n']).next().unwrap_or_default().trim().replace('\\', "/");
     if ["cd app", "cd app/", "cd ./app", "cd ./app/"].contains(&first.as_str()) && !inner.is_dir() {
         v["note"] = json!(format!("Commands already run in {}: leave out `cd app`.", ws.app_place()));
-    } else if !had_inner && app != ws.root && ["Cargo.toml", "package.json"].iter().any(|m| inner.join(m).is_file()) {
+    } else if !had_inner && *app != ws.root && ["Cargo.toml", "package.json"].iter().any(|m| inner.join(m).is_file()) {
         // Only a project: a folder named app is fine there (Next.js keeps its routes in one).
         v["note"] = json!(
             "This made a project in app/app/: commands already run in app/, so the app's project goes in app/ itself (app/Cargo.toml, app/package.json)."
@@ -610,6 +627,32 @@ mod tests {
         let (_d, _ws, e) = building();
         let routes = call(&e, "build_command_run", json!({"command": "mkdir app"})).unwrap();
         assert_eq!(routes.get("note"), None, "{routes}");
+    }
+
+    /// A build command used to hold the session for its whole run (up to two hours), so every
+    /// other tool call waited on it.
+    #[test]
+    fn a_running_command_does_not_hold_the_session() {
+        let (_d, _ws, e) = building();
+        let e = Arc::new(e);
+        let command = if cfg!(windows) { "ping -n 3 127.0.0.1 > nul" } else { "sleep 2" };
+        let (tx, rx) = std::sync::mpsc::channel();
+        let e2 = e.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(call(&e2, "build_command_run", json!({"command": command, "timeout_secs": 30})));
+        });
+        // Once the command is running the session is free: another tool call returns at once.
+        let started = std::time::Instant::now();
+        let listed = loop {
+            let r = call(&e, "build_files_list", json!({}));
+            if r.is_ok() || started.elapsed() > std::time::Duration::from_secs(10) {
+                break r;
+            }
+        };
+        assert!(listed.is_ok(), "{listed:?}");
+        assert!(rx.try_recv().is_err(), "the command is still running");
+        let ran = rx.recv_timeout(std::time::Duration::from_secs(30)).expect("the command finished").unwrap();
+        assert_eq!((ran["succeeded"].as_bool(), ran["ran_in"].as_str()), (Some(true), Some("app/")), "{ran}");
     }
 
     #[test]

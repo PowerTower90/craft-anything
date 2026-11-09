@@ -1464,3 +1464,11 @@ In this project, {kind}: {choice}.	In questo progetto, {kind}: {choice}.
 Couldn't change the approvals:	Impossibile cambiare le approvazioni:
 What the builder may do without asking you, in this project.	Cosa può fare il costruttore senza chiedertelo, in questo progetto.
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	Predefinito segue la modalità automatica: se è attiva, ciò che si può annullare va avanti e il resto è rifiutato; se è spenta, il costruttore chiede.
+Looking for Ghidra…	Cerco Ghidra…
+Couldn't look: {why}	Non ho potuto guardare: {why}
+Looked just now	Guardato proprio ora
+Looked {n} s ago	Guardato {n} s fa
+Coding agent app (over SSH to {host})	App di un agente di codice (via SSH su {host})
+on another computer over SSH (not checked); set up when you start	su un altro computer via SSH (non verificato); si configura all'avvio
+On another computer over SSH (not checked)	Su un altro computer via SSH (non verificato)
+Install Claude Code on this computer and sign in once, then Look again.	Installa Claude Code su questo computer, accedi una volta e poi scegli Cerca di nuovo.

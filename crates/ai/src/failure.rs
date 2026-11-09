@@ -14,6 +14,9 @@ pub enum FailureKind {
     Configuration,
     Transient,
     RateLimited,
+    /// The turn ran out of time (its wall clock or its idle limit). Retried once: a second
+    /// timeout on the same work means waiting longer won't help.
+    TimedOut,
     Unknown,
 }
 
@@ -26,6 +29,10 @@ pub struct TurnFailure {
 
 /// No failed turn waits more than fifteen minutes before its next attempt.
 pub(crate) const MAX_RETRY_WAIT: u64 = 15 * 60;
+/// How many times a retryable turn is tried again before the run stops.
+pub(crate) const MAX_RETRIES: u64 = 3;
+/// A turn that timed out is tried again once.
+pub(crate) const TIMEOUT_RETRIES: u64 = 1;
 pub(crate) const CONTINUE_TURN: &str =
     "Your last turn was cut off. Carry on from where you stopped: look at what's already in app/ and your checklist, then finish the task.";
 
@@ -35,7 +42,16 @@ impl TurnFailure {
     }
 
     pub fn retryable(self) -> bool {
-        matches!(self.kind, FailureKind::Transient | FailureKind::RateLimited)
+        matches!(self.kind, FailureKind::Transient | FailureKind::RateLimited | FailureKind::TimedOut)
+    }
+
+    /// How many retries a turn that failed this way gets (none when it isn't retryable).
+    pub fn retries(self) -> u64 {
+        match self.kind {
+            FailureKind::TimedOut => TIMEOUT_RETRIES,
+            _ if self.retryable() => MAX_RETRIES,
+            _ => 0,
+        }
     }
 
     pub(crate) fn from_api(error: &ToolError) -> Self {
@@ -63,7 +79,7 @@ impl TurnFailure {
     pub(crate) fn from_process(error: &ToolError) -> Self {
         Self::new(match error.code {
             ErrorCode::EngineMissing | ErrorCode::NotFound => FailureKind::MissingProgram,
-            ErrorCode::TimedOut => FailureKind::Transient,
+            ErrorCode::TimedOut => FailureKind::TimedOut,
             ErrorCode::NoPermission | ErrorCode::BadSettings | ErrorCode::BadInput => FailureKind::Configuration,
             _ => FailureKind::Unknown,
         })
@@ -165,7 +181,14 @@ mod tests {
         assert_eq!(retry_after("Retry in 45 seconds"), Some(45));
         for code in [None, Some(1), Some(2), Some(255)] {
             assert!(TurnFailure::process_exit(code).retryable());
+            assert_eq!(TurnFailure::process_exit(code).retries(), MAX_RETRIES);
         }
+        // A process that ran out of time is retried, but only once (#phase1-hangs).
+        let timed_out = TurnFailure::from_process(&ToolError::new(ErrorCode::TimedOut, "printed nothing for 3600 s"));
+        assert_eq!(timed_out.kind, FailureKind::TimedOut);
+        assert!(timed_out.retryable());
+        assert_eq!(timed_out.retries(), TIMEOUT_RETRIES);
+        assert_eq!(TurnFailure::new(FailureKind::Authentication).retries(), 0);
         assert!(!TurnFailure::process_exit(Some(0)).retryable());
         assert_eq!(retry_after("retry after 3 h"), Some(MAX_RETRY_WAIT));
         for text in ["retry after NaN", "retry after inf", "retry after -1s", "invalid command", "please retry in a moment", "retry in ."] {

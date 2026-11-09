@@ -250,9 +250,18 @@ pub fn unescape(s: &str) -> String {
 /// An upper-bound style estimate of how deep the syntax tree for `tokens` will nest.
 ///
 /// Brackets add a level; operators that nest expressions (member access, binary and assignment
-/// operators, conditionals, arrows, unary prefixes) and nesting statement keywords add a level
-/// until the next `,` or `;` at the same bracket depth. Over-estimates are fine: they only send a
-/// file to the lexer fallback.
+/// operators, conditionals, arrows, unary prefixes), nesting statement keywords and statement
+/// labels (`name:`) add a level until the next `,` or `;` at the same bracket depth. An `else`
+/// keeps its level across terminators, because `if … else if … else if …` is one statement that
+/// the parser descends into once per `else`, however many `;` it contains. Over-estimates are
+/// fine: they only send a file to the lexer fallback.
+///
+/// Why this matters: the parser recurses once per level with no depth check, and a stack
+/// overflow is not a panic but an abort of the whole process. Measured on oxc 0.153 (opt-level 2),
+/// the costliest level is about 2.2 KB (`(`, `[`, `{`, `${`, TypeScript generics), a label about
+/// 0.5 KB and an `else` about 0.4 KB, against the 64 KB per level that the 256 MB parse stack
+/// allows at the 4096-level limit, so every construct that costs the parser a frame must count
+/// here at least once.
 pub fn nesting_estimate(tokens: &[Token<'_>]) -> usize {
     let mut n = Nesting::default();
     for t in tokens {
@@ -261,23 +270,66 @@ pub fn nesting_estimate(tokens: &[Token<'_>]) -> usize {
     n.max
 }
 
+/// Keywords that make the parser descend into what follows them: one frame each, and they chain
+/// (`typeof typeof x`, `if (a) if (b) …`, `class extends class extends …`, `keyof keyof T`).
+const NESTING_KEYWORDS: &[&str] = &[
+    "typeof",
+    "void",
+    "delete",
+    "await",
+    "new",
+    "if",
+    "else",
+    "for",
+    "while",
+    "do",
+    "with",
+    "in",
+    "instanceof",
+    "yield",
+    "extends",
+    "keyof",
+    "readonly",
+    "infer",
+    "unique",
+    "asserts",
+    "as",
+    "satisfies",
+];
+
+/// One bracket level of [`Nesting`].
+#[derive(Debug, Default, Clone, Copy)]
+struct Frame {
+    /// Levels the current statement or list item has added; `,` and `;` take them back.
+    stmt: usize,
+    /// Levels added by `else`: an `if` chain survives the `;` that ends each branch.
+    carry: usize,
+    /// A `;` or `}` just ended a statement: the carry stays only if `else` comes next.
+    pending: bool,
+}
+
 /// Streaming state for [`nesting_estimate`].
 #[derive(Debug)]
 pub struct Nesting {
-    stack: Vec<usize>,
+    stack: Vec<Frame>,
     sum: usize,
+    /// The previous non-comment token was an identifier (a label or a keyword prefix candidate).
+    prev_ident: bool,
     pub max: usize,
 }
 
 impl Default for Nesting {
     fn default() -> Self {
-        Nesting { stack: vec![0], sum: 0, max: 0 }
+        Nesting { stack: vec![Frame::default()], sum: 0, prev_ident: false, max: 0 }
     }
 }
 
 impl Nesting {
     pub fn feed(&mut self, t: &Token<'_>) {
-        let Nesting { stack, sum, max } = self;
+        if t.kind == TokKind::Comment {
+            return;
+        }
+        let is_else = t.kind == TokKind::Ident && t.text == "else";
         let closes = match t.kind {
             TokKind::Punct => matches!(t.text, ")" | "]" | "}"),
             TokKind::Template => t.text.starts_with('}'),
@@ -288,36 +340,59 @@ impl Nesting {
             TokKind::Template => t.text.ends_with("${"),
             _ => false,
         };
-        if closes
-            && stack.len() > 1
-            && let Some(n) = stack.pop()
+        // A statement ended just before this token; only `else` continues the `if` chain.
+        if !is_else
+            && let Some(f) = self.stack.last_mut()
+            && f.pending
         {
-            *sum = sum.saturating_sub(n + 1);
+            self.sum = self.sum.saturating_sub(f.carry);
+            f.carry = 0;
+            f.pending = false;
+        }
+        if closes
+            && self.stack.len() > 1
+            && let Some(f) = self.stack.pop()
+        {
+            self.sum = self.sum.saturating_sub(f.stmt + f.carry + 1);
+            // A block's `}` ends a statement (`if (a) {…}`), after which only `else` may continue
+            // it; `)` and `]` end nothing, so they leave the enclosing level's carry alone.
+            if t.kind == TokKind::Punct
+                && t.text == "}"
+                && let Some(outer) = self.stack.last_mut()
+            {
+                outer.pending = true;
+            }
         }
         if opens {
-            stack.push(0);
-            *sum += 1;
+            self.stack.push(Frame::default());
+            self.sum += 1;
         }
         if !opens && !closes {
             let nests = match t.kind {
-                TokKind::Punct => !matches!(t.text, "," | ";" | ":" | "++" | "--"),
-                TokKind::Ident => matches!(
-                    t.text,
-                    "typeof" | "void" | "delete" | "await" | "new" | "if" | "else" | "for" | "while" | "do" | "with" | "in" | "instanceof" | "yield"
-                ),
+                // `name:` at statement position is a label: the parser recurses into the statement.
+                TokKind::Punct => (t.text == ":" && self.prev_ident) || !matches!(t.text, "," | ";" | ":" | "++" | "--"),
+                TokKind::Ident => NESTING_KEYWORDS.contains(&t.text),
                 _ => false,
             };
-            if let Some(n) = stack.last_mut() {
+            if let Some(f) = self.stack.last_mut() {
                 if matches!((t.kind, t.text), (TokKind::Punct, "," | ";")) {
-                    *sum = sum.saturating_sub(*n);
-                    *n = 0;
+                    self.sum = self.sum.saturating_sub(f.stmt);
+                    f.stmt = 0;
+                    if t.text == ";" {
+                        f.pending = true;
+                    }
+                } else if is_else {
+                    f.carry += 1;
+                    f.pending = false;
+                    self.sum += 1;
                 } else if nests {
-                    *n += 1;
-                    *sum += 1;
+                    f.stmt += 1;
+                    self.sum += 1;
                 }
             }
         }
-        *max = (*max).max(*sum);
+        self.prev_ident = t.kind == TokKind::Ident;
+        self.max = self.max.max(self.sum);
     }
 }
 
@@ -387,6 +462,23 @@ mod tests {
         let nots = nesting_estimate(&tokenize(&format!("{}x", "!".repeat(400)), 10_000).0);
         assert!(shallow < 5, "{shallow}");
         assert!(deep >= 300 && chain >= 500 && nots >= 400, "{deep} {chain} {nots}");
+    }
+
+    #[test]
+    fn nesting_counts_labels_and_else_chains() {
+        let est = |s: &str| nesting_estimate(&tokenize(s, 10_000_000).0);
+        // One parser frame per level, so at least one estimated level each.
+        assert!(est(&format!("{}x;", "a:".repeat(1000))) >= 1000);
+        assert!(est(&format!("{}c;", "if(a)b;else ".repeat(1000))) >= 1000);
+        assert!(est(&format!("{}{{c}}", "if(a){b}else ".repeat(1000))) >= 1000);
+        assert!(est(&format!("{}c", "if(a)b\nelse ".repeat(1000))) >= 1000);
+        assert!(est(&format!("x={}{}{};", "class extends ".repeat(1000), "{}", "{}".repeat(1000))) >= 1000);
+        assert!(est(&format!("type T={}X;", "keyof ".repeat(1000))) >= 1000);
+        // Siblings, object keys and conditionals stay flat.
+        for flat in ["if(a)b;else c;", "if(a){b};", "a?b:c;", "x={a:1,b:2};", "l:x;"] {
+            let d = est(&flat.repeat(1000));
+            assert!(d < 8, "{flat}: {d}");
+        }
     }
 
     #[test]

@@ -499,8 +499,14 @@ mod tests {
     #[test]
     fn stderr_cut_inside_a_multibyte_character_keeps_the_text_before_it() {
         let mut session = crate::testing::session();
-        let ctx =
-            Ctx { tool: "native_objdump_run", session: &mut session, cancel: crate::CancelToken::default(), progress: &|_| {}, caller: crate::Caller::Cli };
+        let ctx = Ctx {
+            tool: "native_objdump_run",
+            session: &mut session,
+            cancel: crate::CancelToken::default(),
+            progress: &|_| {},
+            caller: crate::Caller::Cli,
+            after: None,
+        };
         // 64 KiB falls inside the arrow in the first case and right after it in the second.
         for (ascii, kept) in [(65535, 65535), (65533, 65536)] {
             let mut stderr = vec![b'a'; ascii];

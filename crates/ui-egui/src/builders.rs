@@ -94,20 +94,27 @@ pub struct Choice {
     pub name: String,
     /// What it is, in a few words ("Agent app", "Anthropic (Claude API) · claude-…").
     pub detail: String,
-    /// Found on this computer and not set up yet: it's set up when a build starts with it.
+    /// Found (or, over SSH, offered) and not set up yet: it's set up when a build starts with it.
     pub found: bool,
+    /// On another computer, reached over SSH from `~/.ssh/config`; nothing checked that the agent
+    /// is installed there.
+    pub remote: bool,
 }
 
 fn detail(b: &BackendConfig) -> String {
     match b.kind {
-        BackendKind::AgentCli => tr("Coding agent app"),
+        BackendKind::AgentCli => match b.ssh_host.as_deref().map(str::trim).filter(|h| !h.is_empty()) {
+            Some(host) => trf("Coding agent app (over SSH to {host})", &[("host", host)]),
+            None => tr("Coding agent app"),
+        },
         k if b.model.is_empty() => tr(k.title()),
         k => format!("{} · {}", tr(k.title()), b.model),
     }
 }
 
 impl CraftApp {
-    /// Agent apps found on this computer that aren't set up yet (they need no key).
+    /// Agent apps the last look found or offered that aren't set up yet (they need no key): those
+    /// on this computer, and those on other computers over SSH.
     fn found_agents(&self) -> impl Iterator<Item = &BackendConfig> {
         self.detected
             .iter()
@@ -117,17 +124,31 @@ impl CraftApp {
             .filter(|s| !craft_anything_ai::is_on(&self.backends, &s.name))
     }
 
-    /// Every AI that can build: the ones set up and on, then agent apps found here.
+    /// Agent apps found on this computer that aren't set up yet.
+    pub fn local_agents(&self) -> impl Iterator<Item = &BackendConfig> {
+        self.found_agents().filter(|b| !remote(b))
+    }
+
+    /// Agent apps offered on other computers over SSH (from `~/.ssh/config`, unchecked) that
+    /// aren't set up yet. Never a default: nothing has seen them work.
+    pub fn remote_agents(&self) -> impl Iterator<Item = &BackendConfig> {
+        self.found_agents().filter(|b| remote(b))
+    }
+
+    /// Every AI that can build: the ones set up and on, then agent apps found here, then those
+    /// offered over SSH.
     pub fn builder_choices(&self) -> Vec<Choice> {
-        let set_up = self.backends.iter().filter(|b| b.enabled).map(|b| Choice { name: b.name.clone(), detail: detail(b), found: false });
-        let found = self.found_agents().map(|b| Choice { name: b.name.clone(), detail: detail(b), found: true });
-        set_up.chain(found).collect()
+        let set_up = self.backends.iter().filter(|b| b.enabled).map(|b| Choice { name: b.name.clone(), detail: detail(b), found: false, remote: false });
+        let local = self.local_agents().map(|b| Choice { name: b.name.clone(), detail: detail(b), found: true, remote: false });
+        let over_ssh = self.remote_agents().map(|b| Choice { name: b.name.clone(), detail: detail(b), found: true, remote: true });
+        set_up.chain(local).chain(over_ssh).collect()
     }
 
     /// What builds when the person doesn't choose: the default from Settings → AI, else an agent
-    /// app found on this computer.
+    /// app found on this computer. An agent offered over SSH is never picked by itself: nothing
+    /// checked that it's there, so the person chooses it.
     pub fn default_builder(&self) -> Option<String> {
-        craft_anything_ai::default_builder(&self.backends, self.builder.as_deref()).or_else(|| self.found_agents().next()).map(|b| b.name.clone())
+        craft_anything_ai::default_builder(&self.backends, self.builder.as_deref()).or_else(|| self.local_agents().next()).map(|b| b.name.clone())
     }
 
     /// Something can build.
@@ -347,6 +368,11 @@ impl CraftApp {
     }
 }
 
+/// An agent offered on another computer over SSH (nothing checked that it's installed there).
+fn remote(b: &BackendConfig) -> bool {
+    b.ssh_host.as_deref().is_some_and(|h| !h.trim().is_empty())
+}
+
 /// "Built by" on Make: the AI that builds this project. Automatic follows Settings → AI; picking
 /// one is remembered by the project (its later changes are built by it too). With nothing that
 /// can build, a warning and the way to set one up instead.
@@ -377,7 +403,13 @@ pub fn built_by(app: &mut CraftApp, ui: &mut Ui) {
             pick = Some(None);
         }
         for c in &choices {
-            let note = if c.found { format!("{} · {}", c.detail, tr("found on this computer; set up when you start")) } else { c.detail.clone() };
+            let note = if c.remote {
+                format!("{} · {}", c.detail, tr("on another computer over SSH (not checked); set up when you start"))
+            } else if c.found {
+                format!("{} · {}", c.detail, tr("found on this computer; set up when you start"))
+            } else {
+                c.detail.clone()
+            };
             if ui.selectable_label(app.state.make.ai.as_ref() == Some(&c.name), &c.name).on_hover_text(note).clicked() {
                 pick = Some(Some(c.name.clone()));
             }
@@ -412,38 +444,39 @@ pub fn need_builder_modal(app: &mut CraftApp, ui: &mut Ui, start: bool, close: &
         });
     });
     ui.add_space(14.0);
-    let found: Vec<BackendConfig> = app.found_agents().cloned().collect();
+    // Agents on this computer first; those on other computers (from `~/.ssh/config`) are offered
+    // without checking them, so they don't make the hints about this one any less true.
+    let local: Vec<BackendConfig> = app.local_agents().cloned().collect();
+    let over_ssh: Vec<BackendConfig> = app.remote_agents().cloned().collect();
     if app.detecting {
         ui.horizontal(|ui| {
             ui.add(crate::widgets::Spinner::new().color(t.accent));
             ui.label(RichText::new(tr("Looking on this computer…")).color(t.text_dim));
         });
-    } else {
-        if found.is_empty() {
-            ui.label(RichText::new(tr("No coding agent was found on this computer yet.")).color(t.text_dim));
-        }
-        // Agents on other computers (from `~/.ssh/config`) are offered without checking them, so
-        // they don't make the hints about this one any less true.
-        let hints = if found.iter().all(|b| b.ssh_host.as_deref().is_some_and(|h| !h.trim().is_empty())) { &app.detect_hints[..] } else { &[] };
-        for hint in hints {
-            match hint {
-                craft_anything_ai::detect::DetectHint::ClaudeDesktopWithoutCli { .. } => ui.add(
-                    egui::Label::new(
-                        RichText::new(tr("The Claude desktop app is installed, but building needs Claude Code, its separate command-line tool. Install Claude Code, sign in to it once in a terminal, then look again.")).color(t.text_dim),
-                    )
-                    .wrap(),
-                ),
+    } else if !crate::engine_ui::look_failed(app, ui, crate::Look::Detect) && local.is_empty() {
+        ui.label(RichText::new(tr("No coding agent was found on this computer yet.")).color(t.text_dim));
+        for hint in &app.detect_hints {
+            let text = match hint {
+                craft_anything_ai::detect::DetectHint::ClaudeDesktopWithoutCli { .. } => {
+                    "The Claude desktop app is installed, but building needs Claude Code, its separate command-line tool. Install Claude Code, sign in to it once in a terminal, then look again."
+                }
+                // Said below, for every look that found nothing on this computer.
+                craft_anything_ai::detect::DetectHint::NoLocalCodingAgent => continue,
             };
+            ui.add(egui::Label::new(RichText::new(tr(text)).color(t.text_dim)).wrap());
         }
+        ui.add(egui::Label::new(RichText::new(tr("Install Claude Code on this computer and sign in once, then Look again.")).color(t.text_dim)).wrap());
     }
-    for b in found {
+    for b in local.iter().chain(&over_ssh) {
+        let on_this_computer = !remote(b);
         widgets::panel(&t).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                icons::show(ui, "bot", 18.0, t.accent);
+                icons::show(ui, if on_this_computer { "bot" } else { "radar" }, 18.0, if on_this_computer { t.accent } else { t.text_faint });
                 ui.vertical(|ui| {
                     ui.label(RichText::new(&b.name).font(theme::semibold(theme::SMALL)));
-                    ui.label(RichText::new(tr("Found on this computer")).color(t.text_faint).size(theme::CAPTION));
+                    let place = if on_this_computer { tr("Found on this computer") } else { tr("On another computer over SSH (not checked)") };
+                    ui.label(RichText::new(place).color(t.text_faint).size(theme::CAPTION));
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let label = if start { trf("Build with {name}", &[("name", &b.name)]) } else { trf("Use {name}", &[("name", &b.name)]) };
@@ -468,8 +501,7 @@ pub fn need_builder_modal(app: &mut CraftApp, ui: &mut Ui, start: bool, close: &
         }
         if widgets::secondary(ui, Some("key-round"), "Use an API key…").clicked() {
             *close = true;
-            app.state.settings_open = true;
-            app.state.settings_tab = crate::state::SettingsTab::Ai;
+            app.open_settings(crate::state::SettingsTab::Ai);
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if widgets::secondary(ui, None, "Cancel").clicked() {

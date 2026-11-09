@@ -671,7 +671,12 @@ fn names_records(c: &str, ws: Option<&Workspace>) -> bool {
     // separators on Windows (`C:\p\in'box'\x` is `C:\p\inbox\x`).
     let (joined, path) = (without(&['"', '\'', '\\', '`']), without(&['"', '\'', '`']));
     let agent = crate::AGENT_ENV.to_ascii_lowercase();
-    ["craft.json", "approvals_set", "approvals-set", agent.as_str()].iter().any(|n| joined.contains(n))
+    // Settings and plugins too: `settings_set ask_before_running false` or a plugin that runs any
+    // program would let a builder do more than the person allowed (the tools refuse an agent; this
+    // catches a shell that takes the agent marker away first).
+    ["craft.json", "approvals_set", "approvals-set", "settings_set", "settings-set", "plugins_add", "plugins-add", agent.as_str()]
+        .iter()
+        .any(|n| joined.contains(n))
         || ws.is_some_and(|w| [c, path.as_str(), joined.as_str()].iter().any(|t| mentions(t, &w.inbox_dir())) || reaches_inbox(c, w))
 }
 
@@ -1207,6 +1212,10 @@ mod tests {
             // The shell joins quoted pieces, and the marker can be taken away first.
             "env -u CRAFT_ANYTHING_AGENT craft-anything-cli project-approv'als-set' --kind publish --mode allow",
             "unset CRAFT_ANYTHING_AGENT; cat craft.\"json\"",
+            // Settings and plugins: the tools refuse an agent, and so does its shell.
+            "env -u CRAFT_ANYTHING_AGENT craft-anything-cli settings-set --key ask_before_running --value false",
+            "craft-anything-cli call settings_set --key auto_mode --value true",
+            "craft-anything-cli plugins-add --id x --command C:\\anything.exe",
         ] {
             assert_eq!(kind_of(Some(&w), "Bash", &json!({"command": cmd})), ActionKind::System, "{cmd}");
             assert!(matches!(outcome(Some(&w), true, "Bash", &json!({"command": cmd})), Outcome::Refuse(_)), "{cmd}");

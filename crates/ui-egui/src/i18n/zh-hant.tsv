@@ -1462,3 +1462,11 @@ In this project, {kind}: {choice}.	在這個專案中，{kind}：{choice}。
 Couldn't change the approvals:	無法變更審核：
 What the builder may do without asking you, in this project.	在這個專案中，建置助手不必問你就可以做的事。
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	預設跟隨自動模式：開啟時，可復原的操作會執行，其餘會被拒絕；關閉時，建置助手會詢問。
+Looking for Ghidra…	正在尋找 Ghidra…
+Couldn't look: {why}	無法檢視：{why}
+Looked just now	剛剛檢視過
+Looked {n} s ago	{n} 秒前檢視過
+Coding agent app (over SSH to {host})	程式設計代理應用程式（透過 SSH 連線 {host}）
+on another computer over SSH (not checked); set up when you start	位於另一台電腦，透過 SSH（未檢查）；啟動時設定
+On another computer over SSH (not checked)	位於另一台電腦，透過 SSH（未檢查）
+Install Claude Code on this computer and sign in once, then Look again.	在此電腦上安裝 Claude Code 並登入一次，然後點選「再找一次」。

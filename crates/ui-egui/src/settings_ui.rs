@@ -79,9 +79,7 @@ pub fn show(app: &mut CraftApp, ctx: &egui::Context) {
                         );
                         if r.clicked() {
                             app.state.settings_tab = tab;
-                            if tab == SettingsTab::Ai && app.detected.is_none() {
-                                app.detect_backends();
-                            }
+                            app.settings_tab_opened(tab);
                         }
                     }
                 });
@@ -341,6 +339,7 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
     // The AI whose Remove was pressed once: asked again before its key is deleted.
     let confirm_id = egui::Id::new("remove-ai");
     let confirming: Option<String> = ui.data(|d| d.get_temp(confirm_id));
+    crate::engine_ui::look_failed(app, ui, crate::Look::Backends);
     for b in &app.backends {
         widgets::panel(&t).show(ui, |ui| {
             ui.set_width(ui.available_width());
@@ -355,7 +354,7 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
                     // An API's model has its own line below; an agent app is named by its `model`.
                     let what = if model_in_use.is_some() && b.kind != BackendKind::AgentCli { String::new() } else { format!(" · {}", b.model) };
                     let ssh = b.ssh_host.as_ref().map(|h| format!(" · ssh {h}")).unwrap_or_default();
-                    ui.add(egui::Label::new(RichText::new(format!("{:?}{what}{ssh}", b.kind)).color(t.text_faint).size(theme::CAPTION)).truncate());
+                    ui.add(egui::Label::new(RichText::new(format!("{}{what}{ssh}", tr(b.kind.title()))).color(t.text_faint).size(theme::CAPTION)).truncate());
                     // An agent app on this computer: which program runs it, for one installed
                     // where it isn't looked for (#53).
                     if b.kind == BackendKind::AgentCli && b.ssh_host.as_deref().is_none_or(|h| h.trim().is_empty()) {
@@ -675,13 +674,23 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if app.detecting {
                 ui.add(crate::widgets::Spinner::new().color(t.accent));
-            } else if widgets::secondary(ui, Some("radar"), "Detect").clicked() {
-                app.detect_backends();
+            } else {
+                if widgets::secondary(ui, Some("radar"), "Detect").clicked() {
+                    app.detect_backends();
+                }
+                // How fresh the list is: an agent installed since isn't in it until the next look.
+                if let Some(at) = app.detected_at {
+                    let secs = at.elapsed().as_secs();
+                    let text = if secs < 2 { tr("Looked just now") } else { trf("Looked {n} s ago", &[("n", &secs.to_string())]) };
+                    ui.label(RichText::new(text).color(t.text_faint).size(theme::CAPTION));
+                    ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
+                }
             }
         });
     });
     ui.add_space(4.0);
-    if detected.is_empty() && !app.detecting {
+    let look_failed = crate::engine_ui::look_failed(app, ui, crate::Look::Detect);
+    if !look_failed && detected.is_empty() && !app.detecting {
         ui.label(
             RichText::new(tr("Nothing found yet. We look for API keys, local model servers (Ollama, LM Studio) and agent apps you already have. One on another port or computer can be added by its address below."))
                 .color(t.text_faint),

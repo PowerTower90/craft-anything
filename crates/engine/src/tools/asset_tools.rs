@@ -506,13 +506,15 @@ mod tests {
         // Auto mode stops at the budget without asking.
         session.settings.auto_mode = true;
         {
-            let mut ctx = Ctx { tool: "test", session: &mut session, cancel: crate::CancelToken::default(), progress: &|_| {}, caller: crate::Caller::Mcp };
+            let mut ctx =
+                Ctx { tool: "test", session: &mut session, cancel: crate::CancelToken::default(), progress: &|_| {}, caller: crate::Caller::Mcp, after: None };
             assert_eq!(within_budget(&mut ctx, &inbox, &mut w, 0.48).unwrap_err().code, ErrorCode::OverLimit);
             assert!(inbox.pending().is_empty(), "no question in Auto mode");
         }
         // Asking is what Auto mode switches off.
         session.settings.auto_mode = false;
-        let mut ctx = Ctx { tool: "test", session: &mut session, cancel: crate::CancelToken::default(), progress: &|_| {}, caller: crate::Caller::Mcp };
+        let mut ctx =
+            Ctx { tool: "test", session: &mut session, cancel: crate::CancelToken::default(), progress: &|_| {}, caller: crate::Caller::Mcp, after: None };
         // Under the budget: no question.
         within_budget(&mut ctx, &inbox, &mut w, 0.03).unwrap();
         assert!(inbox.pending().is_empty());
