@@ -1247,8 +1247,13 @@ fn column_default(rest: &str) -> (CellValue, bool) {
     (CellValue::Null, true)
 }
 
+/// A literal default after `DEFAULT`: `NULL`, booleans, text, `X'…'`, numbers, hex integers and
+/// one parenthesized literal. Anything else (an expression, a keyword) stays unknown.
 fn literal_default(tokens: &[&str]) -> Option<CellValue> {
     let token = *tokens.first()?;
+    if token == "(" {
+        return parenthesized_literal(tokens);
+    }
     if token.eq_ignore_ascii_case("NULL") {
         return Some(CellValue::Null);
     }
@@ -1281,8 +1286,14 @@ fn literal_default(tokens: &[&str]) -> Option<CellValue> {
         let bytes = bytes?;
         return Some(blob_value(&bytes, bytes.len()));
     }
+    if let Some(n) = hex_integer(token) {
+        return Some(CellValue::Int(n));
+    }
     let number = if matches!(token, "+" | "-") {
         let value = *tokens.get(1)?;
+        if let Some(n) = hex_integer(value) {
+            return Some(CellValue::Int(if token == "-" { n.checked_neg()? } else { n }));
+        }
         format!("{token}{value}")
     } else {
         token.to_owned()
@@ -1294,6 +1305,65 @@ fn literal_default(tokens: &[&str]) -> Option<CellValue> {
         return Some(CellValue::Int(n));
     }
     number.parse::<f64>().ok().filter(|n| n.is_finite()).map(CellValue::Real)
+}
+
+/// A SQLite hex integer is 64-bit two's complement, so `0xffffffffffffffff` is -1. An optional
+/// sign is accepted (`-0x10`), and a single underscore may separate two hex digits (`0xF_F`);
+/// any other placement is rejected.
+fn hex_integer(token: &str) -> Option<i64> {
+    let (negative, unsigned) = match token.strip_prefix('-') {
+        Some(rest) => (true, rest),
+        None => (false, token.strip_prefix('+').unwrap_or(token)),
+    };
+    let digits = unsigned.strip_prefix("0x").or_else(|| unsigned.strip_prefix("0X"))?;
+    if digits.is_empty() {
+        return None;
+    }
+    let bytes = digits.as_bytes();
+    let mut clean = String::with_capacity(bytes.len());
+    let mut previous_was_digit = false;
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b'_' {
+            if !previous_was_digit || !bytes.get(i.checked_add(1)?)?.is_ascii_hexdigit() {
+                return None;
+            }
+            previous_was_digit = false;
+            continue;
+        }
+        if !b.is_ascii_hexdigit() {
+            return None;
+        }
+        clean.push(b as char);
+        previous_was_digit = true;
+    }
+    let n = u64::from_str_radix(&clean, 16).ok()? as i64;
+    if negative { n.checked_neg() } else { Some(n) }
+}
+
+/// A single literal wrapped in one pair of parentheses, such as `(5)` or `('text')`. A
+/// parenthesized expression (`(5 + 1)`, `(lower('A'))`) stays unknown, as do nested parentheses.
+fn parenthesized_literal(tokens: &[&str]) -> Option<CellValue> {
+    let mut depth = 0usize;
+    let mut close = None;
+    for (i, token) in tokens.iter().enumerate() {
+        match *token {
+            "(" => depth = depth.saturating_add(1),
+            ")" => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    close = Some(i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let inside = tokens.get(1..close?)?;
+    match inside {
+        [one] => literal_default(&[*one]),
+        [sign, _] if matches!(*sign, "+" | "-") || (*sign).eq_ignore_ascii_case("X") => literal_default(inside),
+        _ => None,
+    }
 }
 
 /// Split on top-level commas (ignoring commas inside parentheses, quotes and comments).
@@ -1621,10 +1691,33 @@ mod tests {
             ("x DEFAULT null", CellValue::Null),
             ("x TEXT DEFAULT 'a),b''c'", text_value(b"a),b'c")),
             ("x INT CHECK(x <> 'DEFAULT') DEFAULT /* literal */ 7", CellValue::Int(7)),
+            ("x INT DEFAULT 0x10 NOT NULL", CellValue::Int(16)),
+            ("x INT DEFAULT -0x10", CellValue::Int(-16)),
+            ("x INT DEFAULT 0xF_F", CellValue::Int(255)),
+            ("x INT DEFAULT -0xF_F", CellValue::Int(-255)),
+            ("x INT DEFAULT 0xFFFFFFFFFFFFFFFF", CellValue::Int(-1)),
+            ("x DEFAULT (NULL)", CellValue::Null),
+            ("x INT DEFAULT (42)", CellValue::Int(42)),
+            ("x INT DEFAULT (5) NOT NULL", CellValue::Int(5)),
+            ("x INT DEFAULT (-2)", CellValue::Int(-2)),
+            ("x TEXT DEFAULT ('hi')", text_value(b"hi")),
+            ("x BLOB DEFAULT (X'00ff')", blob_value(&[0, 255], 2)),
         ] {
             short_record_case(declaration, vec![value], false);
         }
-        for declaration in ["x TEXT DEFAULT CURRENT_TIMESTAMP", "x DEFAULT (42)", "x DEFAULT (lower('A'))", "x DEFAULT X'zz'"] {
+        for declaration in [
+            "x TEXT DEFAULT CURRENT_TIMESTAMP",
+            "x DEFAULT (lower('A'))",
+            "x DEFAULT (5+1)",
+            "x DEFAULT ((5))",
+            "x INT DEFAULT 0x",
+            "x INT DEFAULT 0x10000000000000000",
+            "x INT DEFAULT 0x_F",
+            "x INT DEFAULT 0xF_",
+            "x INT DEFAULT 0xF__F",
+            "x INT DEFAULT 0xF_G",
+            "x DEFAULT X'zz'",
+        ] {
             short_record_case(declaration, vec![CellValue::Null], true);
         }
         assert_eq!(blob_value(&[0, 255], 2), CellValue::Blob { len: 2, sha256_prefix: "06eb7d6a69ee19e5".into() });
