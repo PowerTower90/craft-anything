@@ -634,7 +634,12 @@ pub fn conversation(spec: CliSpec) -> Box<dyn Conversation> {
 /// CLI run per message (approvals through our approval tool).
 pub fn builder_conversation(spec: CliSpec, approver: acp::Approver) -> Box<dyn Conversation> {
     match acp_for(&spec) {
-        Some(c) => Box::new(c.with_approver(approver)),
+        Some(c) => {
+            // A question or approval card waiting in the run's inbox is the person's time, not
+            // the agent's silence.
+            let inbox = spec.builder.as_ref().map(|b| craft_anything_engine::inbox::Inbox::new(b.inbox.clone()));
+            Box::new(c.with_approver(approver).with_waiting_on_person(move || inbox.as_ref().is_some_and(|i| !i.pending().is_empty())))
+        }
         None => Box::new(CliConversation::new(spec)),
     }
 }
@@ -667,8 +672,16 @@ fn acp_for(spec: &CliSpec) -> Option<AcpConversation> {
     args.extend(adapter.acp_trailing().iter().map(|word| (*word).to_string()));
     let preamble = spec.preamble.clone().unwrap_or_else(|| crate::prompt::cli_preamble(spec.beginner));
     let session_config = adapter.acp_session_config(&spec.options);
+    // The same turn limits a plain CLI run gets (`timeout_secs` is the wall clock), with an idle
+    // limit the ACP connection can enforce itself: nothing else notices a silent agent.
+    let defaults = if spec.builder.is_some() { acp::TurnLimits::BUILDER } else { acp::TurnLimits::CHAT };
+    let limits = match spec.options.timeout_secs.filter(|s| *s > 0) {
+        Some(secs) => acp::TurnLimits::new(Duration::from_secs(secs), defaults.idle.min(Duration::from_secs(secs))),
+        None => defaults,
+    };
     Some(
         AcpConversation::new(&spec.config.name, &agent, program, args, cwd, mcp, if spec.question { None } else { spec.resume.clone() })
+            .with_turn_limits(limits)
             .with_validation(adapter.validate_options(&spec.options))
             .with_access_limit(adapter.validate_access(access))
             .with_adapter(adapter)

@@ -283,11 +283,7 @@ fn history(app: &mut CraftApp, ui: &mut Ui, dense: bool, pad: f32, max_w: f32) {
                     match a {
                         ChatAction::Consent(id, ans) => app.answer_consent(&id, ans),
                         ChatAction::OpenLog(path) => app.open_log(&path),
-                        ChatAction::AddBrain => {
-                            app.state.settings_open = true;
-                            app.state.settings_tab = crate::state::SettingsTab::Ai;
-                            app.detect_backends();
-                        }
+                        ChatAction::AddBrain => app.open_settings(crate::state::SettingsTab::Ai),
                     }
                 }
             });

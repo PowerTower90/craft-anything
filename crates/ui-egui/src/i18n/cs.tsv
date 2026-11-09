@@ -1462,3 +1462,11 @@ In this project, {kind}: {choice}.	V tomto projektu {kind}: {choice}.
 Couldn't change the approvals:	Schvalování nešlo změnit:
 What the builder may do without asking you, in this project.	Co smí sestavovací agent v tomto projektu dělat, aniž by se vás ptal.
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	Výchozí se řídí automatickým režimem: když je zapnutý, co lze vrátit, proběhne, a zbytek se odmítne; když je vypnutý, sestavovací agent se ptá.
+Looking for Ghidra…	Vyhledávání Ghidry…
+Couldn't look: {why}	Nepodařilo se podívat: {why}
+Looked just now	Prohledáno právě teď
+Looked {n} s ago	Prohledáno před {n} s
+Coding agent app (over SSH to {host})	Aplikace programovacího agenta (přes SSH na {host})
+on another computer over SSH (not checked); set up when you start	v jiném počítači přes SSH (neověřeno); nastaví se při spuštění
+On another computer over SSH (not checked)	V jiném počítači přes SSH (neověřeno)
+Install Claude Code on this computer and sign in once, then Look again.	Nainstalujte Claude Code do tohoto počítače, jednou se přihlaste a pak zvolte Hledat znovu.

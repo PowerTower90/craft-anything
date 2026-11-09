@@ -18,11 +18,24 @@ concurrency:
 
 jobs:
   gate:
-    # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
+    # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository
+    # (upstream does the same; pinning it to a commit is a separate decision).
     uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
     with:
       # Same craft-fonts commit as release.yml.
       craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
+      # One leg per runner. The Windows leg exists because `cfg(windows)` code and tests never
+      # compiled on the Ubuntu leg (docs/pitfalls.md), so a Windows-only break kept main green.
+      os: '["ubuntu-24.04","windows-latest"]'
+      # Ubuntu runs the full `cargo xtask ci`. Windows runs only what differs by platform: the
+      # whole workspace compiled with clippy and its tests. Formatting, layers, locks, secrets,
+      # the tool and schema docs and the wasm build are the same on every system and already ran.
+      windows-command: >-
+        cargo clippy --workspace --all-targets -- -D warnings &&
+        cargo test --workspace
+      # Windows runners build slower, and the dependency cache starts cold.
+      timeout-minutes: 90
+      # Installed on Linux legs only.
       packages: >-
         libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev
         libgtk-3-dev

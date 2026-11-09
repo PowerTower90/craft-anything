@@ -209,6 +209,59 @@ fn deep_and_broken_sources_fall_back() {
     assert!(broken.facts.ipc.iter().any(|i| i.channel.as_deref() == Some("ch")) || broken.facts.imports.iter().any(|i| i.specifier == "electron"));
 }
 
+/// Labels, `else` chains, class heritage and TypeScript type operators each cost the parser one
+/// stack frame per level but were missing from the nesting estimate. At these sizes they passed
+/// `admit`, overflowed the 256 MB parse stack and aborted the whole process (a stack overflow is
+/// not a panic, so `guarded` could not contain it).
+#[test]
+fn deep_label_and_else_chains_are_refused() {
+    let labels = format!("{}x;", "a:".repeat(1_000_000));
+    assert!(admit(&labels, &Limits::default()).is_err());
+    let f = run("labels.js", &labels).facts;
+    assert_eq!(f.mode, ParseMode::Lexer);
+    assert!(f.mode_reason.unwrap().contains("nests"));
+    let else_if = format!("{}c;", "if(a)b;else ".repeat(1_000_000));
+    assert!(admit(&else_if, &Limits::default()).is_err());
+    assert_eq!(run("chain.js", &else_if).facts.mode, ParseMode::Lexer);
+    let deep = [
+        format!("{}{{c}}", "if(a){b}else ".repeat(1_000_000)),
+        format!("{}c", "if(a)b\nelse ".repeat(1_000_000)),
+        format!("x={}{}{};", "class extends ".repeat(300_000), "{}", "{}".repeat(300_000)),
+        format!("type T={}X;", "keyof ".repeat(600_000)),
+    ];
+    for src in &deep {
+        let refused = admit(src, &Limits::default()).unwrap_err();
+        assert!(refused.contains("nests"), "{refused}");
+    }
+}
+
+/// Just under `max_nesting`, every construct that costs the parser a frame per level must fit in
+/// the parse stack: this ties the 4096-level limit to the 256 MB stack (about 2.2 KB per level at
+/// worst, measured on oxc 0.153). Two-token levels (`{a:`, `A<`) count twice, so they get half.
+#[test]
+fn chains_under_the_limit_parse_on_the_big_stack() {
+    let (one, two) = (4000, 2000);
+    let cases = [
+        ("labels.js", format!("{}x;", "a:".repeat(one))),
+        ("elseif.js", format!("{}c;", "if(a)b;else ".repeat(one))),
+        ("asi.js", format!("{}c", "if(a)b\nelse ".repeat(two))),
+        ("ifs.js", format!("{}c;", "if(a)".repeat(one))),
+        ("parens.js", format!("x={}1{};", "(".repeat(one), ")".repeat(one))),
+        ("arrows.js", format!("x={}0;", "a=>".repeat(one))),
+        ("nots.js", format!("x={}1;", "!".repeat(one))),
+        ("objects.js", format!("x={}1{};", "{a:".repeat(two), "}".repeat(two))),
+        ("templates.js", format!("x={}1{};", "`${".repeat(two), "}`".repeat(two))),
+        ("classes.js", format!("x={}{}{};", "class extends ".repeat(two), "{}", "{}".repeat(two))),
+        ("generics.ts", format!("type T={}X{};", "A<".repeat(two), ">".repeat(two))),
+        ("keyof.ts", format!("type T={}X;", "keyof ".repeat(one))),
+    ];
+    for (path, src) in &cases {
+        assert_eq!(admit(src, &Limits::default()), Ok(()), "{path}");
+        let f = run(path, src).facts;
+        assert_eq!(f.mode, ParseMode::Parsed, "{path}: {:?}", f.mode_reason);
+    }
+}
+
 #[test]
 fn junk_never_panics() {
     let samples = [

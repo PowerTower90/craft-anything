@@ -4,26 +4,138 @@
 
 use super::*;
 
-/// Run a step of a project's build in `app`: whether it succeeded, and what it printed.
-fn run_in(app: &Path, prog: &Path, args: &[String], minutes: u64, stop: &CancelToken) -> Result<(bool, String), String> {
+/// Where a long build step says it's still going (a feed line); the silent one for callers
+/// without a feed.
+pub(super) type Say<'a> = &'a dyn Fn(String);
+
+/// Says nothing: for tests without a feed.
+#[cfg(test)]
+pub(super) fn quietly(_: String) {}
+
+/// How often a running build step says it's still going.
+const STILL_BUILDING_EVERY: Duration = Duration::from_secs(150);
+
+/// Minutes a toolchain's build (cargo, npm, a person's own) may print nothing before it's
+/// stopped: a cold build prints something within that, and a hung one never will.
+const TOOLCHAIN_IDLE_MINUTES: u64 = 15;
+
+/// Minutes a game engine's build may print nothing: shader compiles and cooking go quiet for
+/// long stretches.
+const ENGINE_IDLE_MINUTES: u64 = 60;
+
+/// Run a step of a project's build in `app`: whether it succeeded, and what it printed. While it
+/// runs, every few minutes `say` gets a line that it's still going.
+fn run_in(app: &Path, prog: &Path, args: &[String], minutes: u64, idle_minutes: u64, stop: &CancelToken, say: Say) -> Result<(bool, String), String> {
     let s = stop.clone();
-    craft_anything_platform::Process::new(prog)
+    let name = prog.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| prog.display().to_string());
+    let mut running = craft_anything_platform::Process::new(prog)
         .args(args)
         .cwd(app)
         .timeout(Duration::from_secs(minutes * 60))
-        // Engines go quiet for long stretches (shader compiles, cooking, a cold cargo build).
-        .idle_timeout(Duration::from_secs(60 * 60))
+        .idle_timeout(Duration::from_secs(idle_minutes * 60))
         .stdout_cap(8 << 20)
         .cancel_when(move || s.is_cancelled())
-        .run()
-        .map(|o| (o.success, format!("{}{}", o.stdout_text(), o.stderr_text())))
-        .map_err(|e| e.message)
+        .spawn()
+        .map_err(|e| e.message)?;
+    let started = Instant::now();
+    let mut said = started;
+    while running.wait_timeout(Duration::from_millis(500)).is_none() {
+        if said.elapsed() >= STILL_BUILDING_EVERY {
+            said = Instant::now();
+            say(still_building_line(started.elapsed(), &name));
+        }
+    }
+    running.wait().map(|o| (o.success, format!("{}{}", o.stdout_text(), o.stderr_text()))).map_err(|e| e.message)
+}
+
+/// The feed line while a build step is still going ("Still building with cargo: 7 min so far…").
+pub(super) fn still_building_line(elapsed: Duration, program: &str) -> String {
+    format!("Still building with {program}: {} min so far…", (elapsed.as_secs() / 60).max(1))
 }
 
 /// Run one of a toolchain's commands in `app`.
-fn run_tool(app: &Path, tool: &stacks::Toolchain, command: &[String], minutes: u64, stop: &CancelToken) -> Result<(bool, String), String> {
+fn run_tool(app: &Path, tool: &stacks::Toolchain, command: &[String], minutes: u64, stop: &CancelToken, say: Say) -> Result<(bool, String), String> {
     let Some((program, args)) = tool.command(app, command) else { return Err(format!("{} has no such command.", tool.name)) };
-    run_in(app, &program, &args, minutes, stop)
+    run_in(app, &program, &args, minutes, TOOLCHAIN_IDLE_MINUTES, stop, say)
+}
+
+/// The package.json script an `npm run <script>` command runs, if the command is one.
+fn npm_run_script(command: &[String]) -> Option<&str> {
+    match command {
+        [npm, run, script, ..] if run == "run" && Path::new(npm).file_stem().is_some_and(|n| n == "npm") => Some(script.as_str()),
+        _ => None,
+    }
+}
+
+/// Programs in a package.json script that serve or watch and never exit on their own, unless a
+/// `build` word makes them a one-off build (`vite build`).
+const SERVER_PROGRAMS: &[&str] = &["vite", "serve", "nodemon", "http-server", "live-server", "webpack-dev-server", "browser-sync", "sirv", "wrangler"];
+
+/// `program subcommand` pairs that start a server.
+const SERVER_SUBCOMMANDS: &[(&str, &str)] = &[
+    ("next", "dev"),
+    ("next", "start"),
+    ("nuxt", "dev"),
+    ("nuxt", "preview"),
+    ("astro", "dev"),
+    ("astro", "preview"),
+    ("remix", "dev"),
+    ("vite", "preview"),
+    ("vite", "dev"),
+    ("vite", "serve"),
+    ("webpack", "serve"),
+    ("webpack", "watch"),
+    ("parcel", "serve"),
+    ("parcel", "watch"),
+    ("ng", "serve"),
+    ("tsc", "--watch"),
+    ("npm", "start"),
+    ("pnpm", "dev"),
+    ("pnpm", "start"),
+    ("yarn", "dev"),
+    ("yarn", "start"),
+    ("bun", "dev"),
+];
+
+/// Words before the program in a script step that aren't it: runners and environment settings.
+fn is_script_prefix(word: &str) -> bool {
+    matches!(word, "npx" | "cross-env" | "dotenv" | "env" | "bunx" | "pnpx" | "exec" | "--")
+        || (word.contains('=') && word.split('=').next().is_some_and(|k| !k.is_empty() && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')))
+}
+
+/// Whether a package.json script starts a dev server or watcher: run as a build, it would never
+/// exit, and the build check would wait on it until its time limit (#phase1-hangs).
+pub(super) fn script_never_exits(script: &str) -> bool {
+    script.replace("&&", ";").replace("||", ";").split([';', '|']).any(step_never_exits)
+}
+
+fn step_never_exits(step: &str) -> bool {
+    let words: Vec<&str> = step.split_whitespace().skip_while(|w| is_script_prefix(w)).collect();
+    let Some(program) = words.first().map(|p| p.rsplit(['/', '\\']).next().unwrap_or(p)) else { return false };
+    let second = words.get(1).copied().unwrap_or_default();
+    if words.iter().any(|w| *w == "--watch" || (*w == "-w" && program == "tsc")) {
+        return true;
+    }
+    // `npm run dev` (and its siblings) as a step of the build script.
+    if matches!(program, "npm" | "pnpm" | "yarn" | "bun")
+        && second == "run"
+        && matches!(words.get(2).copied().unwrap_or_default(), "dev" | "start" | "serve" | "watch" | "preview")
+    {
+        return true;
+    }
+    if SERVER_SUBCOMMANDS.contains(&(program, second)) {
+        return true;
+    }
+    SERVER_PROGRAMS.contains(&program) && !words.contains(&"build")
+}
+
+/// The note when `app`'s package.json script `name` would never exit; `None` when it's a build
+/// (or there's no such script).
+fn dev_server_script(app: &Path, name: &str) -> Option<String> {
+    let script = craft_anything_engine::outputs::npm_script(app, name).filter(|s| script_never_exits(s))?;
+    Some(format!(
+        "The build didn't run: package.json's `{name}` script is `{script}`, which starts a server or watcher and would never exit. Make it a build that finishes (such as `vite build` or `next build`), then build again."
+    ))
 }
 
 /// What a Unity without a licence prints, and what to tell the person.
@@ -32,14 +144,20 @@ const UNITY_LICENCE_FIX: &str = "Unity needs its free licence first: open Unity 
 
 /// A person's own project: its engine's build, else its toolchain's, else a static site. One we
 /// know no way to build isn't a failure, and the note says nothing ran.
+#[cfg(test)]
 pub(super) fn own_build_check(app: &Path, place: &str, stack: &str, editor: Option<&Path>, stop: &CancelToken) -> (bool, String) {
+    own_build_check_saying(app, place, stack, editor, stop, &quietly)
+}
+
+/// [`own_build_check`], saying through `say` every few minutes that it's still going.
+pub(super) fn own_build_check_saying(app: &Path, place: &str, stack: &str, editor: Option<&Path>, stop: &CancelToken, say: Say) -> (bool, String) {
     let engine = engine_for(stack, app);
     if let (Some(game::Builder::Unity), Some(ed)) = (engine, editor) {
-        return own_unity_check(app, ed, stop);
+        return own_unity_check(app, ed, stop, say);
     }
     match stacks::toolchain_in(app).filter(|_| engine.is_none()) {
-        Some(tool) => own_build(app, tool, stop),
-        None if engine.is_some() || static_site(app) => build_check(app, place, stack, editor, stop),
+        Some(tool) => own_build(app, tool, stop, say),
+        None if engine.is_some() || static_site(app) => build_check_saying(app, place, stack, editor, stop, say),
         None => (true, "Nothing was built: Craft Anything doesn't know how to build this kind of project.".into()),
     }
 }
@@ -50,8 +168,8 @@ fn own_unity_args(app: &Path) -> Vec<String> {
     ["-batchmode", "-quit", "-nographics", "-projectPath", &app.display().to_string(), "-logFile", "-"].map(String::from).to_vec()
 }
 
-fn own_unity_check(app: &Path, editor: &Path, stop: &CancelToken) -> (bool, String) {
-    match run_in(app, editor, &own_unity_args(app), 4 * 60, stop) {
+fn own_unity_check(app: &Path, editor: &Path, stop: &CancelToken, say: Say) -> (bool, String) {
+    match run_in(app, editor, &own_unity_args(app), 4 * 60, ENGINE_IDLE_MINUTES, stop, say) {
         Ok((_, out)) if out.contains(UNITY_NO_LICENCE) => (false, UNITY_LICENCE_FIX.into()),
         Ok((true, _)) => (true, "The Unity project opened and its scripts compiled.".into()),
         Ok((false, out)) => (false, format!("Build failed: {}", error_lines(&out))),
@@ -59,8 +177,12 @@ fn own_unity_check(app: &Path, editor: &Path, stop: &CancelToken) -> (bool, Stri
     }
 }
 
-fn own_build(app: &Path, tool: &stacks::Toolchain, stop: &CancelToken) -> (bool, String) {
-    match run_tool(app, tool, &tool.build, 2 * 60, stop) {
+fn own_build(app: &Path, tool: &stacks::Toolchain, stop: &CancelToken, say: Say) -> (bool, String) {
+    // A Node project whose build script serves or watches would be waited on for two hours.
+    if let Some(note) = npm_run_script(&tool.build).and_then(|name| dev_server_script(app, name)) {
+        return (false, note);
+    }
+    match run_tool(app, tool, &tool.build, 2 * 60, stop, say) {
         Ok((true, _)) => (true, format!("`{}` passed.", tool.build.join(" "))),
         Ok((false, out)) => (false, format!("Build failed: {}", error_lines(&out))),
         Err(e) => (false, format!("Couldn't run the build: {e}")),
@@ -69,7 +191,13 @@ fn own_build(app: &Path, tool: &stacks::Toolchain, stop: &CancelToken) -> (bool,
 
 /// A person's own project: run its tests. Output that says none ran isn't a failure, and neither
 /// is a project we know no way to test, and the note says so.
+#[cfg(test)]
 pub(super) fn own_tests_check(app: &Path, tool: Option<&stacks::Toolchain>, stop: &CancelToken) -> (bool, String) {
+    own_tests_check_saying(app, tool, stop, &quietly)
+}
+
+/// [`own_tests_check`], saying through `say` every few minutes that it's still going.
+pub(super) fn own_tests_check_saying(app: &Path, tool: Option<&stacks::Toolchain>, stop: &CancelToken, say: Say) -> (bool, String) {
     let Some(tool) = tool else { return (true, "No tests ran: Craft Anything doesn't know how to test this kind of project.".into()) };
     let says_none = |text: &str| tool.no_tests.iter().find(|n| text.contains(n.as_str())).cloned();
     if let Some(name) = &tool.test_script {
@@ -80,7 +208,7 @@ pub(super) fn own_tests_check(app: &Path, tool: Option<&stacks::Toolchain>, stop
             return (true, format!("No tests ran: package.json has no `{name}` script to run."));
         }
     }
-    match run_tool(app, tool, &tool.test, 30, stop) {
+    match run_tool(app, tool, &tool.test, 30, stop, say) {
         Ok((true, _)) => (true, format!("`{}` passed.", tool.test.join(" "))),
         Ok((false, out)) => match says_none(&out).filter(|_| tool.test_script.is_none()) {
             Some(why) => (true, format!("No tests ran: {}.", why.trim_end_matches('.'))),
@@ -100,8 +228,16 @@ fn last_lines(out: &str, n: usize) -> String {
 /// For non-website builds: run the project's build (its engine's own, for Unity, Unreal and
 /// Godot) and report whether it succeeded, with a note (the first error lines when it didn't).
 /// `place` says where `app` is, for messages (`Workspace::app_place`).
+#[cfg(test)]
 pub(super) fn build_check(app: &Path, place: &str, stack: &str, editor: Option<&Path>, stop: &CancelToken) -> (bool, String) {
-    let run = |prog: &Path, args: &[String], minutes: u64| run_in(app, prog, args, minutes, stop).map_err(|e| format!("Couldn't run the build: {e}"));
+    build_check_saying(app, place, stack, editor, stop, &quietly)
+}
+
+/// [`build_check`], saying through `say` every few minutes that it's still going.
+pub(super) fn build_check_saying(app: &Path, place: &str, stack: &str, editor: Option<&Path>, stop: &CancelToken, say: Say) -> (bool, String) {
+    let run = |prog: &Path, args: &[String], minutes: u64, idle: u64| {
+        run_in(app, prog, args, minutes, idle, stop, say).map_err(|e| format!("Couldn't run the build: {e}"))
+    };
     let app_s = app.display().to_string();
     let built = || packaged_program(&app.join("Build")).is_some();
     let result: Result<(bool, String), String> = match (engine_for(stack, app), editor) {
@@ -110,7 +246,8 @@ pub(super) fn build_check(app: &Path, place: &str, stack: &str, editor: Option<&
                 return (false, missing(app, place, format!("No Unity project found in {place} yet.")));
             }
             let args = ["-batchmode", "-quit", "-nographics", "-projectPath", &app_s, "-executeMethod", "CraftBuild.Build", "-logFile", "-"].map(String::from);
-            run(ed, &args, 4 * 60).map(|(ok, out)| if out.contains(UNITY_NO_LICENCE) { (false, UNITY_LICENCE_FIX.into()) } else { (ok && built(), out) })
+            run(ed, &args, 4 * 60, ENGINE_IDLE_MINUTES)
+                .map(|(ok, out)| if out.contains(UNITY_NO_LICENCE) { (false, UNITY_LICENCE_FIX.into()) } else { (ok && built(), out) })
         }
         (Some(game::Builder::Unreal), Some(ed)) => {
             let Some(uproject) = uproject(app) else {
@@ -143,7 +280,7 @@ pub(super) fn build_check(app: &Path, place: &str, stack: &str, editor: Option<&
             ];
             // A first Unreal build compiles and cooks for a long while. Run RunUAT.bat directly:
             // std quotes .bat launches itself, whereas `cmd /C "<path with spaces>" "<arg>"` strips the quotes.
-            run(&uat, &args, 8 * 60).map(|(ok, out)| (ok && built(), out))
+            run(&uat, &args, 8 * 60, ENGINE_IDLE_MINUTES).map(|(ok, out)| (ok && built(), out))
         }
         (Some(game::Builder::Godot), Some(ed)) => {
             if !app.join("project.godot").is_file() {
@@ -152,13 +289,17 @@ pub(super) fn build_check(app: &Path, place: &str, stack: &str, editor: Option<&
             let import = ["--headless", "--path", &app_s, "--import"].map(String::from);
             let play = ["--headless", "--path", &app_s, "--quit-after", "120"].map(String::from);
             // Godot exits cleanly even when scripts fail, so its error lines decide.
-            run(ed, &import, 60).and_then(|(_, a)| run(ed, &play, 10).map(|(ok, b)| (ok, a + &b))).map(|(ok, out)| {
+            run(ed, &import, 60, ENGINE_IDLE_MINUTES).and_then(|(_, a)| run(ed, &play, 10, ENGINE_IDLE_MINUTES).map(|(ok, b)| (ok, a + &b))).map(|(ok, out)| {
                 let bad = out.lines().any(|l| l.contains("SCRIPT ERROR") || l.contains("Parse Error") || l.trim_start().starts_with("ERROR:"));
                 (ok && !bad, out)
             })
         }
-        _ if app.join("Cargo.toml").is_file() => run(Path::new("cargo"), &["build".into(), "--quiet".into()], 2 * 60),
-        _ if app.join("package.json").is_file() => run(Path::new(if cfg!(windows) { "npm.cmd" } else { "npm" }), &["run".into(), "build".into()], 2 * 60),
+        _ if app.join("Cargo.toml").is_file() => run(Path::new("cargo"), &["build".into(), "--quiet".into()], 2 * 60, TOOLCHAIN_IDLE_MINUTES),
+        // A `build` script that serves or watches is never started: the check would wait on it for two hours.
+        _ if app.join("package.json").is_file() => match dev_server_script(app, "build") {
+            Some(note) => return (false, note),
+            None => run(Path::new(if cfg!(windows) { "npm.cmd" } else { "npm" }), &["run".into(), "build".into()], 2 * 60, TOOLCHAIN_IDLE_MINUTES),
+        },
         (None, _) => {
             return stacks::toolchain_in(app).map_or_else(
                 || {
@@ -168,7 +309,7 @@ pub(super) fn build_check(app: &Path, place: &str, stack: &str, editor: Option<&
                         (false, missing(app, place, format!("No project to build found in {place} yet.")))
                     }
                 },
-                |tool| own_build(app, tool, stop),
+                |tool| own_build(app, tool, stop, say),
             );
         }
         _ => return (false, missing(app, place, format!("No project to build found in {place} yet."))),
@@ -340,9 +481,58 @@ mod tests {
     #[test]
     fn a_persons_own_build_is_judged_by_its_toolchain() {
         let (d, stop) = (tempfile::tempdir().unwrap(), CancelToken::default());
-        assert!(own_build(d.path(), &stand_in("exit 0", &[]), &stop).0);
-        let (passed, note) = own_build(d.path(), &stand_in("echo 'error: no such file'; exit 2", &[]), &stop);
+        assert!(own_build(d.path(), &stand_in("exit 0", &[]), &stop, &quietly).0);
+        let (passed, note) = own_build(d.path(), &stand_in("echo 'error: no such file'; exit 2", &[]), &stop, &quietly);
         assert!(!passed && note.contains("no such file"), "{note}");
+    }
+
+    /// A `build` script that starts a dev server or watcher would be waited on until the time
+    /// limit; it's named instead, and nothing runs.
+    #[test]
+    fn a_build_script_that_never_exits_is_not_started() {
+        for script in [
+            "vite",
+            "npx vite",
+            "vite --port 3000",
+            "next dev",
+            "npx next dev -p 4000",
+            "serve dist",
+            "nodemon server.js",
+            "tsc --watch",
+            "webpack --watch",
+            "npm run dev",
+            "cross-env NODE_ENV=development vite",
+            "tsc && vite",
+        ] {
+            assert!(script_never_exits(script), "{script}");
+        }
+        for script in [
+            "vite build",
+            "npx vite build",
+            "tsc && vite build",
+            "next build",
+            "tsc -b",
+            "webpack --mode production",
+            "npm run lint && npm run build:prod",
+            "rollup -c",
+            "cross-env NODE_ENV=production vite build",
+            "echo nothing to build",
+        ] {
+            assert!(!script_never_exits(script), "{script}");
+        }
+        assert_eq!(npm_run_script(&["npm".into(), "run".into(), "build".into(), "--if-present".into()]), Some("build"));
+        assert_eq!(npm_run_script(&["npm.cmd".into(), "run".into(), "build".into()]), Some("build"));
+        assert_eq!(npm_run_script(&["cargo".into(), "build".into()]), None);
+        let (d, stop) = (tempfile::tempdir().unwrap(), CancelToken::default());
+        let app = d.path();
+        std::fs::write(app.join("package.json"), r#"{"scripts":{"build":"vite"}}"#).unwrap();
+        let (passed, note) = build_check(app, "app/", "Builder's choice", None, &stop);
+        assert!(!passed && note.contains("`build` script is `vite`") && note.contains("would never exit"), "{note}");
+        // A person's own Node project with the same script.
+        let node = stacks::toolchain_in(app).expect("the table has Node.js");
+        let (passed, note) = own_build(app, node, &stop, &quietly);
+        assert!(!passed && note.contains("would never exit"), "{note}");
+        assert_eq!(still_building_line(Duration::from_secs(7 * 60 + 5), "cargo"), "Still building with cargo: 7 min so far…");
     }
 
     #[test]

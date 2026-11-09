@@ -603,6 +603,40 @@ pub struct AcpConversation {
     access_error: Option<craft_anything_evidence::ToolError>,
     /// Copied onto the core when the process starts, and applied before the session is ready.
     session_config: Vec<(String, String)>,
+    /// How long one turn may run, and how long it may stay silent, before it's stopped.
+    limits: TurnLimits,
+    /// When the current message was sent, while a turn is under way.
+    turn_started: Option<Instant>,
+    /// When the agent last wrote a line (stdout or stderr); the idle clock.
+    last_output: Arc<Mutex<Instant>>,
+    /// The silence note was given this turn.
+    said_quiet: bool,
+    /// Whether the agent is waiting on the person (a question or approval card), which isn't
+    /// silence to stop it for: the run that knows its inbox sets this.
+    waiting_on_person: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+}
+
+/// A turn's time limits: a wall clock, and how long the agent may stay silent. The silence note
+/// is said once, after `quiet_note`, so a long quiet stretch isn't a mystery.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TurnLimits {
+    pub wall: Duration,
+    pub idle: Duration,
+    pub quiet_note: Duration,
+}
+
+impl TurnLimits {
+    /// A builder's limits: a turn may take a day, as a plain CLI's may, but an hour without a
+    /// word from the agent means it's stuck; it's said at ten minutes.
+    pub const BUILDER: TurnLimits =
+        TurnLimits { wall: Duration::from_secs(24 * 3600), idle: Duration::from_secs(60 * 60), quiet_note: Duration::from_secs(10 * 60) };
+    /// A chat's or question's limits, as a plain CLI's; the silence note at half the idle limit.
+    pub const CHAT: TurnLimits = TurnLimits { wall: Duration::from_secs(30 * 60), idle: Duration::from_secs(15 * 60), quiet_note: Duration::from_secs(450) };
+
+    /// `wall` and `idle`, with the silence note at ten minutes or half the idle limit if sooner.
+    pub fn new(wall: Duration, idle: Duration) -> TurnLimits {
+        TurnLimits { wall, idle, quiet_note: Duration::from_secs(10 * 60).min(idle / 2) }
+    }
 }
 
 impl AcpConversation {
@@ -711,6 +745,75 @@ impl AcpConversation {
         self
     }
 
+    /// How long a turn may run and stay silent before it's stopped ([`TurnLimits`]).
+    pub fn with_turn_limits(mut self, limits: TurnLimits) -> Self {
+        self.limits = limits;
+        self
+    }
+
+    /// Says when the agent is waiting on the person (a card in the run's inbox): that wait isn't
+    /// silence, and the idle clock starts again when it ends.
+    pub fn with_waiting_on_person(mut self, waiting: impl Fn() -> bool + Send + Sync + 'static) -> Self {
+        self.waiting_on_person = Some(Arc::new(waiting));
+        self
+    }
+
+    /// The events a turn's time limits call for now: the silence note once, or the end of a turn
+    /// that ran too long or stayed silent too long. A stopped turn ends its process (the next
+    /// message starts the agent again and loads the session) and fails as timed out, which the
+    /// run retries once.
+    fn deadline_events(&mut self) -> Vec<AgentEvent> {
+        if !self.busy.load(Ordering::SeqCst) {
+            return Vec::new();
+        }
+        let Some(started) = self.turn_started else { return Vec::new() };
+        let quiet = self.last_output.lock().unwrap_or_else(PoisonError::into_inner).elapsed();
+        let ran = started.elapsed();
+        if quiet < self.limits.quiet_note && ran < self.limits.wall {
+            return Vec::new();
+        }
+        // A permission request of the agent's own, or a card of the run's, waits on the person.
+        let asking = self.lock().as_ref().is_some_and(|s| !s.core.asks.is_empty()) || self.waiting_on_person.as_ref().is_some_and(|w| w());
+        if asking && quiet >= self.limits.quiet_note {
+            *self.last_output.lock().unwrap_or_else(PoisonError::into_inner) = Instant::now();
+            return Vec::new();
+        }
+        let name = display_for(&self.agent);
+        let minutes = |d: Duration| d.as_secs() / 60;
+        if quiet >= self.limits.idle || ran >= self.limits.wall {
+            let why = if quiet >= self.limits.idle {
+                format!("{name} said nothing for {} minutes", minutes(quiet))
+            } else {
+                format!("{name}'s turn ran for {} hours", ran.as_secs() / 3600)
+            };
+            self.with_core(AcpCore::cancel);
+            if let Some(p) = self.proc.as_mut() {
+                p.kill();
+            }
+            self.busy.store(false, Ordering::SeqCst);
+            self.turn_started = None;
+            self.failure = Some(TurnFailure::new(FailureKind::TimedOut));
+            return vec![
+                AgentEvent::Error {
+                    message: format!("{why}, so the turn was stopped."),
+                    remediation: Some(format!("It's picked up once from where it stopped. If {name} goes quiet again, check it in a terminal.")),
+                    log: None,
+                },
+                AgentEvent::TurnDone { backend: self.backend.clone(), input_tokens: 0, output_tokens: 0, cost_usd: None, cost_is_estimate: false },
+            ];
+        }
+        if !self.said_quiet && quiet >= self.limits.quiet_note {
+            self.said_quiet = true;
+            let text = format!(
+                "Nothing from {name} for {} minutes. Still waiting; the turn stops after {} minutes of silence.",
+                minutes(quiet),
+                minutes(self.limits.idle)
+            );
+            return vec![AgentEvent::Status { text }];
+        }
+        Vec::new()
+    }
+
     /// `program args…` starts the agent in ACP mode; `cwd` is its working folder.
     pub fn new(backend: &str, agent: &str, program: String, args: Vec<String>, cwd: PathBuf, mcp: McpCommand, resume: Option<String>) -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
@@ -736,6 +839,11 @@ impl AcpConversation {
             validation_error: None,
             access_error: None,
             session_config: Vec::new(),
+            limits: TurnLimits::BUILDER,
+            turn_started: None,
+            last_output: Arc::new(Mutex::new(Instant::now())),
+            said_quiet: false,
+            waiting_on_person: None,
         }
     }
 
@@ -762,6 +870,7 @@ impl AcpConversation {
         let (shared, tx, busy) = (self.shared.clone(), self.tx.clone(), self.busy.clone());
         let shared_err = self.shared.clone();
         let tx_err = tx.clone();
+        let (heard, heard_err) = (self.last_output.clone(), self.last_output.clone());
         let mut proc = self
             .adapter
             .process(&self.program)
@@ -775,6 +884,7 @@ impl AcpConversation {
             .stdout_cap(4 << 20)
             .stderr_cap(1 << 20)
             .on_stdout_line(move |l| {
+                *heard.lock().unwrap_or_else(PoisonError::into_inner) = Instant::now();
                 let mut g = shared.lock().unwrap_or_else(PoisonError::into_inner);
                 if let Some(s) = g.as_mut() {
                     let outs = s.core.line(l);
@@ -782,6 +892,7 @@ impl AcpConversation {
                 }
             })
             .on_stderr_line(move |l| {
+                *heard_err.lock().unwrap_or_else(PoisonError::into_inner) = Instant::now();
                 if !l.trim().is_empty() {
                     let _ = tx_err.send(AgentEvent::Output { text: l.to_string() });
                 }
@@ -844,6 +955,9 @@ impl AcpConversation {
         }
         let text = format!("{}{text}", self.preamble);
         let continuation = retry.then(|| format!("{}{}", self.preamble, crate::failure::CONTINUE_TURN));
+        self.turn_started = Some(Instant::now());
+        *self.last_output.lock().unwrap_or_else(PoisonError::into_inner) = Instant::now();
+        self.said_quiet = false;
         self.with_core(|c| c.queue_prompt(&text, continuation));
     }
 }
@@ -867,6 +981,8 @@ impl Conversation for AcpConversation {
 
     fn poll(&mut self) -> Vec<AgentEvent> {
         let mut events: Vec<AgentEvent> = self.rx.try_iter().collect();
+        // A turn that runs or stays silent too long is stopped here; nothing else would notice.
+        events.extend(self.deadline_events());
         // An agent that exits mid-message would otherwise leave the conversation busy forever.
         if self.busy.load(Ordering::SeqCst) && self.proc.as_mut().is_some_and(RunningProcess::is_finished) {
             self.busy.store(false, Ordering::SeqCst);
@@ -976,6 +1092,64 @@ mod tests {
         assert_eq!(new[0]["params"]["mcpServers"], json!([]));
         let reply = sent(&core.line(r#"{"jsonrpc":"2.0","id":"permission","method":"session/request_permission","params":{"toolCall":{"kind":"edit"},"options":[{"optionId":"allow","kind":"allow_once"}]}}"#));
         assert_eq!(reply[0]["result"]["outcome"]["outcome"], "cancelled");
+    }
+
+    /// A turn that stays silent is said to be quiet once, then stopped at the idle limit and
+    /// failed as timed out (retried once by the run); a card waiting on the person isn't silence.
+    #[test]
+    fn a_silent_turn_is_noted_then_stopped_as_timed_out() {
+        let mcp = McpCommand { command: "not-started".into(), args: Vec::new(), notes: None };
+        let quiet = |c: &mut AcpConversation, d: Duration| *c.last_output.lock().unwrap() = Instant::now().checked_sub(d).unwrap();
+        let mut c = AcpConversation::new("Test", "gemini-cli", "not-started".into(), Vec::new(), PathBuf::new(), mcp.clone(), None)
+            .with_turn_limits(TurnLimits::new(Duration::from_secs(3600), Duration::from_secs(60)));
+        assert_eq!(c.limits.quiet_note, Duration::from_secs(30), "the note comes at half a short idle limit");
+        assert!(c.poll().is_empty(), "nothing is under way");
+        c.busy.store(true, Ordering::SeqCst);
+        c.turn_started = Some(Instant::now());
+        quiet(&mut c, Duration::from_secs(10));
+        assert!(c.poll().is_empty(), "ten seconds of silence is nothing");
+        quiet(&mut c, Duration::from_secs(40));
+        let note = c.poll();
+        assert!(
+            matches!(&note[..], [AgentEvent::Status { text }] if text.contains("Nothing from Gemini CLI") && text.contains("stops after 1 minutes")),
+            "{note:?}"
+        );
+        quiet(&mut c, Duration::from_secs(45));
+        assert!(c.poll().is_empty(), "the note is said once");
+        quiet(&mut c, Duration::from_secs(61));
+        let stopped = c.poll();
+        assert!(
+            matches!(&stopped[..], [AgentEvent::Error { message, .. }, AgentEvent::TurnDone { .. }] if message.contains("said nothing for 1 minutes") && message.contains("stopped")),
+            "{stopped:?}"
+        );
+        assert_eq!(c.last_failure(), Some(TurnFailure::new(FailureKind::TimedOut)));
+        assert_eq!(c.last_failure().unwrap().retries(), 1, "tried again once");
+        assert!(!c.is_busy());
+        assert!(c.poll().is_empty(), "said once");
+        // The wall clock ends a turn that keeps talking.
+        let mut c = AcpConversation::new("Test", "copilot", "not-started".into(), Vec::new(), PathBuf::new(), mcp.clone(), None)
+            .with_turn_limits(TurnLimits::new(Duration::from_secs(7200), Duration::from_secs(3600)));
+        c.busy.store(true, Ordering::SeqCst);
+        c.turn_started = Instant::now().checked_sub(Duration::from_secs(7201));
+        quiet(&mut c, Duration::from_secs(1));
+        let stopped = c.poll();
+        assert!(matches!(&stopped[..], [AgentEvent::Error { message, .. }, _] if message.contains("GitHub Copilot's turn ran for 2 hours")), "{stopped:?}");
+        // A card waiting on the person is the person's time, not the agent's silence.
+        let waiting = Arc::new(AtomicBool::new(true));
+        let w = waiting.clone();
+        let mut c = AcpConversation::new("Test", "gemini-cli", "not-started".into(), Vec::new(), PathBuf::new(), mcp, None)
+            .with_turn_limits(TurnLimits::new(Duration::from_secs(3600), Duration::from_secs(60)))
+            .with_waiting_on_person(move || w.load(Ordering::SeqCst));
+        c.busy.store(true, Ordering::SeqCst);
+        c.turn_started = Some(Instant::now());
+        quiet(&mut c, Duration::from_secs(600));
+        assert!(c.poll().is_empty(), "no note and no stop while a card waits");
+        assert!(c.last_output.lock().unwrap().elapsed() < Duration::from_secs(5), "the idle clock starts again");
+        waiting.store(false, Ordering::SeqCst);
+        quiet(&mut c, Duration::from_secs(600));
+        assert!(matches!(&c.poll()[..], [AgentEvent::Error { .. }, AgentEvent::TurnDone { .. }]));
+        assert_eq!(TurnLimits::BUILDER.idle, Duration::from_secs(3600));
+        assert_eq!(TurnLimits::CHAT, TurnLimits::new(Duration::from_secs(30 * 60), Duration::from_secs(15 * 60)));
     }
 
     fn core(resume: Option<&str>) -> AcpCore {

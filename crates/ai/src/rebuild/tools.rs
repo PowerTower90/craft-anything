@@ -471,14 +471,32 @@ fn rebuild_check(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolErr
             .with_remediation("Finish the turn: Craft Anything checks the build after it."));
     }
     let asks = Inbox::new(self_check::asks_dir(&ws.root));
-    let id = asks.post(craft_anything_engine::inbox::RequestKind::Question, "Check the build", "", Vec::new(), false, None)?;
+    let wait = Duration::from_secs(p.wait_minutes * 60);
+    // The run reads the wait and stops the check before it ends, so an answer comes either way.
+    let detail = self_check::CheckAsk::detail(wait);
+    let id = asks.post(craft_anything_engine::inbox::RequestKind::Question, "Check the build", &detail, Vec::new(), false, None)?;
     ctx.report(None, "Checking the build against the original…");
     let cancel = ctx.cancel.clone();
-    match asks.wait(&id, Duration::from_secs(p.wait_minutes * 60), &|| cancel.is_cancelled()) {
+    match asks.wait(&id, wait, &|| cancel.is_cancelled()) {
         Some(a) => Ok(ToolOutput::Value(json!({"project": ws.root.display().to_string(), "report": a.text.unwrap_or_default()}))),
         None if ctx.cancel.is_cancelled() => Err(ToolError::new(ErrorCode::Cancelled, "Stopped.")),
-        None => Err(ToolError::new(ErrorCode::NotFound, "No answer: no build is running for this project, or the check took too long.")
-            .with_remediation("Use this while Craft Anything is building the project; otherwise build it and finish the turn, and it is checked after.")),
+        None => Err(no_check_answer(&ws.root, p.wait_minutes)),
+    }
+}
+
+/// Why `rebuild_check` got no answer: the project's status says whether a run is working on it
+/// (then the run didn't answer in time) or nothing is building it at all.
+fn no_check_answer(root: &Path, wait_minutes: u64) -> ToolError {
+    let status = Workspace::open(root).map(|w| w.manifest.status).unwrap_or_default();
+    if matches!(status, Status::Inspecting | Status::Building | Status::Checking) {
+        ToolError::new(ErrorCode::TimedOut, format!("No answer after {wait_minutes} minutes: the build's run didn't finish the check in time."))
+            .with_remediation("Finish the turn: Craft Anything checks the build after it. For a long build, pass a bigger wait_minutes next time.")
+    } else {
+        ToolError::new(
+            ErrorCode::NotFound,
+            format!("No answer: no build is running for this project (its status is {}), so nothing can check it now.", status.label()),
+        )
+        .with_remediation("Use this while Craft Anything is building the project; otherwise build it and finish the turn, and it is checked after.")
     }
 }
 

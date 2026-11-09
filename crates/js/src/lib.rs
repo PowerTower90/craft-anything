@@ -4,7 +4,10 @@
 //! parser) or, when parsing is refused or fails, tokenized; facts are read from the result.
 //! The parser recurses without a depth limit, so we estimate nesting first and hand very deep
 //! sources to the token scanner instead. On native targets parsing runs on a worker thread with
-//! a large stack, which also contains any parser panic.
+//! a large stack, which also contains any parser panic. A stack overflow is not a panic: it
+//! aborts the whole process, so the estimate ([`lex::Nesting`]) must count every construct the
+//! parser recurses on, and [`Limits::max_nesting`] times the costliest level must stay well
+//! under [`PARSE_STACK`].
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 pub mod api_ops;
@@ -44,6 +47,11 @@ const DEFAULT_NESTING: usize = 4096;
 const DEFAULT_NESTING: usize = 160;
 
 /// Stack for the parser thread. Virtual reservation only; pages are touched as needed.
+///
+/// Budget: 256 MB / `DEFAULT_NESTING` (4096) = 64 KB per estimated level, against a measured
+/// worst of about 2.2 KB per level in oxc 0.153 (`(`, `[`, `{`, template substitutions,
+/// TypeScript generics); labels and `else` cost about 0.5 KB. The slack is what absorbs an
+/// estimate that counts a level once where the parser spends a few frames.
 #[cfg(not(target_arch = "wasm32"))]
 const PARSE_STACK: usize = 256 * 1024 * 1024;
 
@@ -61,7 +69,9 @@ pub enum JsError {
     Parser(String),
 }
 
-/// Run `f` where a deep recursion can't take the process down and a panic is contained.
+/// Run `f` on a thread whose stack fits any recursion [`admit`] lets through, with a panic
+/// contained. It cannot contain a stack overflow (that aborts the process), so callers must
+/// `admit` the source first.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn guarded<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, JsError> {
     let handle = std::thread::Builder::new()

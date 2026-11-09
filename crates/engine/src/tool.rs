@@ -226,6 +226,9 @@ pub struct Progress {
 
 pub type ProgressFn = dyn Fn(Progress) + Send + Sync;
 
+/// Work a tool leaves for after the session is released ([`Ctx::after_unlocking`]).
+pub type Unlocked = Box<dyn FnOnce(CancelToken) -> Result<ToolOutput, ToolError> + Send>;
+
 /// Everything a tool run can touch.
 pub struct Ctx<'a> {
     /// The id of the tool being run (one function can serve several tools added at run time).
@@ -234,11 +237,22 @@ pub struct Ctx<'a> {
     pub cancel: CancelToken,
     pub progress: &'a ProgressFn,
     pub caller: Caller,
+    /// Set by [`Ctx::after_unlocking`]; the engine runs it once the session is released.
+    pub after: Option<Unlocked>,
 }
 
 impl Ctx<'_> {
     pub fn report(&self, fraction: Option<f32>, message: impl Into<String>) {
         (self.progress)(Progress { fraction, message: message.into() });
+    }
+
+    /// Leave the rest of the tool's work for after the session is released. A tool call holds
+    /// the one session while it runs, so a long wait (serving a preview until stopped, a build
+    /// command that may run for an hour) would hold every other tool call up: do what needs the
+    /// session first, then give the wait to this. `f` gets the call's cancel token, and its
+    /// result replaces the one the tool returned.
+    pub fn after_unlocking(&mut self, f: impl FnOnce(CancelToken) -> Result<ToolOutput, ToolError> + Send + 'static) {
+        self.after = Some(Box::new(f));
     }
 }
 

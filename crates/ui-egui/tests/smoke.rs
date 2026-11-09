@@ -3156,3 +3156,188 @@ fn a_very_long_app_file_name_keeps_start_inside_the_window() {
     let start = h.get_by_label("Start").rect();
     assert!(start.left() >= 0.0 && start.right() <= content.right(), "Start ({start:?}) stays inside the window ({content:?})");
 }
+
+/// Ghidra placed in the engine store while the app is open (by `craft-anything-cli engines-install`,
+/// or a copy by hand) is noticed without a restart: Settings → Engines' pill changes, and turning
+/// Deep on no longer asks to get it. The look runs on a worker and is repeated when the window
+/// comes back.
+#[test]
+fn ghidra_put_in_the_store_meanwhile_is_noticed_without_a_restart() {
+    use craft_anything_ui_egui::state::SettingsTab;
+    let d = tempfile::tempdir().unwrap();
+    let store = d.path().join("engines");
+    let store_for_app = store.clone();
+    let mut h = harness_sized(egui::vec2(1280.0, 1120.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Beginner, true));
+        // Only the engine store and the chosen folder count here, so Ghidra on this computer's
+        // PATH doesn't decide the test.
+        a.settings.engines.store_dir = Some(store_for_app);
+        a.settings.engines.only_configured = true;
+        a.state.settings_open = true;
+        a.state.settings_tab = SettingsTab::Engines;
+        a
+    });
+    h.run_steps(2);
+    // The first look runs on a worker; until it answers, nothing is claimed either way.
+    assert!(wait(&mut h, |a| a.ghidra.ready.is_some()));
+    h.run_steps(2);
+    assert_eq!(h.state().ghidra.ready, Some(false));
+    h.get_by_label("Not installed");
+    assert!(h.query_by_label("Installed").is_none());
+    // Ghidra arrives in the store.
+    let support = store.join("ghidra").join("ghidra_12.1.4_PUBLIC").join("support");
+    std::fs::create_dir_all(&support).unwrap();
+    std::fs::write(support.join(if cfg!(windows) { "analyzeHeadless.bat" } else { "analyzeHeadless" }), b"").unwrap();
+    // Coming back to the window looks again at once (not only every few seconds).
+    h.input_mut().events.push(egui::Event::WindowFocused(true));
+    h.step();
+    assert!(wait(&mut h, |a| a.ghidra.ready == Some(true)), "the look after a focus finds it");
+    h.run_steps(2);
+    h.get_by_label("Installed");
+    assert!(h.query_by_label("Not installed").is_none());
+    assert!(h.state().ghidra.launcher.as_ref().is_some_and(|p| p.starts_with(&store)), "{:?}", h.state().ghidra.launcher);
+    // Deep mode now uses it: switching it on asks for nothing.
+    h.state_mut().state.settings_open = false;
+    h.run_steps(2);
+    h.state_mut().set_deep(true);
+    h.run_steps(2);
+    assert_eq!(h.state().state.modal, None, "no Get Ghidra dialog once it is here");
+    assert!(!h.state_mut().ghidra_missing());
+}
+
+/// An AI added while the app is open (`craft-anything-cli ai add`, or Claude Code installed and
+/// found) shows up when the window comes back, without a restart: the AI list is read again at
+/// once, and this computer is looked at again when the last look is old.
+#[test]
+fn an_ai_added_meanwhile_shows_up_when_the_window_comes_back() {
+    let mut h = harness(|| demo::app(demo::engine(Mode::Beginner, true)));
+    h.run_steps(3);
+    assert!(h.state().backends.iter().all(|b| b.name != "Claude Code"));
+    assert!(h.state().detected_at.is_none() && !h.state().detecting, "the demo app is headless: nothing looked yet");
+    // What `ai add` writes: the same AI settings the hub reads.
+    let cfg =
+        BackendConfig { name: "Claude Code".into(), kind: BackendKind::AgentCli, model: "claude-code".into(), base_url: None, ssh_host: None, enabled: true };
+    h.state().hub.add_backend(cfg, None).unwrap();
+    h.run_steps(2);
+    assert!(h.state().backends.iter().all(|b| b.name != "Claude Code"), "nothing re-reads the list by itself");
+    h.input_mut().events.push(egui::Event::WindowFocused(true));
+    h.step();
+    assert!(wait(&mut h, |a| a.backends.iter().any(|b| b.name == "Claude Code")));
+    assert!(h.state().builder_choices().iter().any(|c| c.name == "Claude Code" && !c.found), "Make's Built by lists it as set up");
+    // The focus also started the first look for AI on this computer (bounded), and a look a
+    // moment ago isn't repeated on the next switch.
+    assert!(h.state().detecting || h.state().detected_at.is_some());
+    assert!(wait(&mut h, |a| !a.detecting));
+    assert!(h.state().detected_at.is_some());
+    assert!(!h.state().detect_stale());
+    let scans = |a: &CraftApp| a.log.iter().filter(|l| l.text.starts_with("Found ") && l.text.contains("AI option")).count();
+    let before = scans(h.state());
+    h.input_mut().events.push(egui::Event::WindowFocused(true));
+    h.run_steps(3);
+    assert!(!h.state().detecting);
+    assert_eq!(scans(h.state()), before, "no second scan right away");
+    // Settings → AI lists the new one, and says how fresh the look is.
+    h.state_mut().open_settings(craft_anything_ui_egui::state::SettingsTab::Ai);
+    h.run_steps(2);
+    assert!(h.query_all_by_label("Claude Code").count() >= 1);
+    assert!(h.query_by_label("Looked just now").is_some() || h.query_by_label_contains("s ago").is_some(), "says when it last looked");
+    h.get_by_label("Detect");
+}
+
+/// An agent offered from `~/.ssh/config` is on another computer and was never checked, so it is
+/// not "found on this computer", it is never the automatic builder, and the person is told to
+/// install one here; it can still be chosen by hand.
+#[test]
+fn an_agent_offered_over_ssh_is_not_one_found_on_this_computer() {
+    use craft_anything_ai::Detected;
+    use craft_anything_ui_egui::state::Modal;
+    let agent = |name: &str, model: &str, host: Option<&str>| Detected {
+        suggestion: BackendConfig {
+            name: name.into(),
+            kind: BackendKind::AgentCli,
+            model: model.into(),
+            base_url: None,
+            ssh_host: host.map(Into::into),
+            enabled: true,
+        },
+        reason: "From the look".into(),
+        needs_key: false,
+    };
+    let remote = agent("Claude Code on box", "claude-code", Some("box"));
+    let fixture = vec![remote.clone()];
+    let mut h = harness(move || {
+        let mut a = demo::app(demo::engine(Mode::Beginner, true));
+        a.backends.clear();
+        a.detected = Some(fixture);
+        a
+    });
+    h.run_steps(3);
+    // Nothing on this computer: Make warns, and nothing is picked by itself.
+    assert_eq!(h.state().default_builder(), None, "an unchecked agent on another computer is never the default");
+    assert!(!h.state().can_build());
+    h.get_by_label("Building needs a coding agent such as Claude Code, or an AI with an API key.");
+    assert!(h.query_by_label_contains("Automatic (").is_none());
+    let choices = h.state().builder_choices();
+    assert_eq!(choices.len(), 1);
+    assert!(choices[0].found && choices[0].remote, "{choices:?}");
+    assert!(choices[0].detail.contains("over SSH to box"), "{}", choices[0].detail);
+    // Start opens the dialog; it looks on this computer first, so stand in for that look.
+    h.state_mut().state.make.request = "A notes app".into();
+    h.state_mut().detecting = true;
+    h.state_mut().start_make();
+    h.run_steps(2);
+    assert_eq!(h.state().state.modal, Some(Modal::NeedBuilder { start: true }));
+    h.state_mut().detecting = false;
+    h.state_mut().detected = Some(vec![remote.clone()]);
+    h.run_steps(2);
+    h.get_by_label("No coding agent was found on this computer yet.");
+    h.get_by_label("Install Claude Code on this computer and sign in once, then Look again.");
+    h.get_by_label("On another computer over SSH (not checked)");
+    assert!(h.query_by_label("Found on this computer").is_none());
+    // It can still be chosen by hand.
+    h.get_by_label("Build with Claude Code on box");
+    // An agent found on this computer: that one is the default, and the warning goes.
+    h.state_mut().detected = Some(vec![remote, agent("Codex", "codex", None)]);
+    h.run_steps(2);
+    assert_eq!(h.state().default_builder().as_deref(), Some("Codex"));
+    h.get_by_label("Found on this computer");
+    h.get_by_label("On another computer over SSH (not checked)");
+    assert!(h.query_by_label("No coding agent was found on this computer yet.").is_none());
+    assert!(h.query_by_label("Install Claude Code on this computer and sign in once, then Look again.").is_none());
+    let choices = h.state().builder_choices();
+    assert_eq!(
+        choices.iter().map(|c| (c.name.as_str(), c.remote)).collect::<Vec<_>>(),
+        [("Codex", false), ("Claude Code on box", true)],
+        "this computer's first"
+    );
+}
+
+/// A background look that fails (the engine store unreadable, say) says why where its spinner
+/// was, with a way to try again, instead of spinning for ever.
+#[test]
+fn a_look_that_fails_says_so_instead_of_spinning_for_ever() {
+    use craft_anything_ui_egui::state::SettingsTab;
+    use craft_anything_ui_egui::{Done, Look};
+    let mut h = harness_sized(egui::vec2(1280.0, 1120.0), || {
+        let mut a = demo::app(demo::engine(Mode::Beginner, true));
+        a.state.settings_open = true;
+        a.state.settings_tab = SettingsTab::Engines;
+        a
+    });
+    h.run_steps(3);
+    // Headless, nothing looks for engines, so the list is still coming.
+    assert!(h.query_all_by_label("Looking for game engines on this computer…").count() >= 1);
+    assert!(h.state().game_engines.is_none());
+    let id = h.state_mut().jobs.spawn("Look for game engines", false, |_| Err::<Done, String>("the engine store can't be read".into()));
+    h.state_mut().looks.start(Look::GameEngines, id);
+    assert!(wait(&mut h, |a| a.looks.error(Look::GameEngines).is_some()));
+    h.run_steps(2);
+    assert_eq!(h.query_all_by_label("Looking for game engines on this computer…").count(), 0, "the spinner is gone");
+    assert!(h.query_all_by_label_contains("Couldn't look: the engine store can't be read").count() >= 1);
+    assert!(h.query_all_by_label("Try again").count() >= 1);
+    assert!(!h.state().engine_flow.checking);
+    // A new look clears the error (headless: none starts by itself, so the list stays unknown).
+    h.state_mut().looks.start(Look::GameEngines, 0);
+    h.run_steps(2);
+    assert!(h.state().looks.error(Look::GameEngines).is_none());
+}

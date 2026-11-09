@@ -1462,3 +1462,11 @@ In this project, {kind}: {choice}.	Selles projektis {kind}: {choice}.
 Couldn't change the approvals:	Kinnitusi ei õnnestunud muuta:
 What the builder may do without asking you, in this project.	Mida ehitaja tohib selles projektis sinult küsimata teha.
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	Vaikimisi järgib automaatrežiimi: kui see on sees, tehakse tagasipööratavad toimingud ära ja ülejäänud keeldutakse; kui see on väljas, küsib ehitaja.
+Looking for Ghidra…	Otsin Ghidrat…
+Couldn't look: {why}	Ei saanud vaadata: {why}
+Looked just now	Vaadatud just nüüd
+Looked {n} s ago	Vaadatud {n} s tagasi
+Coding agent app (over SSH to {host})	Programmeerimisagendi rakendus (SSH kaudu arvutis {host})
+on another computer over SSH (not checked); set up when you start	teises arvutis SSH kaudu (kontrollimata); seadistatakse käivitamisel
+On another computer over SSH (not checked)	Teises arvutis SSH kaudu (kontrollimata)
+Install Claude Code on this computer and sign in once, then Look again.	Paigalda Claude Code sellesse arvutisse, logi korra sisse ja vali siis „Otsi uuesti“.

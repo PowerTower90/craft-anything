@@ -500,8 +500,9 @@ struct Worker {
     decompiled: bool,
     /// Where this run adds its working time, tokens and cost (`None` in tests that don't build).
     usage: Option<UsageClock>,
-    /// The kind and bar the builder's own checks (`rebuild_check`) are judged by, once known.
-    self_check: Option<(Arc<dyn kinds::TargetKind>, f64)>,
+    /// The builder's own checks (`rebuild_check`): how they're judged, the one running and how
+    /// many this turn has had, once the kind is known.
+    self_check: Option<self_check::SelfCheck>,
     /// A hook consumed a new request; persist its reset only after the builder finishes.
     reset_progress_after_notes: bool,
 }
@@ -792,7 +793,7 @@ impl Worker {
             ws.save()?;
         }
         let kind = opts.kinds.detect(&ws.manifest.request, &ws.manifest.target, &ws.manifest.stack).ok_or_else(no_kind)?;
-        self.self_check = Some((kind.clone(), opts.good_enough));
+        self.self_check = Some(self_check::SelfCheck::new(kind.clone(), opts.good_enough));
         let kind = kind.as_ref();
         self.editor = self.find_editor(&ws.manifest.stack)?;
         let api_resumed = api.as_ref().is_none_or(crate::agent::ApiConversation::resumed);
@@ -976,6 +977,8 @@ impl Worker {
                 }
             }
             round += 1;
+            // A check of the builder's own still running would overlap this one.
+            self.finish_self_checks(ws)?;
             let checking = if ws.manifest.target == TargetRef::None { "Checking the build…" } else { "Checking the build against the original…" };
             self.step(ws, Step::Check, Status::Checking, checking)?;
             let checks = self.checks_with_a_retry(ws, kind, round)?;
@@ -1092,8 +1095,9 @@ impl Worker {
     }
 
     /// One builder turn. Its session is kept even when the turn fails, so nothing is lost; a turn
-    /// cut short (a time limit, a crash, a dropped connection) is picked up where it stopped, up to
-    /// three times. Problems only the person can fix (sign-in, credit, a missing app) end the run.
+    /// cut short (a crash, a dropped connection) is picked up where it stopped, up to three times,
+    /// one that ran out of time once. Problems only the person can fix (sign-in, credit, a missing
+    /// app) end the run.
     /// Deep mode on a game: the chosen extractor takes the game's own files out into app/Original/
     /// before the build (the person owns the game and chose this; nothing is decrypted).
     fn extract(&mut self, ws: &mut Workspace, kind: &dyn kinds::TargetKind, name: &str, mut ex: crate::agent::ApiConversation) -> Result<(), ToolError> {
@@ -1118,8 +1122,13 @@ impl Worker {
     /// The round's checks. A check that fails says what's wrong with the build; one that returns
     /// an error couldn't look at all (a browser that went away), which says nothing about the
     /// build, so it gets a second go before the run stops, and the run says what is really wrong.
+    /// One that ran out of time isn't repeated: a second hour of waiting would end the same way.
     fn checks_with_a_retry(&self, ws: &Workspace, kind: &dyn kinds::TargetKind, round: u32) -> Result<Vec<CheckResult>, ToolError> {
         let e = match self.run_checks(ws, kind, round) {
+            Err(e) if e.code == ErrorCode::TimedOut => {
+                return Err(ToolError::new(e.code, format!("The build is finished, but its check ran out of time: {}", e.message))
+                    .with_remediation("Press Try again to check it again. Nothing needs building again."));
+            }
             Err(e) if e.code != ErrorCode::Cancelled => e,
             done => return done,
         };
@@ -1220,7 +1229,7 @@ impl Worker {
                 // A missing session can only start fresh above, never resume. Only backend
                 // Error events become ProgramFailed here; a simultaneous backend failure must
                 // not make an inbox or workspace write failure retryable.
-                Err(e) if !lost && e.code == ErrorCode::ProgramFailed && tries < 3 && agent.last_failure().is_some_and(crate::TurnFailure::retryable) => {
+                Err(e) if !lost && e.code == ErrorCode::ProgramFailed && agent.last_failure().is_some_and(|f| f.retryable() && tries < f.retries()) => {
                     tries += 1;
                     let why = e.message.chars().take(160).collect::<String>();
                     // Typed status decides whether to retry. A display-only wait remains a
@@ -1257,6 +1266,10 @@ impl Worker {
             agent.retry(text);
         } else {
             agent.send(text);
+            // A new turn may ask for its own checks again; a retry carries on the same turn.
+            if let Some(sc) = self.self_check.as_mut() {
+                sc.asked_this_turn = 0;
+            }
         }
         let mut reply = String::new();
         let mut failed = None;
@@ -1302,6 +1315,9 @@ impl Worker {
                 }
                 if done {
                     self.relay_read_notes(ws);
+                    // The builder ended its turn while its own check was still running: nobody
+                    // waits for that answer now, and the run's own check comes next.
+                    self.finish_self_checks(ws)?;
                     self.stop.check()?;
                     // An agent-level error (sign-in, crash, limits) ends the run: checking a
                     // build that never happened would only mislead.

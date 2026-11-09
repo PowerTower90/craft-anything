@@ -773,6 +773,28 @@ list: scan the folders people keep such things in (`KnownRoot`, by folder name, 
 levels down), and make an install use a copy already found outside our store. Test each layout
 (unzipped, cask, capitalised name) with temp folders, not the machine the test runs on.
 
+**A big stack on a worker thread was taken for crash protection.** The JavaScript parser ran on a
+256 MB thread behind a nesting estimate, but a stack overflow is not a panic: `catch_unwind` and
+`JoinHandle::join` never see it, the process aborts. The estimate missed labels (`a:a:a:…`) and
+`else if` chains (the running count reset at every `;`), so a 2 MB file closed the desktop app.
+When a limit guards unbounded recursion in code we don't control, measure the stack cost of every
+recursive construct, count each at least once, and test both sides: deep inputs refused and inputs
+just under the limit parsed on the production stack.
+
+**A call that gave up on a lock took it again on its way out.** `Engine::call` learned to stop
+waiting for the session behind a long tool call and return an error naming the holder, but it then
+wrote the call to the project's journal, which reads the session: the error waited on the same
+holder, so nothing had changed until the long call ended. Whatever runs after a wait is given up
+(logging, journaling, cleanup) must not need the lock that was given up on; test it with the holder
+kept until the error has arrived.
+
+**A tool that waits held the one session for the whole wait.** `project_preview --wait` and
+`build_command_run` (up to two hours) ran inside the tool call, which holds the session, so every
+other tool call waited behind them, and the lock's own give-up never fires for a labelled job. Do
+what needs the session first, then hand the wait to `Ctx::after_unlocking`, which the engine runs
+with the session released; a check that must keep polling an agent runs on its own thread for the
+same reason (the builder's `rebuild_check`).
+
 ## Agent tooling
 
 **Shared CLI efforts reached Claude unchanged.** Keep CLI-only levels available for agents, but

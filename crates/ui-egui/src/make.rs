@@ -433,8 +433,7 @@ fn look_inside(app: &mut CraftApp, ui: &mut Ui) {
             let line = format!("{} {}", crate::engine_ui::ghidra_memory_words(app), tr("More makes a big program's first look faster."));
             ui.label(RichText::new(line).size(theme::SMALL).color(t.text_dim)).on_hover_text(crate::engine_ui::ghidra_memory_guide());
             if widgets::link(ui, "Change").clicked() {
-                app.state.settings_open = true;
-                app.state.settings_tab = crate::state::SettingsTab::Engines;
+                app.open_settings(crate::state::SettingsTab::Engines);
             }
         });
     }
@@ -444,7 +443,7 @@ fn look_inside(app: &mut CraftApp, ui: &mut Ui) {
             icons::show(ui, "triangle-alert", 16.0, t.warning);
             ui.label(RichText::new(tr("Ghidra isn't on this computer yet, so the built-in decompiler stands in.")).size(theme::SMALL).color(t.text_dim));
             if app.ghidra.job.is_none() && widgets::secondary(ui, Some("download"), "Get Ghidra").clicked() {
-                app.state.modal = Some(crate::state::Modal::Ghidra);
+                app.ask_ghidra();
             }
         });
     }

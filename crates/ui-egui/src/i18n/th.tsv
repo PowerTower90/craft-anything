@@ -1462,3 +1462,11 @@ In this project, {kind}: {choice}.	ในโปรเจกต์นี้ {kind
 Couldn't change the approvals:	เปลี่ยนการอนุมัติไม่ได้:
 What the builder may do without asking you, in this project.	สิ่งที่ตัวสร้างทำได้โดยไม่ถามในโปรเจกต์นี้
 Default follows Auto mode: with it on, what can be undone goes ahead and the rest is refused; with it off, the builder asks.	ค่าเริ่มต้นตามโหมดอัตโนมัติ: เปิดไว้จะทำสิ่งที่ย้อนกลับได้ต่อและปฏิเสธที่เหลือ ปิดไว้ตัวสร้างจะถาม
+Looking for Ghidra…	กำลังค้นหา Ghidra…
+Couldn't look: {why}	ดูไม่ได้: {why}
+Looked just now	ดูเมื่อสักครู่
+Looked {n} s ago	ดูเมื่อ {n} วินาทีที่แล้ว
+Coding agent app (over SSH to {host})	แอปเอเจนต์เขียนโค้ด (ผ่าน SSH ไปยัง {host})
+on another computer over SSH (not checked); set up when you start	ในเครื่องอื่นผ่าน SSH (ยังไม่ได้ตรวจสอบ) ตั้งค่าเมื่อคุณเริ่ม
+On another computer over SSH (not checked)	ในเครื่องอื่นผ่าน SSH (ยังไม่ได้ตรวจสอบ)
+Install Claude Code on this computer and sign in once, then Look again.	ติดตั้ง Claude Code ในเครื่องนี้ ลงชื่อเข้าใช้หนึ่งครั้ง แล้วกดค้นหาอีกครั้ง

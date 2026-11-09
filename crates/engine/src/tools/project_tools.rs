@@ -645,14 +645,20 @@ fn project_preview(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolE
             url
         }
     };
+    let out = json!({"url": url, "site": site.display().to_string()});
     if p.wait {
         ctx.report(None, format!("Serving {url} (stop to end)"));
-        while !ctx.cancel.is_cancelled() {
-            std::thread::sleep(std::time::Duration::from_millis(200));
-        }
-        previews.0.lock().unwrap_or_else(PoisonError::into_inner).remove(&ws.root);
+        // Serving needs no session: the wait runs with it released, so other calls go on (#phase1-hangs).
+        let (root, served) = (ws.root.clone(), out.clone());
+        ctx.after_unlocking(move |cancel| {
+            while !cancel.is_cancelled() {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            previews.0.lock().unwrap_or_else(PoisonError::into_inner).remove(&root);
+            Ok(ToolOutput::Value(served))
+        });
     }
-    Ok(ToolOutput::Value(json!({"url": url, "site": site.display().to_string()})))
+    Ok(ToolOutput::Value(out))
 }
 
 fn project_open_folder(_ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
@@ -789,6 +795,37 @@ mod tests {
         assert!(err.remediation.unwrap_or_default().contains("project_preview"));
         // Playing runs the builder's code: refused without consent.
         assert!(e.call("project_play", json!({"project": ws.root}), CallOptions::new(Caller::Mcp)).is_err());
+    }
+
+    /// A preview that serves until stopped used to hold the session the whole time, so every other
+    /// tool call waited on it.
+    #[test]
+    fn a_preview_that_waits_does_not_hold_the_session() {
+        let d = tempfile::tempdir().unwrap();
+        let ws = Workspace::create(d.path(), "Site", "A page", TargetRef::None).unwrap();
+        std::fs::create_dir_all(ws.app_dir().join("dist")).unwrap();
+        std::fs::write(ws.app_dir().join("dist").join("index.html"), b"<h1>hi</h1>").unwrap();
+        let e = std::sync::Arc::new(Engine::new(crate::testing::session()));
+        let cancel = crate::CancelToken::default();
+        let (e2, root, c2) = (e.clone(), ws.root.clone(), cancel.clone());
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let r = e2.call("project_preview", json!({"project": root, "wait": true}), CallOptions::new(Caller::Cli).with_cancel(c2));
+            let _ = tx.send(r.map(|o| o.to_json()));
+        });
+        // Until the preview is serving, the session is held for a moment; then it's free while it serves.
+        let started = std::time::Instant::now();
+        let listed = loop {
+            let r = e.call("project_show", json!({"project": ws.root}), CallOptions::new(Caller::Cli));
+            if r.is_ok() || started.elapsed() > std::time::Duration::from_secs(10) {
+                break r;
+            }
+        };
+        assert!(listed.is_ok(), "another call ran while the preview served: {listed:?}");
+        assert!(rx.try_recv().is_err(), "the preview is still serving");
+        cancel.cancel();
+        let served = rx.recv_timeout(std::time::Duration::from_secs(10)).expect("the wait ended with stop").unwrap();
+        assert!(served["result"]["url"].as_str().is_some_and(|u| u.starts_with("http://127.0.0.1:")), "{served}");
     }
 
     #[test]
