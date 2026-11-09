@@ -58,7 +58,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "project_inventory_rebuild_plan",
             title: "Plan an asset rebuild",
-            summary: "How a category (or items by id) would be rebuilt, cheapest first: for each kind of asset among them, how many, the method (`methods` chooses per kind, e.g. {\"model\": \"blender\"}), its cost and whether it can be used yet, with every method offered. HUD → built in the engine; environment → engine materials and Blender; effects → engine particles; items, machines, weapons → Blender; characters and enemies → Blender, or Tripo with the person's web credits (an estimate from assets.tripo_credits_per_model; not set up yet); sounds → keep the original (local generation not set up yet). Nothing is written. Start it with project_inventory_rebuild.",
+            summary: "How a category (or items by id) would be rebuilt, cheapest first: for each kind of asset among them, how many, the method (`methods` chooses per kind, e.g. {\"model\": \"blender\"}), its cost and whether it can be used yet, with every method offered. HUD → local AI on this computer's graphics cards when it's set up (else built in the engine); environment → engine materials and Blender; effects → engine particles; items, machines, weapons, characters and enemies → local AI when set up, else Blender (Tripo with the person's web credits is offered, an estimate from assets.tripo_credits_per_model, not set up yet); sounds → keep the original. `style` is the look local AI makes them in (the presets are listed; default the project's last). Nothing is written. Start it with project_inventory_rebuild.",
             beginner: "Shows how a group of assets would be remade, and what it costs.",
             toolset: Toolset::Projects,
             effects: Effects::READ_ONLY,
@@ -226,6 +226,9 @@ pub struct PlanParams {
     /// A method per kind (kind id → method id, e.g. {"model": "blender"}); the rest get their default.
     #[serde(default)]
     pub methods: BTreeMap<String, String>,
+    /// The style for the items made with local AI (e.g. "Pixel art"); default: the project's last one.
+    #[serde(default)]
+    pub style: Option<String>,
 }
 
 /// The plan for these params, and the inventory it's of.
@@ -233,10 +236,12 @@ pub fn plan_for(ctx: &Ctx<'_>, p: &PlanParams) -> Result<(crate::workspace::Work
     let see = visible(ctx.session.clean_room());
     let ws = open(&p.project)?;
     let inv = inventory::load(&ws.root)?;
-    let plan = {
+    let ready = crate::tools::local_gen_tools::ready(ctx.session);
+    let mut plan = {
         let items = asset_rebuild::select(&inv, p.category, &p.ids, &see)?;
-        Plan::new(&items, p.category, &p.methods)?
+        Plan::new(&items, p.category, &p.methods, ready)?
     };
+    plan.style = p.style.clone().filter(|s| !s.trim().is_empty()).or_else(|| inv.last_style.clone());
     Ok((ws, inv, plan))
 }
 
@@ -250,9 +255,11 @@ pub fn credits_per_model(ctx: &Ctx<'_>) -> u32 {
 
 fn project_inventory_rebuild_plan(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
     let p: PlanParams = parse_params(params)?;
-    let (ws, _inv, plan) = plan_for(ctx, &p)?;
+    let (ws, inv, plan) = plan_for(ctx, &p)?;
     let mut v = plan.to_json(credits_per_model(ctx));
     v["project"] = json!(ws.root.display().to_string());
+    v["last_style"] = json!(inv.last_style);
+    v["styles"] = json!(asset_rebuild::STYLES);
     Ok(ToolOutput::Value(v))
 }
 

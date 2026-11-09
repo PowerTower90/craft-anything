@@ -4110,3 +4110,66 @@ fn the_simple_assets_card_lists_categories_and_opens_the_plan_and_the_gallery() 
     assert_eq!(h.state().state.screen, Screen::Workbench);
     assert_eq!(h.state().state.rail, RailKind::Assets);
 }
+
+#[test]
+fn settings_has_a_local_generation_section_that_checks_and_keeps_its_addresses() {
+    let mut h = harness_sized(egui::vec2(1280.0, 1000.0), || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        a.state.settings_open = true;
+        a.state.settings_tab = craft_anything_ui_egui::state::SettingsTab::Engines;
+        a
+    });
+    h.run_steps(3);
+    // It looks by itself the first time; the test's servers are on a port nothing listens on.
+    assert!(wait(&mut h, |a| a.local_gen.status.is_some()), "the status was read");
+    h.run_steps(2);
+    h.get_by_label("Local generation").scroll_to_me();
+    h.run_steps(2);
+    assert!(h.query_all_by_label("Not running").count() >= 2, "both servers say they aren't running");
+    h.get_by_label("Check");
+    // An address typed in is kept in the settings.
+    h.get_by_label("3D server address").focus();
+    h.run_steps(2);
+    h.get_by_label("3D server address").type_text("0");
+    h.run_steps(2);
+    assert_eq!(h.state().settings.local_gen.shape_url, "http://127.0.0.1:90");
+    h.get_by_label("Check").click();
+    assert!(
+        wait(&mut h, |a| a.local_gen.status.as_ref().is_some_and(|s| s["shapes"]["detail"].as_str().unwrap_or_default().contains(":90"))),
+        "checked again with it"
+    );
+}
+
+#[test]
+fn the_plan_asks_for_a_style_when_local_ai_makes_something() {
+    use craft_anything_engine::inventory::{Category, Kind};
+    let d = tempfile::tempdir().unwrap();
+    let ws = category_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 5));
+    h.state_mut().open_rebuild_plan(Some(Category::Hud), Vec::new());
+    assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| matches!(p.view, Some(Ok(_))))));
+    h.run_steps(2);
+    // Local AI isn't running here, so the HUD starts with the engine, and no style is asked.
+    assert_eq!(h.get_by_label("Method for Textures").value().as_deref(), Some("Built in the engine"));
+    assert!(h.query_by_label("Style preset").is_none());
+    h.state_mut().choose_rebuild_method(Kind::Texture, "local_ai");
+    assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| !p.loading && matches!(&p.view, Some(Ok(v)) if v.uses_local_ai))));
+    h.run_steps(2);
+    h.get_by_label("Style preset").click();
+    h.run_steps(3);
+    h.get_by_label("Pixel art").click();
+    h.run_steps(2);
+    assert_eq!(h.state().assets.plan.as_ref().map(|p| p.style.as_str()), Some("Pixel art"));
+    // Its own words work too; and a method that isn't running can't start.
+    h.get_by_label("Your own style").click();
+    h.get_by_label("Your own style").type_text(", chunky outlines");
+    h.run_steps(2);
+    assert_eq!(h.state().assets.plan.as_ref().map(|p| p.style.as_str()), Some("Pixel art, chunky outlines"));
+    h.get_by_label_contains("set it up in Settings → Local generation");
+}

@@ -1631,3 +1631,43 @@ sorted by the rules	von den Regeln sortiert
 sorted by the agent	vom Agenten sortiert
 sorted by you	von dir sortiert
 Rebuild a group of assets	Eine Gruppe von Assets neu bauen
+3D server	3D-Server
+Picture server	Bild-Server
+Picture server address	Adresse des Bild-Servers
+3D server address	Adresse des 3D-Servers
+Background removal	Hintergrund entfernen
+Check local generation	Lokale Erzeugung prüfen
+Choose a style…	Stil wählen…
+Every picture and model in this rebuild is made in this style.	Jedes Bild und Modell dieses Neubaus entsteht in diesem Stil.
+Local generation	Lokale Erzeugung
+Local generation started.	Lokale Erzeugung gestartet.
+Local generation was already running.	Die lokale Erzeugung lief schon.
+Make a 3D model locally	3D-Modell lokal erzeugen
+Make a picture locally	Bild lokal erzeugen
+Make many assets locally	Viele Assets lokal erzeugen
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Bilder und 3D-Modelle kostenlos auf den Grafikkarten dieses Computers erzeugen: ein ComfyUI-Server für Bilder (Z-Image Turbo) und einer für 3D-Formen (Hunyuan3D 2.1); bei nur einer Grafikkarte gib beiden dieselbe Adresse.
+Missing model	Modell fehlt
+Not running	Läuft nicht
+Not set up	Nicht eingerichtet
+Or describe your own style…	Oder beschreib deinen eigenen Stil…
+Start local generation	Lokale Erzeugung starten
+Start the 3D server	3D-Server starten
+Start the picture server	Bild-Server starten
+Style	Stil
+Style preset	Stilvorlage
+The Python that has rembg installed.	Das Python, in dem rembg installiert ist.
+Your own style	Dein eigener Stil
+a script or program	ein Skript oder Programm
+python with rembg	Python mit rembg
+found automatically	automatisch gefunden
+Clean flat vector	Klare flache Vektorgrafik
+Hand-painted fantasy	Handgemalte Fantasy
+Sci-fi neon hologram	Sci-Fi-Neonhologramm
+Pixel art	Pixel-Art
+Low-poly stylised	Stilisiertes Low-Poly
+Gritty realistic	Rau und realistisch
+Cartoon cel-shaded	Cel-Shading im Cartoon-Stil
+Match the original's mood	Die Stimmung des Originals treffen
+Local AI on your graphics cards (free)	Lokale KI auf deinen Grafikkarten (kostenlos)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Auf den Grafikkarten dieses Computers im gewählten Stil erzeugt: Bilder, und 3D-Modelle, die in Blender fertiggestellt werden.
+Not running and can't be started: set it up in Settings → Local generation	Läuft nicht und kann nicht gestartet werden: richte es unter Einstellungen → Lokale Erzeugung ein

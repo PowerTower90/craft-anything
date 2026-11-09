@@ -126,7 +126,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "project_inventory_rebuild",
             title: "Rebuild a group of assets",
-            summary: "Rebuild a category of a project's assets (or items by id) the cheapest way (see project_inventory_rebuild_plan; `methods` chooses per kind). Writes the list with each item's method to <project>/rebuild/<category>-<time>.json, marks those items needs_replacing with their rebuild, and hands the builder a brief (free methods only, never paid services; mark each item replaced when it's in the build): as a note to a running build, or a follow-up build. Kinds whose method isn't set up yet, and kept ones, are skipped and listed. send: false only writes and marks, and returns the brief. It runs a coding agent, so it needs consent.",
+            summary: "Rebuild a category of a project's assets (or items by id) the cheapest way (see project_inventory_rebuild_plan; `methods` chooses per kind). Writes the list with each item's method to <project>/rebuild/<category>-<time>.json, marks those items needs_replacing with their rebuild, and hands the builder a brief (free methods only, never paid services; mark each item replaced when it's in the build): as a note to a running build, or a follow-up build. Kinds whose method isn't set up yet, and kept ones, are skipped and listed. `style` is the look for items made with local AI on this computer (default: the project's last one). send: false only writes and marks, and returns the brief. It runs a coding agent, so it needs consent.",
             beginner: "Remakes a group of assets, such as the HUD, as cheaply as possible.",
             toolset: Toolset::Projects,
             effects: Effects::LAUNCHES_PROCESS.union(Effects::EXECUTES_FOREIGN_CODE).union(Effects::WRITES_FILESYSTEM).union(Effects::ACCESSES_NETWORK),
@@ -155,6 +155,9 @@ pub struct AssetRebuildParams {
     /// A method per kind (kind id → method id); the rest get their default.
     #[serde(default)]
     pub methods: std::collections::BTreeMap<String, String>,
+    /// The style for the items made with local AI (e.g. "Pixel art"); default: the project's last one.
+    #[serde(default)]
+    pub style: Option<String>,
     /// Hand it to the builder now (default true); false only writes the list and marks the items.
     #[serde(default = "d_true")]
     pub send: bool,
@@ -163,7 +166,7 @@ pub struct AssetRebuildParams {
 fn project_inventory_rebuild(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
     use craft_anything_engine::tools::inventory_tools::categories::{PlanParams, start_plan};
     let p: AssetRebuildParams = parse_params(params)?;
-    let plan = PlanParams { project: p.project, category: p.category, ids: p.ids, methods: p.methods };
+    let plan = PlanParams { project: p.project, category: p.category, ids: p.ids, methods: p.methods, style: p.style };
     let (ws, started, mut out) = start_plan(ctx, &plan)?;
     if !p.send || started.items == 0 {
         out["sent"] = json!(false);

@@ -1631,3 +1631,43 @@ sorted by the rules	규칙으로 분류됨
 sorted by the agent	에이전트가 분류함
 sorted by you	내가 분류함
 Rebuild a group of assets	에셋 묶음 다시 만들기
+3D server	3D 서버
+Picture server	그림 서버
+Picture server address	그림 서버 주소
+3D server address	3D 서버 주소
+Background removal	배경 제거
+Check local generation	로컬 생성 확인
+Choose a style…	스타일 선택…
+Every picture and model in this rebuild is made in this style.	이번 재제작의 모든 그림과 모델은 이 스타일로 만들어집니다.
+Local generation	로컬 생성
+Local generation started.	로컬 생성을 시작했습니다.
+Local generation was already running.	로컬 생성이 이미 실행 중이었습니다.
+Make a 3D model locally	로컬에서 3D 모델 만들기
+Make a picture locally	로컬에서 그림 만들기
+Make many assets locally	로컬에서 많은 에셋 만들기
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	이 컴퓨터의 그래픽 카드로 그림과 3D 모델을 무료로 만듭니다. 그림용 ComfyUI 서버(Z-Image Turbo)와 3D 형상용 서버(Hunyuan3D 2.1). 그래픽 카드가 하나면 두 곳에 같은 주소를 넣으세요.
+Missing model	모델 없음
+Not running	실행 중 아님
+Not set up	설정 안 됨
+Or describe your own style…	또는 원하는 스타일을 설명하세요…
+Start local generation	로컬 생성 시작
+Start the 3D server	3D 서버 시작
+Start the picture server	그림 서버 시작
+Style	스타일
+Style preset	스타일 프리셋
+The Python that has rembg installed.	rembg가 설치된 Python.
+Your own style	나만의 스타일
+a script or program	스크립트 또는 프로그램
+python with rembg	rembg가 있는 Python
+found automatically	자동으로 찾음
+Clean flat vector	깔끔한 플랫 벡터
+Hand-painted fantasy	손으로 그린 판타지
+Sci-fi neon hologram	SF 네온 홀로그램
+Pixel art	픽셀 아트
+Low-poly stylised	스타일라이즈드 로우폴리
+Gritty realistic	거친 사실풍
+Cartoon cel-shaded	카툰 셀 셰이딩
+Match the original's mood	원본 분위기에 맞추기
+Local AI on your graphics cards (free)	그래픽 카드의 로컬 AI(무료)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	이 컴퓨터의 그래픽 카드로 고른 스타일에 맞춰 만듭니다. 그림과 Blender에서 마무리하는 3D 모델.
+Not running and can't be started: set it up in Settings → Local generation	실행 중이 아니고 시작할 수 없습니다. 설정 → 로컬 생성에서 설정하세요

@@ -1631,3 +1631,43 @@ sorted by the rules	по правилам
 sorted by the agent	агентом
 sorted by you	вами
 Rebuild a group of assets	Пересобрать группу ресурсов
+3D server	3D-сервер
+Picture server	Сервер изображений
+Picture server address	Адрес сервера изображений
+3D server address	Адрес 3D-сервера
+Background removal	Удаление фона
+Check local generation	Проверить локальную генерацию
+Choose a style…	Выберите стиль…
+Every picture and model in this rebuild is made in this style.	Все изображения и модели этой пересборки делаются в этом стиле.
+Local generation	Локальная генерация
+Local generation started.	Локальная генерация запущена.
+Local generation was already running.	Локальная генерация уже работала.
+Make a 3D model locally	Сделать 3D-модель локально
+Make a picture locally	Сделать изображение локально
+Make many assets locally	Сделать много ресурсов локально
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Делайте изображения и 3D-модели на видеокартах этого компьютера бесплатно: сервер ComfyUI для изображений (Z-Image Turbo) и сервер для 3D-форм (Hunyuan3D 2.1); при одной видеокарте укажите обоим один адрес.
+Missing model	Нет модели
+Not running	Не запущен
+Not set up	Не настроено
+Or describe your own style…	Или опишите свой стиль…
+Start local generation	Запустить локальную генерацию
+Start the 3D server	Запустить 3D-сервер
+Start the picture server	Запустить сервер изображений
+Style	Стиль
+Style preset	Готовый стиль
+The Python that has rembg installed.	Python, в котором установлен rembg.
+Your own style	Ваш стиль
+a script or program	скрипт или программа
+python with rembg	Python с rembg
+found automatically	найдётся автоматически
+Clean flat vector	Чистый плоский вектор
+Hand-painted fantasy	Рисованное фэнтези
+Sci-fi neon hologram	Научно-фантастическая неоновая голограмма
+Pixel art	Пиксель-арт
+Low-poly stylised	Стилизованный low-poly
+Gritty realistic	Суровый реализм
+Cartoon cel-shaded	Мультяшный cel-shading
+Match the original's mood	В настроении оригинала
+Local AI on your graphics cards (free)	Локальный ИИ на ваших видеокартах (бесплатно)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Делается на видеокартах этого компьютера в выбранном стиле: изображения и 3D-модели, доведённые в Blender.
+Not running and can't be started: set it up in Settings → Local generation	Не запущено и не может быть запущено: настройте в Настройки → Локальная генерация

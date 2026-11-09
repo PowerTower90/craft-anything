@@ -222,6 +222,9 @@ pub struct RebuildMark {
     pub method: String,
     pub requested_ms: u64,
     pub job: String,
+    /// The file made for it (relative to the project folder), once one was.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
 }
 
 impl Item {
@@ -281,6 +284,9 @@ pub struct Inventory {
     /// keywords ([`crate::asset_categories::CategoryRule`]).
     #[serde(default)]
     pub category_rules: Vec<CategoryRule>,
+    /// The style the person last chose for this project's local AI rebuilds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_style: Option<String>,
 }
 
 impl Inventory {

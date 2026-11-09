@@ -323,7 +323,8 @@ impl Engine {
         // The tool left a long wait for after the session is released, so other calls go on.
         drop(session);
         let cancel = opts.cancel.clone();
-        let output = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || after(cancel))) {
+        let progress = opts.progress;
+        let output = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || after(cancel, progress))) {
             Ok(r) => r?,
             Err(panic) => return Err(bug(panic)),
         };

@@ -285,6 +285,8 @@ fn engines(app: &mut CraftApp, ui: &mut Ui) {
     ui.add_space(12.0);
     crate::engine_ui::settings_section(app, ui);
     ui.add_space(12.0);
+    crate::local_gen_ui::section(app, ui, path_field);
+    ui.add_space(12.0);
     widgets::caption(ui, "Your own tool installs (optional)");
     ui.label(RichText::new(tr("Leave a path empty to use the managed install. We never need environment variables.")).color(t.text_faint).size(theme::CAPTION));
     ui.add_space(6.0);

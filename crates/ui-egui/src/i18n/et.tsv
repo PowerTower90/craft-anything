@@ -1631,3 +1631,43 @@ sorted by the rules	reeglite järgi sorditud
 sorted by the agent	agendi poolt sorditud
 sorted by you	sinu poolt sorditud
 Rebuild a group of assets	Ehita varade rühm uuesti
+3D server	3D-server
+Picture server	Piltide server
+Picture server address	Piltide serveri aadress
+3D server address	3D-serveri aadress
+Background removal	Tausta eemaldamine
+Check local generation	Kontrolli kohalikku genereerimist
+Choose a style…	Vali stiil…
+Every picture and model in this rebuild is made in this style.	Iga pilt ja mudel selles uuesti ehitamises tehakse selles stiilis.
+Local generation	Kohalik genereerimine
+Local generation started.	Kohalik genereerimine käivitatud.
+Local generation was already running.	Kohalik genereerimine juba töötas.
+Make a 3D model locally	Tee 3D-mudel kohapeal
+Make a picture locally	Tee pilt kohapeal
+Make many assets locally	Tee palju varasid kohapeal
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Tee pilte ja 3D-mudeleid selle arvuti graafikakaartidel tasuta: ComfyUI server piltide jaoks (Z-Image Turbo) ja teine 3D-kujude jaoks (Hunyuan3D 2.1); ühe graafikakaardiga anna mõlemale sama aadress.
+Missing model	Mudel puudub
+Not running	Ei tööta
+Not set up	Seadistamata
+Or describe your own style…	Või kirjelda oma stiili…
+Start local generation	Käivita kohalik genereerimine
+Start the 3D server	Käivita 3D-server
+Start the picture server	Käivita piltide server
+Style	Stiil
+Style preset	Stiili eelseade
+The Python that has rembg installed.	Python, kuhu on paigaldatud rembg.
+Your own style	Sinu stiil
+a script or program	skript või programm
+python with rembg	Python koos rembg-ga
+found automatically	leitakse automaatselt
+Clean flat vector	Puhas lame vektor
+Hand-painted fantasy	Käsitsi maalitud fantaasia
+Sci-fi neon hologram	Ulmefilmi neoonhologramm
+Pixel art	Pikslikunst
+Low-poly stylised	Stiliseeritud low-poly
+Gritty realistic	Karm realistlik
+Cartoon cel-shaded	Koomiksilik cel-shading
+Match the original's mood	Originaali meeleolu järgi
+Local AI on your graphics cards (free)	Kohalik tehisaru sinu graafikakaartidel (tasuta)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Tehakse selle arvuti graafikakaartidel sinu valitud stiilis: pildid ja Blenderis viimistletud 3D-mudelid.
+Not running and can't be started: set it up in Settings → Local generation	Ei tööta ega käivitu: seadista see jaotises Seaded → Kohalik genereerimine

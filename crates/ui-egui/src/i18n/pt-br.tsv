@@ -1631,3 +1631,43 @@ sorted by the rules	classificado pelas regras
 sorted by the agent	classificado pelo agente
 sorted by you	classificado por você
 Rebuild a group of assets	Reconstruir um grupo de recursos
+3D server	Servidor 3D
+Picture server	Servidor de imagens
+Picture server address	Endereço do servidor de imagens
+3D server address	Endereço do servidor 3D
+Background removal	Remoção de fundo
+Check local generation	Verificar a geração local
+Choose a style…	Escolha um estilo…
+Every picture and model in this rebuild is made in this style.	Cada imagem e modelo desta reconstrução é feito neste estilo.
+Local generation	Geração local
+Local generation started.	Geração local iniciada.
+Local generation was already running.	A geração local já estava rodando.
+Make a 3D model locally	Fazer um modelo 3D localmente
+Make a picture locally	Fazer uma imagem localmente
+Make many assets locally	Fazer muitos recursos localmente
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Faça imagens e modelos 3D nas placas de vídeo deste computador, de graça: um servidor ComfyUI para imagens (Z-Image Turbo) e um para formas 3D (Hunyuan3D 2.1); com uma só placa de vídeo, dê o mesmo endereço aos dois.
+Missing model	Modelo ausente
+Not running	Parado
+Not set up	Não configurado
+Or describe your own style…	Ou descreva seu próprio estilo…
+Start local generation	Iniciar a geração local
+Start the 3D server	Iniciar o servidor 3D
+Start the picture server	Iniciar o servidor de imagens
+Style	Estilo
+Style preset	Estilo predefinido
+The Python that has rembg installed.	O Python que tem o rembg instalado.
+Your own style	Seu próprio estilo
+a script or program	um script ou programa
+python with rembg	Python com rembg
+found automatically	encontrado automaticamente
+Clean flat vector	Vetorial plano e limpo
+Hand-painted fantasy	Fantasia pintada à mão
+Sci-fi neon hologram	Holograma neon de ficção científica
+Pixel art	Pixel art
+Low-poly stylised	Low-poly estilizado
+Gritty realistic	Realista e cru
+Cartoon cel-shaded	Cartum em cel-shading
+Match the original's mood	Combinar com o clima do original
+Local AI on your graphics cards (free)	IA local nas suas placas de vídeo (grátis)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Feito nas placas de vídeo deste computador no estilo que você escolher: imagens, e modelos 3D finalizados no Blender.
+Not running and can't be started: set it up in Settings → Local generation	Não está rodando e não pode ser iniciado: configure em Configurações → Geração local

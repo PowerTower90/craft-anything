@@ -29,6 +29,13 @@
         "$ref": "#/$defs/Item"
       }
     },
+    "last_style": {
+      "description": "The style the person last chose for this project's local AI rebuilds.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "notes": {
       "description": "What the last scan of each source left out or couldn't do, in words.",
       "type": "object",
@@ -321,6 +328,13 @@
         },
         "method": {
           "type": "string"
+        },
+        "output": {
+          "description": "The file made for it (relative to the project folder), once one was.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "requested_ms": {
           "type": "integer",

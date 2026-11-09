@@ -26,6 +26,7 @@ mod icon_data;
 pub mod icons;
 pub mod jobs;
 pub mod just_ask;
+pub mod local_gen_ui;
 pub mod make;
 pub mod manage;
 #[cfg(target_os = "macos")]
@@ -659,6 +660,8 @@ pub struct CraftApp {
     pub assets: assets_ui::Gallery,
     /// The project the Workbench follows, and what was opened for it.
     pub follow: wb_project::Follow,
+    /// Settings → Local generation: the last status, a check or start under way.
+    pub local_gen: local_gen_ui::Panel,
     /// A build asked something since the last frame: the taskbar flashes if the window is behind.
     attention: bool,
     /// Jobs whose result goes into the conversation (a first look, an answer without an AI):
@@ -745,6 +748,7 @@ impl CraftApp {
             feed_jump: None,
             assets: Default::default(),
             follow: Default::default(),
+            local_gen: Default::default(),
             pending_consent: Default::default(),
             next_consent: 1,
             attention: false,
@@ -1179,6 +1183,7 @@ impl CraftApp {
             }
             ("project_rename" | "project_duplicate" | "project_delete", r) => self.managed(tool, r),
             (craft_anything_engine::tools::inventory_tools::SCAN_TOOL, r) => self.assets_scanned(r),
+            ("local_generation_status" | "local_generation_start", r) => self.local_generation_done(tool, r),
             // The tool changed the session's plugin list; take it, so saving settings keeps it.
             ("plugins_add" | "plugins_remove", Ok(_)) => {
                 if let Some(s) = self.engine.try_session() {

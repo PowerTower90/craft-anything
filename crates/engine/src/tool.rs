@@ -227,7 +227,7 @@ pub struct Progress {
 pub type ProgressFn = dyn Fn(Progress) + Send + Sync;
 
 /// Work a tool leaves for after the session is released ([`Ctx::after_unlocking`]).
-pub type Unlocked = Box<dyn FnOnce(CancelToken) -> Result<ToolOutput, ToolError> + Send>;
+pub type Unlocked = Box<dyn FnOnce(CancelToken, &ProgressFn) -> Result<ToolOutput, ToolError> + Send>;
 
 /// Everything a tool run can touch.
 pub struct Ctx<'a> {
@@ -252,6 +252,12 @@ impl Ctx<'_> {
     /// session first, then give the wait to this. `f` gets the call's cancel token, and its
     /// result replaces the one the tool returned.
     pub fn after_unlocking(&mut self, f: impl FnOnce(CancelToken) -> Result<ToolOutput, ToolError> + Send + 'static) {
+        self.after = Some(Box::new(move |cancel, _| f(cancel)));
+    }
+
+    /// [`Ctx::after_unlocking`] for work that says how far it got: `f` gets the call's progress
+    /// callback too (long generation runs report "3 of 12" as they go).
+    pub fn after_unlocking_reporting(&mut self, f: impl FnOnce(CancelToken, &ProgressFn) -> Result<ToolOutput, ToolError> + Send + 'static) {
         self.after = Some(Box::new(f));
     }
 }

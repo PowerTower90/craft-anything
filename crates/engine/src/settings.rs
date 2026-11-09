@@ -132,6 +132,38 @@ pub struct Settings {
     pub plugins: crate::plugins::PluginSettings,
     /// How builds are checked and when refining stops (`[build]`).
     pub build: BuildSettings,
+    /// Generating pictures and 3D models on this computer's graphics cards (`[local_gen]`).
+    pub local_gen: LocalGenSettings,
+}
+
+/// Where the local generation servers and helpers are.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LocalGenSettings {
+    /// The ComfyUI server that makes pictures.
+    pub picture_url: String,
+    /// The ComfyUI server that makes 3D shapes (the same one with a single graphics card).
+    pub shape_url: String,
+    /// What starts each server when it isn't running (a script or a program); none: started by hand.
+    pub picture_start: Option<PathBuf>,
+    pub shape_start: Option<PathBuf>,
+    /// The Python that has rembg, to take backgrounds off; none: pictures keep their background.
+    pub bg_python: Option<PathBuf>,
+    /// Blender; none: found on the search path or where it's usually installed.
+    pub blender: Option<PathBuf>,
+}
+
+impl Default for LocalGenSettings {
+    fn default() -> Self {
+        LocalGenSettings {
+            picture_url: "http://127.0.0.1:8188".into(),
+            shape_url: "http://127.0.0.1:8189".into(),
+            picture_start: None,
+            shape_start: None,
+            bg_python: None,
+            blender: None,
+        }
+    }
 }
 
 /// How builds are checked and when refining stops.
@@ -218,6 +250,7 @@ impl Default for Settings {
             project_folders: Vec::new(),
             existing_files: None,
             assets: AssetSettings::default(),
+            local_gen: LocalGenSettings::default(),
             plugins: crate::plugins::PluginSettings::default(),
             build: BuildSettings::default(),
         }

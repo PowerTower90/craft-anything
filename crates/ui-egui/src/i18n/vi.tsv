@@ -1631,3 +1631,43 @@ sorted by the rules	do quy tắc phân loại
 sorted by the agent	do tác tử phân loại
 sorted by you	do bạn phân loại
 Rebuild a group of assets	Dựng lại một nhóm tài nguyên
+3D server	Máy chủ 3D
+Picture server	Máy chủ hình ảnh
+Picture server address	Địa chỉ máy chủ hình ảnh
+3D server address	Địa chỉ máy chủ 3D
+Background removal	Xóa nền
+Check local generation	Kiểm tra tạo cục bộ
+Choose a style…	Chọn phong cách…
+Every picture and model in this rebuild is made in this style.	Mọi hình ảnh và mô hình trong lần dựng lại này đều theo phong cách này.
+Local generation	Tạo cục bộ
+Local generation started.	Đã khởi động tạo cục bộ.
+Local generation was already running.	Tạo cục bộ đã chạy sẵn.
+Make a 3D model locally	Tạo mô hình 3D cục bộ
+Make a picture locally	Tạo hình ảnh cục bộ
+Make many assets locally	Tạo nhiều tài nguyên cục bộ
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Tạo hình ảnh và mô hình 3D trên card đồ họa của máy này, miễn phí: một máy chủ ComfyUI cho hình ảnh (Z-Image Turbo) và một cho hình khối 3D (Hunyuan3D 2.1); với một card đồ họa, hãy đặt cùng một địa chỉ cho cả hai.
+Missing model	Thiếu mô hình
+Not running	Không chạy
+Not set up	Chưa thiết lập
+Or describe your own style…	Hoặc mô tả phong cách riêng…
+Start local generation	Khởi động tạo cục bộ
+Start the 3D server	Khởi động máy chủ 3D
+Start the picture server	Khởi động máy chủ hình ảnh
+Style	Phong cách
+Style preset	Phong cách có sẵn
+The Python that has rembg installed.	Python đã cài rembg.
+Your own style	Phong cách riêng
+a script or program	một tập lệnh hoặc chương trình
+python with rembg	Python có rembg
+found automatically	tự động tìm
+Clean flat vector	Vector phẳng gọn gàng
+Hand-painted fantasy	Kỳ ảo vẽ tay
+Sci-fi neon hologram	Hình ba chiều neon khoa học viễn tưởng
+Pixel art	Pixel art
+Low-poly stylised	Low-poly cách điệu
+Gritty realistic	Hiện thực thô ráp
+Cartoon cel-shaded	Hoạt hình cel-shaded
+Match the original's mood	Giống không khí của bản gốc
+Local AI on your graphics cards (free)	AI cục bộ trên card đồ họa của bạn (miễn phí)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Tạo trên card đồ họa của máy này theo phong cách bạn chọn: hình ảnh, và mô hình 3D được hoàn thiện trong Blender.
+Not running and can't be started: set it up in Settings → Local generation	Không chạy và không khởi động được: hãy thiết lập trong Cài đặt → Tạo cục bộ

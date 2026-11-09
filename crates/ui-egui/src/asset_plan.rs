@@ -72,6 +72,12 @@ pub struct PlanView {
     pub items: usize,
     pub rows: Vec<PlanRow>,
     pub total_credits: u64,
+    /// Some kind is made with local AI (then the style is asked for).
+    #[serde(default)]
+    pub uses_local_ai: bool,
+    /// The style the plan has (the project's last one at first).
+    #[serde(default)]
+    pub style: Option<String>,
 }
 
 /// The plan dialog: what it's for, the methods chosen, and the plan once read.
@@ -85,6 +91,8 @@ pub struct PlanState {
     pub view: Option<Result<PlanView, String>>,
     pub loading: bool,
     pub starting: bool,
+    /// The style for local AI: a preset or the person's own words.
+    pub style: String,
 }
 
 fn call(engine: &Engine, tool: &str, params: Value, job: &crate::jobs::JobCtx) -> Result<Value, ToolError> {
@@ -112,7 +120,8 @@ impl CraftApp {
     fn load_rebuild_plan(&mut self) {
         let Some(p) = self.assets.plan.as_mut() else { return };
         p.loading = true;
-        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods});
+        let style = Some(p.style.trim()).filter(|s| !s.is_empty());
+        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "style": style});
         let (engine, root) = (self.engine.clone(), p.root.clone());
         self.jobs.spawn("Plan a rebuild", false, move |j| {
             let result = call(&engine, "project_inventory_rebuild_plan", params, j)
@@ -126,7 +135,8 @@ impl CraftApp {
     pub fn start_asset_rebuild(&mut self) {
         let Some(p) = self.assets.plan.as_mut().filter(|p| !p.starting) else { return };
         p.starting = true;
-        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "send": false});
+        let style = Some(p.style.trim()).filter(|s| !s.is_empty());
+        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "style": style, "send": false});
         let (engine, root) = (self.engine.clone(), p.root.clone());
         self.jobs.spawn(tr("Start a rebuild"), true, move |j| {
             let result = call(&engine, "project_inventory_rebuild", params, j);
@@ -160,6 +170,9 @@ impl CraftApp {
             Done::AssetPlan { root, result } => {
                 if let Some(p) = self.assets.plan.as_mut().filter(|p| p.root == root) {
                     p.loading = false;
+                    if let (true, Ok(v)) = (p.style.trim().is_empty(), &result) {
+                        p.style = v.style.clone().unwrap_or_default();
+                    }
                     p.view = Some(result.map_err(|e| e.for_people()));
                 }
             }
@@ -374,10 +387,46 @@ pub fn card_categories(app: &mut CraftApp, ui: &mut Ui, s: &Summary) {
     }
 }
 
+/// The style for local AI: a preset, or the person's own words.
+fn style_picker(ui: &mut Ui, style: &mut String) {
+    let t = Tokens::get(ui.ctx());
+    ui.add_space(10.0);
+    widgets::caption(ui, "Style");
+    let presets = craft_anything_engine::asset_rebuild::STYLES;
+    let shown = if style.trim().is_empty() {
+        tr("Choose a style…")
+    } else if presets.contains(&style.trim()) {
+        tr(style.trim())
+    } else {
+        style.clone()
+    };
+    let mut pick = None;
+    let r = egui::ComboBox::from_id_salt("asset-plan-style").icon(widgets::combo_icon).selected_text(shown).width(260.0).height(360.0).show_ui(ui, |ui| {
+        for p in presets {
+            if ui.selectable_label(style.trim() == *p, tr(p)).clicked() {
+                pick = Some(*p);
+            }
+        }
+    });
+    widgets::named(r.response, "Style preset");
+    if let Some(p) = pick {
+        *style = p.to_string();
+    }
+    let r = ui.add(
+        egui::TextEdit::singleline(style)
+            .hint_text(tr("Or describe your own style…"))
+            .desired_width(f32::INFINITY)
+            .frame(widgets::text_field_frame_compact(&t)),
+    );
+    widgets::named(r, "Your own style");
+    ui.label(RichText::new(tr("Every picture and model in this rebuild is made in this style.")).size(theme::CAPTION).color(t.text_faint));
+}
+
 /// The plan dialog (on every screen): per kind, how many, the method (only free ones are ready),
 /// what it costs, then the total and Start.
 pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
     let Some(plan) = app.assets.plan.clone() else { return };
+    let mut style = plan.style.clone();
     let t = Tokens::get(ctx);
     let mut close = false;
     let mut choose: Option<(Kind, String)> = None;
@@ -437,6 +486,9 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
                     let total =
                         if view.total_credits > 0 { trf("about {n} Tripo credits (an estimate)", &[("n", &count(view.total_credits))]) } else { tr("Free") };
                     ui.label(RichText::new(trf("Total: {total}", &[("total", &total)])).font(theme::semibold(theme::BODY)));
+                    if view.uses_local_ai {
+                        style_picker(ui, &mut style);
+                    }
                     let kept: usize = view.rows.iter().filter(|r| r.method == "keep" || !r.available).map(|r| r.count).sum();
                     if kept > 0 {
                         ui.label(
@@ -463,6 +515,9 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
         });
     if resp.should_close() {
         close = true;
+    }
+    if let Some(p) = app.assets.plan.as_mut().filter(|p| p.style != style) {
+        p.style = style;
     }
     if let Some((kind, method)) = choose {
         app.choose_rebuild_method(kind, &method);

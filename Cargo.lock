@@ -1246,6 +1246,7 @@ dependencies = [
  "craft-anything-testkit",
  "hex",
  "log",
+ "schemars",
  "serde",
  "serde_json",
  "sha1",

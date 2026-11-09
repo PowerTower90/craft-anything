@@ -1631,3 +1631,43 @@ sorted by the rules	roztříděno pravidly
 sorted by the agent	roztříděno agentem
 sorted by you	roztříděno vámi
 Rebuild a group of assets	Přestavět skupinu prostředků
+3D server	3D server
+Picture server	Server obrázků
+Picture server address	Adresa serveru obrázků
+3D server address	Adresa 3D serveru
+Background removal	Odstranění pozadí
+Check local generation	Zkontrolovat místní generování
+Choose a style…	Vyberte styl…
+Every picture and model in this rebuild is made in this style.	Každý obrázek a model této přestavby vznikne v tomto stylu.
+Local generation	Místní generování
+Local generation started.	Místní generování spuštěno.
+Local generation was already running.	Místní generování už běželo.
+Make a 3D model locally	Vytvořit 3D model místně
+Make a picture locally	Vytvořit obrázek místně
+Make many assets locally	Vytvořit mnoho prostředků místně
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Vytvářejte obrázky a 3D modely na grafických kartách tohoto počítače zdarma: server ComfyUI pro obrázky (Z-Image Turbo) a jeden pro 3D tvary (Hunyuan3D 2.1); s jednou grafickou kartou dejte oběma stejnou adresu.
+Missing model	Chybí model
+Not running	Neběží
+Not set up	Nenastaveno
+Or describe your own style…	Nebo popište vlastní styl…
+Start local generation	Spustit místní generování
+Start the 3D server	Spustit 3D server
+Start the picture server	Spustit server obrázků
+Style	Styl
+Style preset	Předvolba stylu
+The Python that has rembg installed.	Python, ve kterém je nainstalovaný rembg.
+Your own style	Vlastní styl
+a script or program	skript nebo program
+python with rembg	Python s rembg
+found automatically	najde se automaticky
+Clean flat vector	Čistý plochý vektor
+Hand-painted fantasy	Ručně malovaná fantasy
+Sci-fi neon hologram	Sci-fi neonový hologram
+Pixel art	Pixel art
+Low-poly stylised	Stylizované low-poly
+Gritty realistic	Drsně realistický
+Cartoon cel-shaded	Kreslený cel-shading
+Match the original's mood	Ve stejné náladě jako originál
+Local AI on your graphics cards (free)	Místní AI na vašich grafických kartách (zdarma)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Vzniká na grafických kartách tohoto počítače ve zvoleném stylu: obrázky a 3D modely dokončené v Blenderu.
+Not running and can't be started: set it up in Settings → Local generation	Neběží a nelze spustit: nastavte v Nastavení → Místní generování

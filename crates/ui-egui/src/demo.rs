@@ -100,7 +100,10 @@ fn strings_evidence() -> Option<Evidence> {
 
 /// An engine with the sample program open and a few findings in the ledger.
 pub fn engine(mode: Mode, first_run_done: bool) -> Arc<Engine> {
-    let settings = Settings { mode, first_run_done, language: "en".into(), ..Default::default() };
+    let mut settings = Settings { mode, first_run_done, language: "en".into(), ..Default::default() };
+    // Never this computer's own generation servers: nothing listens on the discard port.
+    settings.local_gen.picture_url = "http://127.0.0.1:9".into();
+    settings.local_gen.shape_url = "http://127.0.0.1:9".into();
     let mut session = Session::new(settings);
     session.add_target(sample_target());
     for e in [strings_evidence(), functions_evidence(), percent_evidence()].into_iter().flatten() {

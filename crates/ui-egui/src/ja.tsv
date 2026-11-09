@@ -1061,3 +1061,43 @@ sorted by the rules	規則で仕分け
 sorted by the agent	エージェントが仕分け
 sorted by you	あなたが仕分け
 Rebuild a group of assets	アセットのまとまりを作り直す
+3D server	3D サーバー
+Picture server	画像サーバー
+Picture server address	画像サーバーのアドレス
+3D server address	3D サーバーのアドレス
+Background removal	背景の除去
+Check local generation	ローカル生成を確認
+Choose a style…	スタイルを選ぶ…
+Every picture and model in this rebuild is made in this style.	この作り直しの画像とモデルはすべてこのスタイルで作られます。
+Local generation	ローカル生成
+Local generation started.	ローカル生成を開始しました。
+Local generation was already running.	ローカル生成はすでに動いていました。
+Make a 3D model locally	3D モデルをローカルで作る
+Make a picture locally	画像をローカルで作る
+Make many assets locally	多くのアセットをローカルで作る
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	このコンピューターのグラフィックカードで画像と 3D モデルを無料で作ります。画像用の ComfyUI サーバー（Z-Image Turbo）と 3D 形状用のサーバー（Hunyuan3D 2.1）。グラフィックカードが 1 枚なら、両方に同じアドレスを入れてください。
+Missing model	モデルがありません
+Not running	動いていません
+Not set up	未設定
+Or describe your own style…	または自分のスタイルを書く…
+Start local generation	ローカル生成を開始
+Start the 3D server	3D サーバーを起動
+Start the picture server	画像サーバーを起動
+Style	スタイル
+Style preset	スタイルのプリセット
+The Python that has rembg installed.	rembg が入っている Python。
+Your own style	自分のスタイル
+a script or program	スクリプトまたはプログラム
+python with rembg	rembg 入りの Python
+found automatically	自動で見つけます
+Clean flat vector	すっきりしたフラットベクター
+Hand-painted fantasy	手描きファンタジー
+Sci-fi neon hologram	SF ネオンホログラム
+Pixel art	ピクセルアート
+Low-poly stylised	スタイライズドなローポリ
+Gritty realistic	荒々しいリアル
+Cartoon cel-shaded	トゥーンのセルシェーディング
+Match the original's mood	元の版の雰囲気に合わせる
+Local AI on your graphics cards (free)	グラフィックカード上のローカル AI（無料）
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	このコンピューターのグラフィックカードで、選んだスタイルで作ります。画像と、Blender で仕上げる 3D モデル。
+Not running and can't be started: set it up in Settings → Local generation	動いておらず起動もできません。設定 → ローカル生成で設定してください

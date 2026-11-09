@@ -1631,3 +1631,43 @@ sorted by the rules	จัดโดยกฎ
 sorted by the agent	จัดโดยเอเจนต์
 sorted by you	จัดโดยคุณ
 Rebuild a group of assets	สร้างกลุ่มแอสเซทใหม่
+3D server	เซิร์ฟเวอร์ 3D
+Picture server	เซิร์ฟเวอร์รูปภาพ
+Picture server address	ที่อยู่เซิร์ฟเวอร์รูปภาพ
+3D server address	ที่อยู่เซิร์ฟเวอร์ 3D
+Background removal	ลบพื้นหลัง
+Check local generation	ตรวจการสร้างบนเครื่อง
+Choose a style…	เลือกสไตล์…
+Every picture and model in this rebuild is made in this style.	รูปภาพและโมเดลทุกชิ้นในการสร้างใหม่นี้ทำในสไตล์นี้
+Local generation	การสร้างบนเครื่อง
+Local generation started.	เริ่มการสร้างบนเครื่องแล้ว
+Local generation was already running.	การสร้างบนเครื่องทำงานอยู่แล้ว
+Make a 3D model locally	สร้างโมเดล 3D บนเครื่อง
+Make a picture locally	สร้างรูปภาพบนเครื่อง
+Make many assets locally	สร้างแอสเซทจำนวนมากบนเครื่อง
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	สร้างรูปภาพและโมเดล 3D บนการ์ดจอของคอมพิวเตอร์นี้ฟรี: เซิร์ฟเวอร์ ComfyUI สำหรับรูปภาพ (Z-Image Turbo) และอีกเครื่องสำหรับรูปทรง 3D (Hunyuan3D 2.1); ถ้ามีการ์ดจอเดียว ให้ใส่ที่อยู่เดียวกันทั้งสอง
+Missing model	ไม่มีโมเดล
+Not running	ไม่ได้ทำงาน
+Not set up	ยังไม่ได้ตั้งค่า
+Or describe your own style…	หรืออธิบายสไตล์ของคุณเอง…
+Start local generation	เริ่มการสร้างบนเครื่อง
+Start the 3D server	เริ่มเซิร์ฟเวอร์ 3D
+Start the picture server	เริ่มเซิร์ฟเวอร์รูปภาพ
+Style	สไตล์
+Style preset	สไตล์สำเร็จรูป
+The Python that has rembg installed.	Python ที่ติดตั้ง rembg ไว้
+Your own style	สไตล์ของคุณเอง
+a script or program	สคริปต์หรือโปรแกรม
+python with rembg	Python ที่มี rembg
+found automatically	ค้นหาอัตโนมัติ
+Clean flat vector	เวกเตอร์แบนเรียบ
+Hand-painted fantasy	แฟนตาซีวาดมือ
+Sci-fi neon hologram	โฮโลแกรมนีออนไซไฟ
+Pixel art	พิกเซลอาร์ต
+Low-poly stylised	โลว์โพลีสไตไลซ์
+Gritty realistic	สมจริงแบบดิบ
+Cartoon cel-shaded	การ์ตูนเซลเชด
+Match the original's mood	ให้เข้ากับอารมณ์ของต้นฉบับ
+Local AI on your graphics cards (free)	AI บนการ์ดจอของคุณ (ฟรี)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	สร้างบนการ์ดจอของคอมพิวเตอร์นี้ตามสไตล์ที่เลือก: รูปภาพ และโมเดล 3D ที่เก็บงานใน Blender
+Not running and can't be started: set it up in Settings → Local generation	ไม่ได้ทำงานและเริ่มไม่ได้: ตั้งค่าใน การตั้งค่า → การสร้างบนเครื่อง

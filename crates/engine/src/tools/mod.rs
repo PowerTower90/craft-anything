@@ -74,6 +74,7 @@ pub mod asset_tools;
 pub mod interaction_tools;
 // A project's asset inventory: what's in the build and the original, and what to replace.
 pub mod inventory_tools;
+pub mod local_gen_tools;
 pub mod project_tools;
 // Pinned builds: kept copies of a project's build, and what they started.
 pub mod pin_tools;
@@ -127,6 +128,7 @@ pub fn all() -> Vec<crate::ToolSpec> {
     v.extend(interaction_tools::specs());
     v.extend(project_tools::specs());
     v.extend(inventory_tools::specs());
+    v.extend(local_gen_tools::specs());
     v.extend(pin_tools::specs());
     v.extend(setup_tools::specs());
     v.extend(build_tools::specs());

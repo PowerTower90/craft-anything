@@ -1631,3 +1631,43 @@ sorted by the rules	kurallarla sıralandı
 sorted by the agent	ajan tarafından sıralandı
 sorted by you	senin tarafından sıralandı
 Rebuild a group of assets	Bir varlık grubunu yeniden yap
+3D server	3B sunucusu
+Picture server	Resim sunucusu
+Picture server address	Resim sunucusunun adresi
+3D server address	3B sunucusunun adresi
+Background removal	Arka plan kaldırma
+Check local generation	Yerel üretimi denetle
+Choose a style…	Bir stil seç…
+Every picture and model in this rebuild is made in this style.	Bu yeniden yapımdaki her resim ve model bu stilde yapılır.
+Local generation	Yerel üretim
+Local generation started.	Yerel üretim başlatıldı.
+Local generation was already running.	Yerel üretim zaten çalışıyordu.
+Make a 3D model locally	Yerelde 3B model yap
+Make a picture locally	Yerelde resim yap
+Make many assets locally	Yerelde çok sayıda varlık yap
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Bu bilgisayarın ekran kartlarında ücretsiz resim ve 3B model yap: resimler için bir ComfyUI sunucusu (Z-Image Turbo) ve 3B şekiller için bir tane (Hunyuan3D 2.1); tek ekran kartıyla ikisine aynı adresi ver.
+Missing model	Model eksik
+Not running	Çalışmıyor
+Not set up	Ayarlanmadı
+Or describe your own style…	Ya da kendi stilini anlat…
+Start local generation	Yerel üretimi başlat
+Start the 3D server	3B sunucusunu başlat
+Start the picture server	Resim sunucusunu başlat
+Style	Stil
+Style preset	Hazır stil
+The Python that has rembg installed.	rembg kurulu Python.
+Your own style	Kendi stilin
+a script or program	bir betik ya da program
+python with rembg	rembg'li Python
+found automatically	otomatik bulunur
+Clean flat vector	Temiz düz vektör
+Hand-painted fantasy	Elle boyanmış fantastik
+Sci-fi neon hologram	Bilimkurgu neon hologram
+Pixel art	Piksel sanatı
+Low-poly stylised	Stilize low-poly
+Gritty realistic	Sert gerçekçi
+Cartoon cel-shaded	Çizgi film cel-shading
+Match the original's mood	Orijinalin havasına uy
+Local AI on your graphics cards (free)	Ekran kartlarındaki yerel yapay zekâ (ücretsiz)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Bu bilgisayarın ekran kartlarında seçtiğin stilde yapılır: resimler ve Blender'da bitirilen 3B modeller.
+Not running and can't be started: set it up in Settings → Local generation	Çalışmıyor ve başlatılamıyor: Ayarlar → Yerel üretim'den kur

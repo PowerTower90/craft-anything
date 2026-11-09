@@ -139,7 +139,7 @@ fn a_plan_is_cheapest_first_and_never_starts_what_isnt_set_up() {
     let methods = [("model".to_string(), "tripo".to_string())].into_iter().collect();
     let plan = {
         let items = crate::asset_rebuild::select(&inv, Some(crate::asset_categories::Category::Enemies), &[], |_| true).unwrap();
-        crate::asset_rebuild::Plan::new(&items, Some(crate::asset_categories::Category::Enemies), &methods).unwrap()
+        crate::asset_rebuild::Plan::new(&items, Some(crate::asset_categories::Category::Enemies), &methods, Default::default()).unwrap()
     };
     let done = crate::asset_rebuild::start(&ws, &mut inv, &plan, 1_800_000_000_000).unwrap();
     let started = json!({"started": done.items, "skipped": [{"method": done.skipped[0].1}], "list": done.list.display().to_string(), "brief": done.brief});

@@ -100,6 +100,8 @@ const ACTIONS: &[Action] = &[
     a("choose_rebuild_method", "another method for one kind of asset in a rebuild plan", Tool(&["project_inventory_rebuild_plan"])),
     a("start_asset_rebuild", "rebuild a group of assets through the project's builder", Tool(&["project_inventory_rebuild"])),
     a("categorize_assets",   "put assets in a category (the person's choice)", Tool(&["project_inventory_categorize"])),
+    a("check_local_generation", "whether this computer can make pictures and 3D models itself", Tool(&["local_generation_status"])),
+    a("start_local_generation", "start the local generation servers", Tool(&["local_generation_start"])),
     a("sort_unsorted_with_agent", "ask the builder to sort the unsorted assets", Tool(&["project_inventory_unsorted_terms", "project_inventory_category_rules"])),
 
     // ---- Engines, Deep mode and assets --------------------------------------------------------

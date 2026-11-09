@@ -23,6 +23,9 @@ pub fn session() -> Session {
     let mut s = Session::isolated(&temp_dir());
     s.settings.deep_mode = true;
     s.settings.engines.only_configured = true;
+    // Never this computer's own generation servers: nothing listens on the discard port.
+    s.settings.local_gen.picture_url = "http://127.0.0.1:9".into();
+    s.settings.local_gen.shape_url = "http://127.0.0.1:9".into();
     s
 }
 

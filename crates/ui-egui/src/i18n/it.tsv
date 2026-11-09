@@ -1633,3 +1633,43 @@ sorted by the rules	ordinato dalle regole
 sorted by the agent	ordinato dall'agente
 sorted by you	ordinato da te
 Rebuild a group of assets	Ricostruisci un gruppo di risorse
+3D server	Server 3D
+Picture server	Server delle immagini
+Picture server address	Indirizzo del server delle immagini
+3D server address	Indirizzo del server 3D
+Background removal	Rimozione dello sfondo
+Check local generation	Controlla la generazione locale
+Choose a style…	Scegli uno stile…
+Every picture and model in this rebuild is made in this style.	Ogni immagine e modello di questa ricostruzione è fatto in questo stile.
+Local generation	Generazione locale
+Local generation started.	Generazione locale avviata.
+Local generation was already running.	La generazione locale era già in esecuzione.
+Make a 3D model locally	Crea un modello 3D in locale
+Make a picture locally	Crea un'immagine in locale
+Make many assets locally	Crea molte risorse in locale
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Crea immagini e modelli 3D sulle schede grafiche di questo computer, gratis: un server ComfyUI per le immagini (Z-Image Turbo) e uno per le forme 3D (Hunyuan3D 2.1); con una sola scheda grafica, dai a entrambi lo stesso indirizzo.
+Missing model	Modello mancante
+Not running	Non in esecuzione
+Not set up	Non configurato
+Or describe your own style…	Oppure descrivi il tuo stile…
+Start local generation	Avvia la generazione locale
+Start the 3D server	Avvia il server 3D
+Start the picture server	Avvia il server delle immagini
+Style	Stile
+Style preset	Stile predefinito
+The Python that has rembg installed.	Il Python in cui è installato rembg.
+Your own style	Il tuo stile
+a script or program	uno script o un programma
+python with rembg	Python con rembg
+found automatically	trovato automaticamente
+Clean flat vector	Vettoriale piatto e pulito
+Hand-painted fantasy	Fantasy dipinto a mano
+Sci-fi neon hologram	Ologramma al neon fantascientifico
+Pixel art	Pixel art
+Low-poly stylised	Low-poly stilizzato
+Gritty realistic	Realistico e crudo
+Cartoon cel-shaded	Cartone in cel-shading
+Match the original's mood	Riprendi l'atmosfera dell'originale
+Local AI on your graphics cards (free)	IA locale sulle tue schede grafiche (gratis)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Fatto sulle schede grafiche di questo computer nello stile che scegli: immagini e modelli 3D rifiniti in Blender.
+Not running and can't be started: set it up in Settings → Local generation	Non è in esecuzione e non si può avviare: configuralo in Impostazioni → Generazione locale

@@ -1631,3 +1631,43 @@ sorted by the rules	წესებით დახარისხებულ�
 sorted by the agent	აგენტის მიერ დახარისხებული
 sorted by you	შენ მიერ დახარისხებული
 Rebuild a group of assets	რესურსების ჯგუფის ხელახლა აწყობა
+3D server	3D სერვერი
+Picture server	სურათების სერვერი
+Picture server address	სურათების სერვერის მისამართი
+3D server address	3D სერვერის მისამართი
+Background removal	ფონის მოცილება
+Check local generation	ლოკალური გენერაციის შემოწმება
+Choose a style…	აირჩიე სტილი…
+Every picture and model in this rebuild is made in this style.	ამ ხელახალი აწყობის ყველა სურათი და მოდელი ამ სტილით შეიქმნება.
+Local generation	ლოკალური გენერაცია
+Local generation started.	ლოკალური გენერაცია გაეშვა.
+Local generation was already running.	ლოკალური გენერაცია უკვე მუშაობდა.
+Make a 3D model locally	3D მოდელის ლოკალურად შექმნა
+Make a picture locally	სურათის ლოკალურად შექმნა
+Make many assets locally	ბევრი რესურსის ლოკალურად შექმნა
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	შექმენი სურათები და 3D მოდელები ამ კომპიუტერის ვიდეობარათებზე, უფასოდ: ComfyUI სერვერი სურათებისთვის (Z-Image Turbo) და ერთი 3D ფორმებისთვის (Hunyuan3D 2.1); ერთი ვიდეობარათით ორივეს ერთი მისამართი მიეცი.
+Missing model	მოდელი აკლია
+Not running	არ მუშაობს
+Not set up	არ არის მოწყობილი
+Or describe your own style…	ან აღწერე შენი სტილი…
+Start local generation	ლოკალური გენერაციის გაშვება
+Start the 3D server	3D სერვერის გაშვება
+Start the picture server	სურათების სერვერის გაშვება
+Style	სტილი
+Style preset	სტილის შაბლონი
+The Python that has rembg installed.	Python, რომელშიც rembg არის დაყენებული.
+Your own style	შენი სტილი
+a script or program	სკრიპტი ან პროგრამა
+python with rembg	Python rembg-ით
+found automatically	ავტომატურად მოიძებნება
+Clean flat vector	სუფთა ბრტყელი ვექტორი
+Hand-painted fantasy	ხელით დახატული ფენტეზი
+Sci-fi neon hologram	სამეცნიერო-ფანტასტიკური ნეონის ჰოლოგრამა
+Pixel art	პიქსელ-არტი
+Low-poly stylised	სტილიზებული low-poly
+Gritty realistic	უხეში რეალისტური
+Cartoon cel-shaded	მულტფილმური cel-shading
+Match the original's mood	ორიგინალის განწყობის შესატყვისი
+Local AI on your graphics cards (free)	ლოკალური AI შენს ვიდეობარათებზე (უფასო)
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	ამ კომპიუტერის ვიდეობარათებზე, შენ მიერ არჩეული სტილით: სურათები და Blender-ში დასრულებული 3D მოდელები.
+Not running and can't be started: set it up in Settings → Local generation	არ მუშაობს და ვერ გაეშვება: მოაწყვე პარამეტრებში → ლოკალური გენერაცია

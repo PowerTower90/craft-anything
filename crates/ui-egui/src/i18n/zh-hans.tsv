@@ -1631,3 +1631,43 @@ sorted by the rules	由规则分类
 sorted by the agent	由智能体分类
 sorted by you	由你分类
 Rebuild a group of assets	重建一组素材
+3D server	3D 服务器
+Picture server	图片服务器
+Picture server address	图片服务器地址
+3D server address	3D 服务器地址
+Background removal	去除背景
+Check local generation	检查本地生成
+Choose a style…	选择风格…
+Every picture and model in this rebuild is made in this style.	这次重建的所有图片和模型都用这种风格制作。
+Local generation	本地生成
+Local generation started.	本地生成已启动。
+Local generation was already running.	本地生成已经在运行。
+Make a 3D model locally	在本地制作 3D 模型
+Make a picture locally	在本地制作图片
+Make many assets locally	在本地制作大量素材
+Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	在这台电脑的显卡上免费制作图片和 3D 模型：一个用于图片的 ComfyUI 服务器（Z-Image Turbo），一个用于 3D 形状（Hunyuan3D 2.1）；只有一块显卡时，两者填同一个地址。
+Missing model	缺少模型
+Not running	未运行
+Not set up	未设置
+Or describe your own style…	或描述你自己的风格…
+Start local generation	启动本地生成
+Start the 3D server	启动 3D 服务器
+Start the picture server	启动图片服务器
+Style	风格
+Style preset	预设风格
+The Python that has rembg installed.	装有 rembg 的 Python。
+Your own style	你自己的风格
+a script or program	脚本或程序
+python with rembg	带 rembg 的 Python
+found automatically	自动查找
+Clean flat vector	简洁扁平矢量
+Hand-painted fantasy	手绘奇幻
+Sci-fi neon hologram	科幻霓虹全息
+Pixel art	像素画
+Low-poly stylised	风格化低多边形
+Gritty realistic	粗粝写实
+Cartoon cel-shaded	卡通赛璐珞着色
+Match the original's mood	贴合原作的氛围
+Local AI on your graphics cards (free)	你显卡上的本地 AI（免费）
+Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	在这台电脑的显卡上按你选择的风格制作：图片，以及在 Blender 中完成的 3D 模型。
+Not running and can't be started: set it up in Settings → Local generation	未运行且无法启动：请在设置 → 本地生成中设置

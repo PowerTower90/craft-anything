@@ -17,6 +17,7 @@ pub mod install;
 pub mod jadx;
 #[cfg(test)]
 mod known_roots_tests;
+pub mod local_gen;
 pub mod mcp_client;
 pub mod rizin;
 pub mod table;

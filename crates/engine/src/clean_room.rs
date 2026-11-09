@@ -77,6 +77,12 @@ pub const TOOLS: &[&str] = &[
     "project_inventory_unsorted_terms",
     "project_inventory_rebuild_plan",
     "project_inventory_rebuild",
+    // Making new assets on this computer's graphics cards never looks inside the original.
+    "local_generation_status",
+    "local_generation_start",
+    "asset_generate_image",
+    "asset_generate_model",
+    "asset_generate_batch",
     "rebuild_start",
     "rebuild_status",
     "rebuild_activity_show",
