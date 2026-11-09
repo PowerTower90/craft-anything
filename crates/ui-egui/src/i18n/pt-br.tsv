@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Listar os recursos de um projeto
 Mark a project's assets	Marcar os recursos de um projeto
 Scan a project's assets	Examinar os recursos de um projeto
+All	Todos
+Analyse	Analisar
+Analyse the original to fill the lists. A large program takes a while.	Analise o original para preencher as listas. Um programa grande leva um tempo.
+Analysing the original can take a while. What the builder found is under Evidence already.	Analisar o original pode demorar. O que o construtor encontrou já está em Evidências.
+Another project's build is using the findings	A compilação de outro projeto está usando as descobertas
+Any status	Qualquer status
+Assets	Recursos
+Clean room never looks inside the original. Turn on Deep mode to see them.	A sala limpa nunca olha dentro do original. Ative o modo Profundo para vê-los.
+Clean room scans your build only. The original's assets need Deep mode.	A sala limpa só verifica a sua compilação. Os recursos do original precisam do modo Profundo.
+Clear selection	Limpar seleção
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Clique em um bloco para vê-lo aqui. Ctrl/⌘-clique ou Shift-clique escolhe vários.
+Couldn't read the asset list	Não foi possível ler a lista de recursos
+Leave project	Sair do projeto
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Lista cada imagem, modelo e som do que você está criando (e do original), para você ver o que substituir.
+Mark as	Marcar como
+Message to the builder	Mensagem para o construtor
+No assets listed yet	Nenhum recurso listado ainda
+No build of this project is running in this window.	Nenhuma compilação deste projeto está rodando nesta janela.
+No findings saved yet	Nenhuma descoberta salva ainda
+No original on this computer	Nenhum original neste computador
+No project open	Nenhum projeto aberto
+Not analysed yet	Ainda não analisado
+Not scanned yet.	Ainda não verificado.
+Note	Nota
+Nothing in this project's build log yet.	Ainda não há nada no registro de compilação deste projeto.
+Nothing said in this project yet.	Nada foi dito neste projeto ainda.
+Open a project to see its pictures, models and sounds.	Abra um projeto para ver suas imagens, modelos e sons.
+Open file location	Abrir local do arquivo
+Open the gallery	Abrir a galeria
+Open {name}'s findings	Abrir as descobertas de {name}
+Opening the findings…	Abrindo as descobertas…
+Opening the original…	Abrindo o original…
+Pick an asset	Escolha um recurso
+Project page	Página do projeto
+Project: {name}	Projeto: {name}
+Read the asset list	Ler a lista de recursos
+Reading the asset list…	Lendo a lista de recursos…
+Save note	Salvar nota
+Scan again	Verificar de novo
+Scan the assets	Verificar os recursos
+Scan the project to list its pictures, models and sounds.	Verifique o projeto para listar suas imagens, modelos e sons.
+Scanned: {n} assets.	Verificado: {n} recursos.
+Scanning the assets…	Verificando os recursos…
+Status	Status
+The gallery is in Advanced mode.	A galeria fica no modo Avançado.
+The original needs Deep mode	O original precisa do modo Profundo
+The original's assets need Deep mode	Os recursos do original precisam do modo Profundo
+This project's build	Compilação deste projeto
+Use the Workbench without this project.	Usar a bancada sem este projeto.
+What to replace it with, or why…	Com o que substituir, ou por quê…
+{n} evidence records	{n} registros de evidência
+{n} marked to replace	{n} marcados para substituir
+{n} of the original's assets need Deep mode to show.	{n} recursos do original precisam do modo Profundo para aparecer.
+{n} selected	{n} selecionados
+{n} shown	{n} exibidos
+Textures	Texturas
+Sprites	Sprites
+Models	Modelos
+Sounds	Sons
+Music	Música
+Fonts	Fontes
+Videos	Vídeos
+Maps	Mapas
+Materials	Materiais
+Engine assets	Recursos do motor
+Other files	Outros arquivos
+Generated	Gerado
+Library	Biblioteca
+Placeholder	Provisório
+Needs replacing	Precisa substituir
+Replaced	Substituído
+Keep	Manter
+Picture size	Tamanho da imagem
+Length	Duração
+Origin	Origem
+A note for the builder…	Uma nota para o construtor…
+Ask for a change…	Peça uma mudança…

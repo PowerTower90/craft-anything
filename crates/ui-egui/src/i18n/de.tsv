@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Assets eines Projekts auflisten
 Mark a project's assets	Assets eines Projekts markieren
 Scan a project's assets	Assets eines Projekts erfassen
+All	Alle
+Analyse	Analysieren
+Analyse the original to fill the lists. A large program takes a while.	Analysiere das Original, um die Listen zu füllen. Ein großes Programm braucht eine Weile.
+Analysing the original can take a while. What the builder found is under Evidence already.	Das Original zu analysieren kann dauern. Was der Builder gefunden hat, steht schon unter Belege.
+Another project's build is using the findings	Der Build eines anderen Projekts nutzt gerade die Befunde
+Any status	Jeder Status
+Assets	Assets
+Clean room never looks inside the original. Turn on Deep mode to see them.	Clean Room schaut nie ins Original. Schalte den Deep-Modus ein, um sie zu sehen.
+Clean room scans your build only. The original's assets need Deep mode.	Clean Room scannt nur deinen Build. Die Assets des Originals brauchen den Deep-Modus.
+Clear selection	Auswahl aufheben
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Klicke auf eine Kachel, um sie hier zu sehen. Strg/⌘-Klick oder Umschalt-Klick wählt mehrere.
+Couldn't read the asset list	Die Asset-Liste konnte nicht gelesen werden
+Leave project	Projekt verlassen
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Listet jedes Bild, jedes Modell und jeden Sound in dem, was du baust (und im Original), damit du siehst, was zu ersetzen ist.
+Mark as	Markieren als
+Message to the builder	Nachricht an den Builder
+No assets listed yet	Noch keine Assets aufgelistet
+No build of this project is running in this window.	In diesem Fenster läuft kein Build dieses Projekts.
+No findings saved yet	Noch keine Befunde gespeichert
+No original on this computer	Kein Original auf diesem Computer
+No project open	Kein Projekt geöffnet
+Not analysed yet	Noch nicht analysiert
+Not scanned yet.	Noch nicht gescannt.
+Note	Notiz
+Nothing in this project's build log yet.	Noch nichts im Build-Protokoll dieses Projekts.
+Nothing said in this project yet.	In diesem Projekt wurde noch nichts gesagt.
+Open a project to see its pictures, models and sounds.	Öffne ein Projekt, um seine Bilder, Modelle und Sounds zu sehen.
+Open file location	Speicherort öffnen
+Open the gallery	Galerie öffnen
+Open {name}'s findings	Befunde von {name} öffnen
+Opening the findings…	Befunde werden geöffnet…
+Opening the original…	Original wird geöffnet…
+Pick an asset	Wähle ein Asset
+Project page	Projektseite
+Project: {name}	Projekt: {name}
+Read the asset list	Asset-Liste lesen
+Reading the asset list…	Asset-Liste wird gelesen…
+Save note	Notiz speichern
+Scan again	Erneut scannen
+Scan the assets	Assets scannen
+Scan the project to list its pictures, models and sounds.	Scanne das Projekt, um seine Bilder, Modelle und Sounds aufzulisten.
+Scanned: {n} assets.	Gescannt: {n} Assets.
+Scanning the assets…	Assets werden gescannt…
+Status	Status
+The gallery is in Advanced mode.	Die Galerie gibt es im Modus Erweitert.
+The original needs Deep mode	Das Original braucht den Deep-Modus
+The original's assets need Deep mode	Die Assets des Originals brauchen den Deep-Modus
+This project's build	Build dieses Projekts
+Use the Workbench without this project.	Die Werkbank ohne dieses Projekt nutzen.
+What to replace it with, or why…	Womit ersetzen, oder warum…
+{n} evidence records	{n} Belege
+{n} marked to replace	{n} zum Ersetzen markiert
+{n} of the original's assets need Deep mode to show.	{n} Assets des Originals brauchen den Deep-Modus, um angezeigt zu werden.
+{n} selected	{n} ausgewählt
+{n} shown	{n} angezeigt
+Textures	Texturen
+Sprites	Sprites
+Models	Modelle
+Sounds	Sounds
+Music	Musik
+Fonts	Schriften
+Videos	Videos
+Maps	Karten
+Materials	Materialien
+Engine assets	Engine-Assets
+Other files	Andere Dateien
+Generated	Generiert
+Library	Bibliothek
+Placeholder	Platzhalter
+Needs replacing	Muss ersetzt werden
+Replaced	Ersetzt
+Keep	Behalten
+Picture size	Bildgröße
+Length	Länge
+Origin	Herkunft
+A note for the builder…	Eine Notiz für den Builder…
+Ask for a change…	Um eine Änderung bitten…

@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Bir projenin varlıklarını listele
 Mark a project's assets	Bir projenin varlıklarını işaretle
 Scan a project's assets	Bir projenin varlıklarını tara
+All	Tümü
+Analyse	Çözümle
+Analyse the original to fill the lists. A large program takes a while.	Listeleri doldurmak için orijinali çözümle. Büyük bir program biraz sürer.
+Analysing the original can take a while. What the builder found is under Evidence already.	Orijinali çözümlemek biraz sürebilir. Oluşturucunun bulduğu şeyler zaten Kanıt altında.
+Another project's build is using the findings	Başka bir projenin derlemesi bulguları kullanıyor
+Any status	Her durum
+Assets	Varlıklar
+Clean room never looks inside the original. Turn on Deep mode to see them.	Temiz oda orijinalin içine asla bakmaz. Görmek için Derin modu aç.
+Clean room scans your build only. The original's assets need Deep mode.	Temiz oda yalnızca derlemeni tarar. Orijinalin varlıkları için Derin mod gerekir.
+Clear selection	Seçimi temizle
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Burada görmek için bir kutucuğa tıkla. Ctrl/⌘ veya Shift ile tıklamak birkaçını seçer.
+Couldn't read the asset list	Varlık listesi okunamadı
+Leave project	Projeden çık
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Yaptığın şeydeki (ve orijinaldeki) her resmi, modeli ve sesi listeler; neyi değiştireceğini görürsün.
+Mark as	Şöyle işaretle
+Message to the builder	Oluşturucuya mesaj
+No assets listed yet	Henüz listelenen varlık yok
+No build of this project is running in this window.	Bu pencerede bu projenin derlemesi çalışmıyor.
+No findings saved yet	Henüz kaydedilmiş bulgu yok
+No original on this computer	Bu bilgisayarda orijinal yok
+No project open	Açık proje yok
+Not analysed yet	Henüz çözümlenmedi
+Not scanned yet.	Henüz taranmadı.
+Note	Not
+Nothing in this project's build log yet.	Bu projenin derleme günlüğünde henüz bir şey yok.
+Nothing said in this project yet.	Bu projede henüz bir şey söylenmedi.
+Open a project to see its pictures, models and sounds.	Resimlerini, modellerini ve seslerini görmek için bir proje aç.
+Open file location	Dosya konumunu aç
+Open the gallery	Galeriyi aç
+Open {name}'s findings	{name} bulgularını aç
+Opening the findings…	Bulgular açılıyor…
+Opening the original…	Orijinal açılıyor…
+Pick an asset	Bir varlık seç
+Project page	Proje sayfası
+Project: {name}	Proje: {name}
+Read the asset list	Varlık listesini oku
+Reading the asset list…	Varlık listesi okunuyor…
+Save note	Notu kaydet
+Scan again	Yeniden tara
+Scan the assets	Varlıkları tara
+Scan the project to list its pictures, models and sounds.	Resimlerini, modellerini ve seslerini listelemek için projeyi tara.
+Scanned: {n} assets.	Tarandı: {n} varlık.
+Scanning the assets…	Varlıklar taranıyor…
+Status	Durum
+The gallery is in Advanced mode.	Galeri Gelişmiş moddadır.
+The original needs Deep mode	Orijinal için Derin mod gerekir
+The original's assets need Deep mode	Orijinalin varlıkları için Derin mod gerekir
+This project's build	Bu projenin derlemesi
+Use the Workbench without this project.	Çalışma tezgâhını bu proje olmadan kullan.
+What to replace it with, or why…	Neyle değiştirilecek ya da neden…
+{n} evidence records	{n} kanıt kaydı
+{n} marked to replace	{n} değiştirilmek üzere işaretli
+{n} of the original's assets need Deep mode to show.	Orijinalin {n} varlığını göstermek için Derin mod gerekir.
+{n} selected	{n} seçili
+{n} shown	{n} gösteriliyor
+Textures	Dokular
+Sprites	Sprite'lar
+Models	Modeller
+Sounds	Sesler
+Music	Müzik
+Fonts	Yazı tipleri
+Videos	Videolar
+Maps	Haritalar
+Materials	Malzemeler
+Engine assets	Motor varlıkları
+Other files	Diğer dosyalar
+Generated	Üretildi
+Library	Kütüphane
+Placeholder	Yer tutucu
+Needs replacing	Değiştirilmeli
+Replaced	Değiştirildi
+Keep	Koru
+Picture size	Resim boyutu
+Length	Süre
+Origin	Kaynak
+A note for the builder…	Oluşturucu için bir not…
+Ask for a change…	Bir değişiklik iste…

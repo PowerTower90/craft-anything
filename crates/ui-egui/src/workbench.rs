@@ -5,7 +5,7 @@ use crate::evidence_ui::{self, json_tree, truncate};
 use crate::i18n::tr;
 use crate::state::{BottomTab, CenterTab, Fill, RailKind, RightTab};
 use crate::theme::{self, Tokens};
-use crate::{CraftApp, Pick, Route, chat, icons, widgets};
+use crate::{CraftApp, Pick, Route, assets_ui, chat, icons, wb_project, widgets};
 use craft_anything_engine::Consent;
 use egui::{Margin, RichText, Ui, Vec2};
 use serde_json::{Value, json};
@@ -95,6 +95,13 @@ fn row_text(v: &Value) -> String {
 
 pub fn show(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
+    // The open project, if any, is what the Workbench shows (`wb_project`).
+    app.follow_project();
+    if app.follow.on() {
+        egui::Panel::top("wb-project")
+            .frame(egui::Frame::new().fill(t.chrome).inner_margin(Margin::symmetric(10, 6)))
+            .show(ui, |ui| crate::guard_ui(ui, "project bar", |ui| wb_project::header(app, ui)));
+    }
     egui::Panel::left("wb-rail-icons")
         .exact_size(48.0)
         .resizable(false)
@@ -181,6 +188,10 @@ fn rail(app: &mut CraftApp, ui: &mut Ui) {
         targets_list(app, ui);
         return;
     }
+    if kind == RailKind::Assets {
+        assets_ui::rail(app, ui);
+        return;
+    }
     // Lent out while it's drawn, not copied every frame (a list can hold thousands of rows); a
     // reload started meanwhile (it puts Loading in its place) wins.
     let fill = app.state.lists.remove(&kind).unwrap_or_default();
@@ -214,6 +225,10 @@ fn rail_list(app: &mut CraftApp, ui: &mut Ui, kind: RailKind, fill: &Fill) {
         "Filter",
     );
     ui.add_space(6.0);
+    if app.view.active.is_none() && app.follow.original == wb_project::Step::DeepNeeded {
+        crate::engine_ui::deep_needed(app, ui);
+        return;
+    }
     if app.view.active.is_none() {
         widgets::empty_state(ui, "folder-open", "Nothing open", "Open a file or drop one here.");
         ui.vertical_centered(|ui| {
@@ -224,6 +239,7 @@ fn rail_list(app: &mut CraftApp, ui: &mut Ui, kind: RailKind, fill: &Fill) {
         return;
     }
     match fill {
+        Fill::Idle if app.follow.holds_lists() => wb_project::analyse_first(app, ui),
         Fill::Idle => {
             app.ensure_rail_loaded();
             ui.add(crate::widgets::Spinner::new().color(t.accent));
@@ -397,6 +413,13 @@ fn tab_strip(ui: &mut Ui, tabs: &[(&str, &str)], selected: usize) -> Option<usiz
 
 fn center(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
+    if app.state.rail == RailKind::Assets {
+        egui::Frame::new().inner_margin(Margin::same(14)).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            assets_ui::center(app, ui);
+        });
+        return;
+    }
     egui::Frame::new().fill(t.chrome).inner_margin(Margin::symmetric(8, 0)).show(ui, |ui| {
         ui.set_width(ui.available_width());
         let tabs: Vec<(&str, &str)> = CenterTab::ALL.iter().map(|c| (c.icon(), c.title())).collect();
@@ -752,6 +775,10 @@ fn kv(ui: &mut Ui, k: &str, v: &str, t: &Tokens) {
 
 fn inspector(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
+    if app.state.rail == RailKind::Assets {
+        assets_ui::inspector(app, ui);
+        return;
+    }
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         if let Some(sel) = app.state.selection.clone() {
             widgets::panel(&t).show(ui, |ui| {
@@ -912,9 +939,17 @@ fn bottom(app: &mut CraftApp, ui: &mut Ui) {
     });
     ui.painter().hline(ui.max_rect().x_range(), ui.cursor().top(), egui::Stroke::new(1.0, t.separator));
     ui.add_space(6.0);
+    let project = app.follow.on();
     match app.state.bottom {
+        BottomTab::Agent if project => wb_project::agent(app, ui),
         BottomTab::Agent => chat::conversation(app, ui, true),
-        BottomTab::Jobs => jobs(app, ui),
+        BottomTab::Jobs => {
+            if project {
+                wb_project::run_activity(app, ui);
+            }
+            jobs(app, ui)
+        }
+        BottomTab::Log if project => wb_project::log(app, ui),
         BottomTab::Log => log_view(app, ui),
     }
 }

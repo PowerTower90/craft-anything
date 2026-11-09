@@ -994,6 +994,7 @@ fn side(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
     timeline(app, ui);
     open_questions(app, ui);
     asset_line(app, ui, ws);
+    crate::assets_ui::card(app, ui, ws);
     if outcome(app).is_some() {
         outcome_button(app, ui, ws, 32.0, 12.5);
         ui.add_space(6.0);
@@ -1025,6 +1026,7 @@ fn side(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
             && widgets::secondary(ui, Some("microscope"), "Open in the workbench").on_hover_text(tr("The full toolset, evidence and logs.")).clicked()
         {
             app.state.screen = Screen::Workbench;
+            app.follow.off = None;
         }
     });
 }
@@ -1229,7 +1231,7 @@ fn stat_row(ui: &mut Ui, label: &str, value: &str) -> egui::Response {
     }
 }
 
-fn feed(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
+pub(crate) fn feed(app: &mut CraftApp, ui: &mut Ui, ws: &Workspace) {
     let t = Tokens::get(ui.ctx());
     let ctx = ui.ctx().clone();
     let mut answers: Vec<(String, Answer, String)> = Vec::new();
@@ -1492,7 +1494,7 @@ fn timeline(app: &mut CraftApp, ui: &mut Ui) {
 const NOW_LENGTH: usize = 90;
 
 /// "Now: Running cargo test (42s)", or what finished last between actions.
-fn now_words(app: &CraftApp, now: &ActivityNow) -> Option<String> {
+pub(crate) fn now_words(app: &CraftApp, now: &ActivityNow) -> Option<String> {
     let words = |a: &Action| {
         let registry = app.engine.registry();
         let w = a.words_with(|tool| registry.canonical(tool).and_then(|id| registry.get(id)).map(|s| s.title.to_string()));

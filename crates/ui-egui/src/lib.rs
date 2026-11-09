@@ -8,6 +8,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 pub mod approvals;
+pub mod assets_ui;
 pub mod builders;
 pub mod chat;
 pub mod demo;
@@ -42,6 +43,7 @@ pub mod state;
 pub mod theme;
 pub mod titlebar;
 pub mod usage;
+pub mod wb_project;
 pub mod widgets;
 pub mod workbench;
 
@@ -65,6 +67,7 @@ pub const USED_ICONS: &[&str] = &[
     "binary",
     "book-open",
     "bot",
+    "box",
     "boxes",
     "braces",
     "check",
@@ -80,6 +83,7 @@ pub const USED_ICONS: &[&str] = &[
     "download",
     "external-link",
     "file",
+    "film",
     "file-code",
     "fingerprint",
     "flask-conical",
@@ -91,6 +95,7 @@ pub const USED_ICONS: &[&str] = &[
     "hammer",
     "history",
     "house",
+    "image",
     "info",
     "key-round",
     "layers",
@@ -99,6 +104,7 @@ pub const USED_ICONS: &[&str] = &[
     "lock",
     "message-square",
     "microscope",
+    "music",
     "network",
     "package",
     "play",
@@ -119,8 +125,10 @@ pub const USED_ICONS: &[&str] = &[
     "terminal",
     "trash-2",
     "triangle-alert",
+    "type",
     "upload",
     "user",
+    "volume-2",
     "wand-sparkles",
     "workflow",
     "wrench",
@@ -272,6 +280,43 @@ pub enum Done {
     },
     /// Ghidra's headless launcher, if it's on this computer (looked for on a worker: it stats paths).
     GhidraLooked(Option<PathBuf>),
+    /// The asset gallery's list of a project (`assets_ui`).
+    AssetsListed {
+        root: PathBuf,
+        result: Result<assets_ui::Loaded, ToolError>,
+    },
+    /// A project's asset counts, for its card.
+    AssetsCounted {
+        root: PathBuf,
+        result: Result<assets_ui::Summary, ToolError>,
+    },
+    /// Assets were marked (project_inventory_mark's result).
+    AssetsMarked {
+        root: PathBuf,
+        result: Result<Value, ToolError>,
+    },
+    /// Gallery thumbnails were decoded (`None`: unreadable).
+    AssetThumbs {
+        root: PathBuf,
+        thumbs: Vec<(String, Option<egui::TextureHandle>)>,
+    },
+    /// A large picture of the gallery's focused item.
+    AssetPreview {
+        root: PathBuf,
+        id: String,
+        image: Option<egui::TextureHandle>,
+    },
+    /// A part of the project the Workbench follows was opened (`wb_project`).
+    Followed {
+        root: PathBuf,
+        part: wb_project::Part,
+        result: Result<Option<String>, ToolError>,
+    },
+    /// The end of the followed project's build log (`None`: unchanged or not there).
+    LogTail {
+        root: PathBuf,
+        tail: Option<(u64, Vec<String>)>,
+    },
     Nothing,
 }
 
@@ -591,6 +636,10 @@ pub struct CraftApp {
     pub pausing: std::collections::HashSet<PathBuf>,
     /// A feed item to scroll to on the next frame (a click on the side panel's build timeline).
     pub feed_jump: Option<usize>,
+    /// The asset gallery: the open project's inventory, filters, selection and thumbnails.
+    pub assets: assets_ui::Gallery,
+    /// The project the Workbench follows, and what was opened for it.
+    pub follow: wb_project::Follow,
     /// A build asked something since the last frame: the taskbar flashes if the window is behind.
     attention: bool,
     /// Jobs whose result goes into the conversation (a first look, an answer without an AI):
@@ -675,6 +724,8 @@ impl CraftApp {
             asking: Default::default(),
             pausing: Default::default(),
             feed_jump: None,
+            assets: Default::default(),
+            follow: Default::default(),
             pending_consent: Default::default(),
             next_consent: 1,
             attention: false,
@@ -1108,6 +1159,7 @@ impl CraftApp {
                 self.pin_done(tool, r)
             }
             ("project_rename" | "project_duplicate" | "project_delete", r) => self.managed(tool, r),
+            (craft_anything_engine::tools::inventory_tools::SCAN_TOOL, r) => self.assets_scanned(r),
             // The tool changed the session's plugin list; take it, so saving settings keeps it.
             ("plugins_add" | "plugins_remove", Ok(_)) => {
                 if let Some(s) = self.engine.try_session() {
@@ -1250,7 +1302,8 @@ impl CraftApp {
     /// Load the current rail list if it hasn't been.
     pub fn ensure_rail_loaded(&mut self) {
         let kind = self.state.rail;
-        if kind == RailKind::Targets || self.view.active.is_none() {
+        // The original a project was followed into waits for Analyse (`wb_project`).
+        if matches!(kind, RailKind::Targets | RailKind::Assets) || self.view.active.is_none() || self.follow.holds_lists() {
             return;
         }
         if matches!(self.state.lists.get(&kind), None | Some(Fill::Idle)) {
@@ -1259,6 +1312,9 @@ impl CraftApp {
     }
 
     pub fn load_rail(&mut self, kind: RailKind) {
+        if kind == RailKind::Assets {
+            return;
+        }
         let target = self.view.active_target().map(|t| (t.kind, t.path.display().to_string()));
         let Some(tool) = self.first_tool(kind.tools(target.as_ref().map(|t| t.0))) else {
             self.state.lists.insert(kind, Fill::Unavailable(i18n::trf("{name} isn't available yet in this build.", &[("name", &tr(kind.title()))])));
@@ -1529,6 +1585,10 @@ impl CraftApp {
                     self.ghidra_look_failed();
                 }
                 self.facts_read(job, None);
+                if self.assets.scanning == Some(job) {
+                    self.assets.scanning = None;
+                }
+                self.follow.job_failed(job);
                 // A failed or cancelled engine download frees the button to try again.
                 if self.engine_flow.job.is_some_and(|(_, id)| id == job) {
                     self.engine_flow.job = None;
@@ -1557,6 +1617,11 @@ impl CraftApp {
             Done::Created { ws, request, backend, pictures } => self.created(*ws, request, backend, pictures),
             Done::Thumb { path, image } => self.thumb_ready(path, image),
             Done::Preview { path, image } => self.preview_ready(path, image),
+            d @ (Done::AssetsListed { .. } | Done::AssetsCounted { .. } | Done::AssetsMarked { .. } | Done::AssetThumbs { .. } | Done::AssetPreview { .. }) => {
+                self.assets_done(d)
+            }
+            Done::Followed { root, part, result } => self.followed(root, part, result),
+            Done::LogTail { root, tail } => self.log_tail_read(root, tail),
             Done::Tool { tool, params, route, result } => self.tool_done(tool, params, route, result),
             Done::Acted { tool, result } => self.acted(tool, result),
             Done::Opened { path, result } => match result {

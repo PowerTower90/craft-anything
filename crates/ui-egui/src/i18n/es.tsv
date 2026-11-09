@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Listar los recursos de un proyecto
 Mark a project's assets	Marcar los recursos de un proyecto
 Scan a project's assets	Analizar los recursos de un proyecto
+All	Todos
+Analyse	Analizar
+Analyse the original to fill the lists. A large program takes a while.	Analiza el original para llenar las listas. Un programa grande tarda un rato.
+Analysing the original can take a while. What the builder found is under Evidence already.	Analizar el original puede tardar. Lo que encontró el constructor ya está en Evidencia.
+Another project's build is using the findings	La compilación de otro proyecto está usando los hallazgos
+Any status	Cualquier estado
+Assets	Recursos
+Clean room never looks inside the original. Turn on Deep mode to see them.	Clean room nunca mira dentro del original. Activa el modo Deep para verlos.
+Clean room scans your build only. The original's assets need Deep mode.	Clean room solo escanea tu compilación. Los recursos del original necesitan el modo Deep.
+Clear selection	Borrar la selección
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Haz clic en un mosaico para verlo aquí. Ctrl/⌘-clic o Mayús-clic elige varios.
+Couldn't read the asset list	No se pudo leer la lista de recursos
+Leave project	Salir del proyecto
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Enumera cada imagen, modelo y sonido de lo que estás creando (y del original), para que veas qué reemplazar.
+Mark as	Marcar como
+Message to the builder	Mensaje para el constructor
+No assets listed yet	Aún no hay recursos en la lista
+No build of this project is running in this window.	No hay ninguna compilación de este proyecto en curso en esta ventana.
+No findings saved yet	Aún no hay hallazgos guardados
+No original on this computer	No hay original en este equipo
+No project open	No hay ningún proyecto abierto
+Not analysed yet	Aún sin analizar
+Not scanned yet.	Aún sin escanear.
+Note	Nota
+Nothing in this project's build log yet.	Aún no hay nada en el registro de compilación de este proyecto.
+Nothing said in this project yet.	Aún no se ha dicho nada en este proyecto.
+Open a project to see its pictures, models and sounds.	Abre un proyecto para ver sus imágenes, modelos y sonidos.
+Open file location	Abrir la ubicación del archivo
+Open the gallery	Abrir la galería
+Open {name}'s findings	Abrir los hallazgos de {name}
+Opening the findings…	Abriendo los hallazgos…
+Opening the original…	Abriendo el original…
+Pick an asset	Elige un recurso
+Project page	Página del proyecto
+Project: {name}	Proyecto: {name}
+Read the asset list	Leer la lista de recursos
+Reading the asset list…	Leyendo la lista de recursos…
+Save note	Guardar la nota
+Scan again	Escanear de nuevo
+Scan the assets	Escanear los recursos
+Scan the project to list its pictures, models and sounds.	Escanea el proyecto para listar sus imágenes, modelos y sonidos.
+Scanned: {n} assets.	Escaneado: {n} recursos.
+Scanning the assets…	Escaneando los recursos…
+Status	Estado
+The gallery is in Advanced mode.	La galería está en el modo Avanzado.
+The original needs Deep mode	El original necesita el modo Deep
+The original's assets need Deep mode	Los recursos del original necesitan el modo Deep
+This project's build	Compilación de este proyecto
+Use the Workbench without this project.	Usar el banco de trabajo sin este proyecto.
+What to replace it with, or why…	Con qué reemplazarlo, o por qué…
+{n} evidence records	{n} registros de evidencia
+{n} marked to replace	{n} marcados para reemplazar
+{n} of the original's assets need Deep mode to show.	{n} recursos del original necesitan el modo Deep para mostrarse.
+{n} selected	{n} seleccionados
+{n} shown	{n} mostrados
+Textures	Texturas
+Sprites	Sprites
+Models	Modelos
+Sounds	Sonidos
+Music	Música
+Fonts	Fuentes
+Videos	Videos
+Maps	Mapas
+Materials	Materiales
+Engine assets	Recursos del motor
+Other files	Otros archivos
+Generated	Generado
+Library	Biblioteca
+Placeholder	Provisional
+Needs replacing	Hay que reemplazar
+Replaced	Reemplazado
+Keep	Conservar
+Picture size	Tamaño de la imagen
+Length	Duración
+Origin	Origen
+A note for the builder…	Una nota para el constructor…
+Ask for a change…	Pide un cambio…

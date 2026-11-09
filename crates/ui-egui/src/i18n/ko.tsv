@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	프로젝트 에셋 목록 보기
 Mark a project's assets	프로젝트 에셋 표시하기
 Scan a project's assets	프로젝트 에셋 검사하기
+All	전체
+Analyse	분석
+Analyse the original to fill the lists. A large program takes a while.	원본을 분석해 목록을 채웁니다. 큰 프로그램은 시간이 걸립니다.
+Analysing the original can take a while. What the builder found is under Evidence already.	원본 분석은 시간이 걸릴 수 있습니다. 빌더가 찾은 내용은 이미 근거에 있습니다.
+Another project's build is using the findings	다른 프로젝트의 빌드가 발견 사항을 사용 중입니다
+Any status	모든 상태
+Assets	에셋
+Clean room never looks inside the original. Turn on Deep mode to see them.	클린룸은 원본 내부를 보지 않습니다. 보려면 심층 모드를 켜세요.
+Clean room scans your build only. The original's assets need Deep mode.	클린룸은 내 빌드만 스캔합니다. 원본의 에셋은 심층 모드가 필요합니다.
+Clear selection	선택 해제
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	타일을 클릭하면 여기에 표시됩니다. Ctrl/⌘ 또는 Shift를 누르고 클릭하면 여러 개를 고릅니다.
+Couldn't read the asset list	에셋 목록을 읽을 수 없습니다
+Leave project	프로젝트에서 나가기
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	만들고 있는 것(과 원본)의 모든 그림, 모델, 소리를 나열해 무엇을 바꿀지 보여 줍니다.
+Mark as	표시
+Message to the builder	빌더에게 보낼 메시지
+No assets listed yet	아직 나열된 에셋이 없습니다
+No build of this project is running in this window.	이 창에서 실행 중인 이 프로젝트의 빌드가 없습니다.
+No findings saved yet	아직 저장된 발견 사항이 없습니다
+No original on this computer	이 컴퓨터에 원본이 없습니다
+No project open	열린 프로젝트가 없습니다
+Not analysed yet	아직 분석하지 않음
+Not scanned yet.	아직 스캔하지 않았습니다.
+Note	메모
+Nothing in this project's build log yet.	이 프로젝트의 빌드 로그에 아직 아무것도 없습니다.
+Nothing said in this project yet.	이 프로젝트에서 아직 나눈 대화가 없습니다.
+Open a project to see its pictures, models and sounds.	프로젝트를 열면 그 그림, 모델, 소리를 볼 수 있습니다.
+Open file location	파일 위치 열기
+Open the gallery	갤러리 열기
+Open {name}'s findings	{name}의 발견 사항 열기
+Opening the findings…	발견 사항을 여는 중…
+Opening the original…	원본을 여는 중…
+Pick an asset	에셋을 고르세요
+Project page	프로젝트 페이지
+Project: {name}	프로젝트: {name}
+Read the asset list	에셋 목록 읽기
+Reading the asset list…	에셋 목록을 읽는 중…
+Save note	메모 저장
+Scan again	다시 스캔
+Scan the assets	에셋 스캔
+Scan the project to list its pictures, models and sounds.	프로젝트를 스캔해 그림, 모델, 소리를 나열하세요.
+Scanned: {n} assets.	스캔 완료: 에셋 {n}개.
+Scanning the assets…	에셋을 스캔하는 중…
+Status	상태
+The gallery is in Advanced mode.	갤러리는 고급 모드에 있습니다.
+The original needs Deep mode	원본은 심층 모드가 필요합니다
+The original's assets need Deep mode	원본의 에셋은 심층 모드가 필요합니다
+This project's build	이 프로젝트의 빌드
+Use the Workbench without this project.	이 프로젝트 없이 작업대를 사용합니다.
+What to replace it with, or why…	무엇으로 바꿀지, 또는 이유…
+{n} evidence records	근거 {n}건
+{n} marked to replace	교체 표시 {n}개
+{n} of the original's assets need Deep mode to show.	원본의 에셋 {n}개를 보려면 심층 모드가 필요합니다.
+{n} selected	{n}개 선택됨
+{n} shown	{n}개 표시
+Textures	텍스처
+Sprites	스프라이트
+Models	모델
+Sounds	소리
+Music	음악
+Fonts	글꼴
+Videos	동영상
+Maps	맵
+Materials	머티리얼
+Engine assets	엔진 에셋
+Other files	기타 파일
+Generated	생성됨
+Library	라이브러리
+Placeholder	임시
+Needs replacing	교체 필요
+Replaced	교체됨
+Keep	유지
+Picture size	그림 크기
+Length	길이
+Origin	출처
+A note for the builder…	빌더에게 남길 메모…
+Ask for a change…	변경 요청…

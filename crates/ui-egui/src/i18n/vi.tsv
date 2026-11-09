@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Liệt kê tài nguyên của dự án
 Mark a project's assets	Đánh dấu tài nguyên của dự án
 Scan a project's assets	Quét tài nguyên của dự án
+All	Tất cả
+Analyse	Phân tích
+Analyse the original to fill the lists. A large program takes a while.	Phân tích bản gốc để điền các danh sách. Chương trình lớn sẽ mất một lúc.
+Analysing the original can take a while. What the builder found is under Evidence already.	Phân tích bản gốc có thể mất một lúc. Những gì trình dựng đã tìm thấy đã có trong Bằng chứng.
+Another project's build is using the findings	Bản dựng của một dự án khác đang dùng các phát hiện
+Any status	Mọi trạng thái
+Assets	Tài nguyên
+Clean room never looks inside the original. Turn on Deep mode to see them.	Phòng sạch không bao giờ xem bên trong bản gốc. Bật chế độ Chuyên sâu để xem chúng.
+Clean room scans your build only. The original's assets need Deep mode.	Phòng sạch chỉ quét bản dựng của bạn. Tài nguyên của bản gốc cần chế độ Chuyên sâu.
+Clear selection	Bỏ chọn
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Bấm vào một ô để xem ở đây. Ctrl/⌘-bấm hoặc Shift-bấm để chọn nhiều ô.
+Couldn't read the asset list	Không đọc được danh sách tài nguyên
+Leave project	Rời dự án
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Liệt kê mọi hình ảnh, mô hình và âm thanh trong thứ bạn đang làm (và trong bản gốc) để bạn thấy cần thay gì.
+Mark as	Đánh dấu là
+Message to the builder	Tin nhắn cho trình dựng
+No assets listed yet	Chưa có tài nguyên nào
+No build of this project is running in this window.	Không có bản dựng nào của dự án này đang chạy trong cửa sổ này.
+No findings saved yet	Chưa lưu phát hiện nào
+No original on this computer	Không có bản gốc trên máy này
+No project open	Chưa mở dự án nào
+Not analysed yet	Chưa phân tích
+Not scanned yet.	Chưa quét.
+Note	Ghi chú
+Nothing in this project's build log yet.	Nhật ký dựng của dự án này chưa có gì.
+Nothing said in this project yet.	Dự án này chưa có trao đổi nào.
+Open a project to see its pictures, models and sounds.	Mở một dự án để xem hình ảnh, mô hình và âm thanh của nó.
+Open file location	Mở vị trí tệp
+Open the gallery	Mở thư viện
+Open {name}'s findings	Mở phát hiện của {name}
+Opening the findings…	Đang mở các phát hiện…
+Opening the original…	Đang mở bản gốc…
+Pick an asset	Chọn một tài nguyên
+Project page	Trang dự án
+Project: {name}	Dự án: {name}
+Read the asset list	Đọc danh sách tài nguyên
+Reading the asset list…	Đang đọc danh sách tài nguyên…
+Save note	Lưu ghi chú
+Scan again	Quét lại
+Scan the assets	Quét tài nguyên
+Scan the project to list its pictures, models and sounds.	Quét dự án để liệt kê hình ảnh, mô hình và âm thanh của nó.
+Scanned: {n} assets.	Đã quét: {n} tài nguyên.
+Scanning the assets…	Đang quét tài nguyên…
+Status	Trạng thái
+The gallery is in Advanced mode.	Thư viện nằm trong chế độ Nâng cao.
+The original needs Deep mode	Bản gốc cần chế độ Chuyên sâu
+The original's assets need Deep mode	Tài nguyên của bản gốc cần chế độ Chuyên sâu
+This project's build	Bản dựng của dự án này
+Use the Workbench without this project.	Dùng Bàn làm việc mà không có dự án này.
+What to replace it with, or why…	Thay bằng gì, hoặc vì sao…
+{n} evidence records	{n} bằng chứng
+{n} marked to replace	{n} mục đánh dấu cần thay
+{n} of the original's assets need Deep mode to show.	{n} tài nguyên của bản gốc cần chế độ Chuyên sâu để hiển thị.
+{n} selected	Đã chọn {n}
+{n} shown	Đang hiện {n}
+Textures	Kết cấu
+Sprites	Sprite
+Models	Mô hình
+Sounds	Âm thanh
+Music	Nhạc
+Fonts	Phông chữ
+Videos	Video
+Maps	Bản đồ
+Materials	Vật liệu
+Engine assets	Tài nguyên engine
+Other files	Tệp khác
+Generated	Đã tạo
+Library	Thư viện có sẵn
+Placeholder	Tạm thời
+Needs replacing	Cần thay
+Replaced	Đã thay
+Keep	Giữ lại
+Picture size	Kích thước ảnh
+Length	Thời lượng
+Origin	Nguồn gốc
+A note for the builder…	Ghi chú cho trình dựng…
+Ask for a change…	Yêu cầu thay đổi…

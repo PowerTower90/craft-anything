@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Vypsat prostředky projektu
 Mark a project's assets	Označit prostředky projektu
 Scan a project's assets	Prohledat prostředky projektu
+All	Vše
+Analyse	Analyzovat
+Analyse the original to fill the lists. A large program takes a while.	Analyzujte originál, aby se seznamy naplnily. Velký program chvíli trvá.
+Analysing the original can take a while. What the builder found is under Evidence already.	Analýza originálu může chvíli trvat. Co sestavovatel našel, je už v Důkazech.
+Another project's build is using the findings	Zjištění právě používá sestavení jiného projektu
+Any status	Jakýkoli stav
+Assets	Prostředky
+Clean room never looks inside the original. Turn on Deep mode to see them.	Čistá místnost nikdy nenahlíží do originálu. Zapněte Hloubkový režim, abyste je viděli.
+Clean room scans your build only. The original's assets need Deep mode.	Čistá místnost prohledá jen vaše sestavení. Prostředky originálu vyžadují Hloubkový režim.
+Clear selection	Zrušit výběr
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Klikněte na dlaždici a uvidíte ji zde. Ctrl/⌘ nebo Shift s kliknutím vybere několik.
+Couldn't read the asset list	Seznam prostředků se nepodařilo načíst
+Leave project	Opustit projekt
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Vypíše každý obrázek, model a zvuk v tom, co vytváříte (i v originálu), abyste viděli, co nahradit.
+Mark as	Označit jako
+Message to the builder	Zpráva pro sestavovatele
+No assets listed yet	Zatím nejsou uvedeny žádné prostředky
+No build of this project is running in this window.	V tomto okně neběží žádné sestavení tohoto projektu.
+No findings saved yet	Zatím nejsou uložena žádná zjištění
+No original on this computer	Na tomto počítači není originál
+No project open	Není otevřen žádný projekt
+Not analysed yet	Zatím neanalyzováno
+Not scanned yet.	Zatím neprohledáno.
+Note	Poznámka
+Nothing in this project's build log yet.	V protokolu sestavení tohoto projektu zatím nic není.
+Nothing said in this project yet.	V tomto projektu zatím nic nezaznělo.
+Open a project to see its pictures, models and sounds.	Otevřete projekt a uvidíte jeho obrázky, modely a zvuky.
+Open file location	Otevřít umístění souboru
+Open the gallery	Otevřít galerii
+Open {name}'s findings	Otevřít zjištění projektu {name}
+Opening the findings…	Otevírám zjištění…
+Opening the original…	Otevírám originál…
+Pick an asset	Vyberte prostředek
+Project page	Stránka projektu
+Project: {name}	Projekt: {name}
+Read the asset list	Načíst seznam prostředků
+Reading the asset list…	Načítám seznam prostředků…
+Save note	Uložit poznámku
+Scan again	Prohledat znovu
+Scan the assets	Prohledat prostředky
+Scan the project to list its pictures, models and sounds.	Prohledejte projekt a vypíšou se jeho obrázky, modely a zvuky.
+Scanned: {n} assets.	Prohledáno: {n} prostředků.
+Scanning the assets…	Prohledávám prostředky…
+Status	Stav
+The gallery is in Advanced mode.	Galerie je v Pokročilém režimu.
+The original needs Deep mode	Originál vyžaduje Hloubkový režim
+The original's assets need Deep mode	Prostředky originálu vyžadují Hloubkový režim
+This project's build	Sestavení tohoto projektu
+Use the Workbench without this project.	Používat pracovní plochu bez tohoto projektu.
+What to replace it with, or why…	Čím nahradit, nebo proč…
+{n} evidence records	Důkazy: {n}
+{n} marked to replace	K nahrazení označeno: {n}
+{n} of the original's assets need Deep mode to show.	Prostředky originálu ({n}) se zobrazí jen v Hloubkovém režimu.
+{n} selected	Vybráno: {n}
+{n} shown	Zobrazeno: {n}
+Textures	Textury
+Sprites	Sprity
+Models	Modely
+Sounds	Zvuky
+Music	Hudba
+Fonts	Písma
+Videos	Videa
+Maps	Mapy
+Materials	Materiály
+Engine assets	Prostředky enginu
+Other files	Ostatní soubory
+Generated	Vygenerováno
+Library	Knihovna
+Placeholder	Zástupný
+Needs replacing	Nahradit
+Replaced	Nahrazeno
+Keep	Ponechat
+Picture size	Velikost obrázku
+Length	Délka
+Origin	Původ
+A note for the builder…	Poznámka pro sestavovatele…
+Ask for a change…	Požádat o změnu…

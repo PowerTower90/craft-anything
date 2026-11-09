@@ -85,6 +85,18 @@ const ACTIONS: &[Action] = &[
     a("Project › Open folder", "show the project folder in the file manager",  Tool(&["project_open_folder"])),
     a("Project › Details",   "switch to the Experienced workbench",            UiOnly("a view switch")),
 
+    // ---- Assets and the Workbench's project ----------------------------------------------------
+    a("load_assets",         "the project's assets in the gallery",            Tool(&["project_inventory_list"])),
+    a("count_assets",        "how many assets of each kind (the project page's card)", Tool(&["project_inventory_list"])),
+    a("scan_assets",         "scan a project's assets (the original's too in Deep mode)", Tool(&["project_inventory_scan"])),
+    a("mark_assets",         "mark assets: needs replacing, placeholder, keep, replaced", Tool(&["project_inventory_mark"])),
+    a("save_asset_note",     "a note on an asset",                             Tool(&["project_inventory_mark"])),
+    a("open_asset_gallery",  "the Workbench's asset gallery",                  UiOnly("navigation; project_inventory_list lists the same items")),
+    a("reveal_asset",        "show an asset's file in the file manager",       UiOnly("the file manager belongs to the desktop; project_inventory_list gives each file's path")),
+    a("follow_project",      "the Workbench shows the open project: its findings and its original", Cli("tool <id> --project")),
+    a("leave_project_context", "use the Workbench without the open project",   UiOnly("navigation")),
+    a("analyse_followed",    "analyse the followed project's original",        UiOnly("a view; each list is a tool call by id")),
+
     // ---- Engines, Deep mode and assets --------------------------------------------------------
     a("refresh_game_engines","which game engines are on this computer",        Tool(&["engines_list"])),
     a("get_engine",          "download or install a game engine",              Tool(&["engines_install"])),
@@ -172,6 +184,8 @@ const PLUMBING: &[(&str, &str)] = &[
     ("resume", "part of follow_up"), ("poll_run", "polling"), ("launch", "part of start_run: RunSet::start, the queue rebuild_start uses too"),
     ("thumb_ready", "a job's result"), ("thumb", "drawing"), ("refresh_side_panel", "a view tally"),
     ("previews", "drawing"), ("preview", "drawing"), ("preview_ready", "a job's result"),
+    ("open_project_investigation", "part of follow_project"), ("open_project_original", "part of follow_project (core_target_open)"),
+    ("tail_project_log", "drawing: reads build-activity.log on a worker"), ("want_asset_thumbs", "drawing"), ("want_asset_preview", "drawing"),
 ];
 
 fn crate_dir() -> PathBuf {

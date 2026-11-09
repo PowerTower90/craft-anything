@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	პროექტის რესურსების ჩამონათვალი
 Mark a project's assets	პროექტის რესურსების მონიშვნა
 Scan a project's assets	პროექტის რესურსების სკანირება
+All	ყველა
+Analyse	ანალიზი
+Analyse the original to fill the lists. A large program takes a while.	გააანალიზე ორიგინალი სიების შესავსებად. დიდ პროგრამას დრო სჭირდება.
+Analysing the original can take a while. What the builder found is under Evidence already.	ორიგინალის ანალიზს შეიძლება დრო დასჭირდეს. რაც შემქმნელმა იპოვა, უკვე მტკიცებულებებშია.
+Another project's build is using the findings	სხვა პროექტის აწყობა ახლა მიგნებებს იყენებს
+Any status	ნებისმიერი სტატუსი
+Assets	რესურსები
+Clean room never looks inside the original. Turn on Deep mode to see them.	სუფთა ოთახი ორიგინალს შიგნით არასდროს ათვალიერებს. მათ სანახავად ჩართე ღრმა რეჟიმი.
+Clean room scans your build only. The original's assets need Deep mode.	სუფთა ოთახი მხოლოდ შენს აწყობას ასკანერებს. ორიგინალის რესურსებს ღრმა რეჟიმი სჭირდება.
+Clear selection	მონიშვნის მოხსნა
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	დააწკაპუნე ფილაზე, რომ აქ ნახო. Ctrl/⌘ ან Shift დაწკაპუნებით რამდენიმეს აირჩევ.
+Couldn't read the asset list	რესურსების სია ვერ წავიკითხე
+Leave project	პროექტიდან გასვლა
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	ჩამოთვლის ყველა სურათს, მოდელსა და ხმას იმაში, რასაც ქმნი (და ორიგინალში), რომ დაინახო, რა შეცვალო.
+Mark as	მონიშვნა როგორც
+Message to the builder	შეტყობინება შემქმნელს
+No assets listed yet	რესურსები ჯერ არ არის ჩამოთვლილი
+No build of this project is running in this window.	ამ ფანჯარაში ამ პროექტის აწყობა არ მიმდინარეობს.
+No findings saved yet	მიგნებები ჯერ არ არის შენახული
+No original on this computer	ამ კომპიუტერზე ორიგინალი არ არის
+No project open	პროექტი არ არის გახსნილი
+Not analysed yet	ჯერ არ არის გაანალიზებული
+Not scanned yet.	ჯერ არ არის დასკანერებული.
+Note	შენიშვნა
+Nothing in this project's build log yet.	ამ პროექტის აწყობის ჟურნალში ჯერ არაფერია.
+Nothing said in this project yet.	ამ პროექტში ჯერ არაფერი თქმულა.
+Open a project to see its pictures, models and sounds.	გახსენი პროექტი, რომ ნახო მისი სურათები, მოდელები და ხმები.
+Open file location	ფაილის ადგილის გახსნა
+Open the gallery	გალერეის გახსნა
+Open {name}'s findings	{name}-ის მიგნებების გახსნა
+Opening the findings…	მიგნებები იხსნება…
+Opening the original…	ორიგინალი იხსნება…
+Pick an asset	აირჩიე რესურსი
+Project page	პროექტის გვერდი
+Project: {name}	პროექტი: {name}
+Read the asset list	რესურსების სიის წაკითხვა
+Reading the asset list…	რესურსების სია იკითხება…
+Save note	შენიშვნის შენახვა
+Scan again	ხელახლა სკანირება
+Scan the assets	რესურსების სკანირება
+Scan the project to list its pictures, models and sounds.	დაასკანერე პროექტი, რომ მისი სურათები, მოდელები და ხმები ჩამოითვალოს.
+Scanned: {n} assets.	დასკანერდა: {n} რესურსი.
+Scanning the assets…	რესურსები სკანირდება…
+Status	სტატუსი
+The gallery is in Advanced mode.	გალერეა დამატებით რეჟიმშია.
+The original needs Deep mode	ორიგინალს ღრმა რეჟიმი სჭირდება
+The original's assets need Deep mode	ორიგინალის რესურსებს ღრმა რეჟიმი სჭირდება
+This project's build	ამ პროექტის აწყობა
+Use the Workbench without this project.	სამუშაო მაგიდის გამოყენება ამ პროექტის გარეშე.
+What to replace it with, or why…	რით შევცვალო, ან რატომ…
+{n} evidence records	{n} მტკიცებულება
+{n} marked to replace	{n} მონიშნულია შესაცვლელად
+{n} of the original's assets need Deep mode to show.	ორიგინალის {n} რესურსის საჩვენებლად ღრმა რეჟიმია საჭირო.
+{n} selected	{n} მონიშნულია
+{n} shown	ნაჩვენებია {n}
+Textures	ტექსტურები
+Sprites	სპრაიტები
+Models	მოდელები
+Sounds	ხმები
+Music	მუსიკა
+Fonts	შრიფტები
+Videos	ვიდეოები
+Maps	რუკები
+Materials	მასალები
+Engine assets	ძრავის რესურსები
+Other files	სხვა ფაილები
+Generated	გენერირებული
+Library	ბიბლიოთეკა
+Placeholder	დროებითი
+Needs replacing	შესაცვლელია
+Replaced	შეცვლილია
+Keep	დატოვება
+Picture size	სურათის ზომა
+Length	ხანგრძლივობა
+Origin	წარმომავლობა
+A note for the builder…	შენიშვნა შემქმნელისთვის…
+Ask for a change…	ცვლილების თხოვნა…

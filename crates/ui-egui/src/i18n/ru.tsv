@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Список ресурсов проекта
 Mark a project's assets	Отметить ресурсы проекта
 Scan a project's assets	Просканировать ресурсы проекта
+All	Все
+Analyse	Проанализировать
+Analyse the original to fill the lists. A large program takes a while.	Проанализируйте оригинал, чтобы заполнить списки. Большая программа анализируется долго.
+Analysing the original can take a while. What the builder found is under Evidence already.	Анализ оригинала может занять время. То, что нашёл сборщик, уже есть в «Доказательствах».
+Another project's build is using the findings	Сборка другого проекта сейчас использует находки
+Any status	Любой статус
+Assets	Ресурсы
+Clean room never looks inside the original. Turn on Deep mode to see them.	«Чистая комната» никогда не заглядывает внутрь оригинала. Включите режим «Глубокий», чтобы их увидеть.
+Clean room scans your build only. The original's assets need Deep mode.	«Чистая комната» сканирует только вашу сборку. Для ресурсов оригинала нужен режим «Глубокий».
+Clear selection	Снять выделение
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Нажмите на плитку, чтобы увидеть её здесь. Ctrl/⌘ или Shift с щелчком выбирают несколько.
+Couldn't read the asset list	Не удалось прочитать список ресурсов
+Leave project	Выйти из проекта
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Перечисляет все изображения, модели и звуки в том, что вы делаете (и в оригинале), чтобы было видно, что заменить.
+Mark as	Отметить как
+Message to the builder	Сообщение сборщику
+No assets listed yet	Ресурсы ещё не перечислены
+No build of this project is running in this window.	В этом окне сборка этого проекта не идёт.
+No findings saved yet	Находок пока не сохранено
+No original on this computer	Оригинала нет на этом компьютере
+No project open	Проект не открыт
+Not analysed yet	Ещё не проанализировано
+Not scanned yet.	Ещё не просканировано.
+Note	Заметка
+Nothing in this project's build log yet.	В журнале сборки этого проекта пока ничего нет.
+Nothing said in this project yet.	В этом проекте пока ничего не сказано.
+Open a project to see its pictures, models and sounds.	Откройте проект, чтобы увидеть его изображения, модели и звуки.
+Open file location	Открыть расположение файла
+Open the gallery	Открыть галерею
+Open {name}'s findings	Открыть находки проекта {name}
+Opening the findings…	Открываем находки…
+Opening the original…	Открываем оригинал…
+Pick an asset	Выберите ресурс
+Project page	Страница проекта
+Project: {name}	Проект: {name}
+Read the asset list	Прочитать список ресурсов
+Reading the asset list…	Читаем список ресурсов…
+Save note	Сохранить заметку
+Scan again	Сканировать снова
+Scan the assets	Сканировать ресурсы
+Scan the project to list its pictures, models and sounds.	Просканируйте проект, чтобы перечислить его изображения, модели и звуки.
+Scanned: {n} assets.	Просканировано: ресурсов — {n}.
+Scanning the assets…	Сканируем ресурсы…
+Status	Статус
+The gallery is in Advanced mode.	Галерея есть в расширенном режиме.
+The original needs Deep mode	Для оригинала нужен режим «Глубокий»
+The original's assets need Deep mode	Для ресурсов оригинала нужен режим «Глубокий»
+This project's build	Сборка этого проекта
+Use the Workbench without this project.	Пользоваться рабочим местом без этого проекта.
+What to replace it with, or why…	Чем заменить или почему…
+{n} evidence records	Доказательств: {n}
+{n} marked to replace	Отмечено для замены: {n}
+{n} of the original's assets need Deep mode to show.	Чтобы показать ресурсы оригинала ({n}), нужен режим «Глубокий».
+{n} selected	Выбрано: {n}
+{n} shown	Показано: {n}
+Textures	Текстуры
+Sprites	Спрайты
+Models	Модели
+Sounds	Звуки
+Music	Музыка
+Fonts	Шрифты
+Videos	Видео
+Maps	Карты
+Materials	Материалы
+Engine assets	Ресурсы движка
+Other files	Другие файлы
+Generated	Сгенерировано
+Library	Библиотека
+Placeholder	Заглушка
+Needs replacing	Нужно заменить
+Replaced	Заменено
+Keep	Оставить
+Picture size	Размер изображения
+Length	Длительность
+Origin	Происхождение
+A note for the builder…	Заметка для сборщика…
+Ask for a change…	Попросить изменение…

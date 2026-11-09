@@ -190,10 +190,12 @@ pub enum RailKind {
     Classes,
     Modules,
     Resources,
+    /// The open project's pictures, models and sounds (its asset inventory).
+    Assets,
 }
 
 impl RailKind {
-    pub const ALL: [RailKind; 8] = [
+    pub const ALL: [RailKind; 9] = [
         RailKind::Targets,
         RailKind::Functions,
         RailKind::Strings,
@@ -202,6 +204,7 @@ impl RailKind {
         RailKind::Classes,
         RailKind::Modules,
         RailKind::Resources,
+        RailKind::Assets,
     ];
 
     pub fn title(self) -> &'static str {
@@ -214,6 +217,7 @@ impl RailKind {
             RailKind::Classes => "Classes",
             RailKind::Modules => "Modules",
             RailKind::Resources => "Resources",
+            RailKind::Assets => "Assets",
         }
     }
 
@@ -227,6 +231,7 @@ impl RailKind {
             RailKind::Classes => "boxes",
             RailKind::Modules => "package",
             RailKind::Resources => "folder-open",
+            RailKind::Assets => "image",
         }
     }
 
@@ -247,6 +252,8 @@ impl RailKind {
             },
             RailKind::Modules => &["js_app_map"],
             RailKind::Resources => &["native_pe_resources_list"],
+            // Not a list of the target: the gallery reads it page by page (assets_ui).
+            RailKind::Assets => &["project_inventory_list"],
         }
     }
 }

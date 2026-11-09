@@ -926,3 +926,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	プロジェクトのアセットを一覧表示
 Mark a project's assets	プロジェクトのアセットに印を付ける
 Scan a project's assets	プロジェクトのアセットをスキャン
+All	すべて
+Analyse	解析する
+Analyse the original to fill the lists. A large program takes a while.	元の版を解析して一覧を埋めます。大きなプログラムでは時間がかかります。
+Analysing the original can take a while. What the builder found is under Evidence already.	元の版の解析には時間がかかることがあります。ビルダーが見つけたことはすでにエビデンスにあります。
+Another project's build is using the findings	別のプロジェクトのビルドが調査結果を使用中です
+Any status	すべての状態
+Assets	アセット
+Clean room never looks inside the original. Turn on Deep mode to see them.	外から観察モードでは元の版の中を見ません。表示するには中まで解析モードをオンにしてください。
+Clean room scans your build only. The original's assets need Deep mode.	外から観察モードではあなたのビルドだけをスキャンします。元の版のアセットには中まで解析モードが必要です。
+Clear selection	選択を解除
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	タイルをクリックするとここに表示されます。Ctrl/⌘ クリックか Shift クリックで複数選べます。
+Couldn't read the asset list	アセット一覧を読み込めませんでした
+Leave project	プロジェクトから離れる
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	作っているもの（と元の版）にある画像・モデル・サウンドをすべて一覧にし、何を差し替えるか分かるようにします。
+Mark as	マーク
+Message to the builder	ビルダーへのメッセージ
+No assets listed yet	まだアセットがありません
+No build of this project is running in this window.	このウィンドウではこのプロジェクトのビルドは動いていません。
+No findings saved yet	保存された調査結果はまだありません
+No original on this computer	このコンピューターに元の版はありません
+No project open	プロジェクトが開かれていません
+Not analysed yet	まだ解析していません
+Not scanned yet.	まだスキャンしていません。
+Note	メモ
+Nothing in this project's build log yet.	このプロジェクトのビルドログはまだ空です。
+Nothing said in this project yet.	このプロジェクトではまだ何も話していません。
+Open a project to see its pictures, models and sounds.	プロジェクトを開くと、その画像・モデル・サウンドが表示されます。
+Open file location	ファイルの場所を開く
+Open the gallery	ギャラリーを開く
+Open {name}'s findings	{name} の調査結果を開く
+Opening the findings…	調査結果を開いています…
+Opening the original…	元の版を開いています…
+Pick an asset	アセットを選んでください
+Project page	プロジェクトページ
+Project: {name}	プロジェクト: {name}
+Read the asset list	アセット一覧を読み込む
+Reading the asset list…	アセット一覧を読み込んでいます…
+Save note	メモを保存
+Scan again	もう一度スキャン
+Scan the assets	アセットをスキャン
+Scan the project to list its pictures, models and sounds.	プロジェクトをスキャンして、画像・モデル・サウンドを一覧にします。
+Scanned: {n} assets.	スキャン完了: {n} 個のアセット。
+Scanning the assets…	アセットをスキャンしています…
+Status	状態
+The gallery is in Advanced mode.	ギャラリーはアドバンストモードにあります。
+The original needs Deep mode	元の版には中まで解析モードが必要です
+The original's assets need Deep mode	元の版のアセットには中まで解析モードが必要です
+This project's build	このプロジェクトのビルド
+Use the Workbench without this project.	このプロジェクトなしでワークベンチを使います。
+What to replace it with, or why…	何に差し替えるか、その理由…
+{n} evidence records	エビデンス {n} 件
+{n} marked to replace	差し替え予定 {n} 件
+{n} of the original's assets need Deep mode to show.	元の版のアセット {n} 件を表示するには中まで解析モードが必要です。
+{n} selected	{n} 件を選択中
+{n} shown	{n} 件を表示
+Textures	テクスチャ
+Sprites	スプライト
+Models	モデル
+Sounds	サウンド
+Music	音楽
+Fonts	フォント
+Videos	動画
+Maps	マップ
+Materials	マテリアル
+Engine assets	エンジンのアセット
+Other files	その他のファイル
+Generated	生成済み
+Library	ライブラリ
+Placeholder	仮置き
+Needs replacing	差し替えが必要
+Replaced	差し替え済み
+Keep	そのまま
+Picture size	画像サイズ
+Length	長さ
+Origin	出どころ
+A note for the builder…	ビルダーへのメモ…
+Ask for a change…	変更を頼む…

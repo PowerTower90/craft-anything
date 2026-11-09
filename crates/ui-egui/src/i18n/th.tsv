@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	แสดงรายการแอสเซ็ตของโปรเจกต์
 Mark a project's assets	ทำเครื่องหมายแอสเซ็ตของโปรเจกต์
 Scan a project's assets	สแกนแอสเซ็ตของโปรเจกต์
+All	ทั้งหมด
+Analyse	วิเคราะห์
+Analyse the original to fill the lists. A large program takes a while.	วิเคราะห์ต้นฉบับเพื่อเติมรายการ โปรแกรมขนาดใหญ่ใช้เวลาสักพัก
+Analysing the original can take a while. What the builder found is under Evidence already.	การวิเคราะห์ต้นฉบับอาจใช้เวลาสักพัก สิ่งที่ตัวสร้างพบอยู่ในหลักฐานแล้ว
+Another project's build is using the findings	การสร้างของโปรเจกต์อื่นกำลังใช้สิ่งที่พบอยู่
+Any status	ทุกสถานะ
+Assets	แอสเซท
+Clean room never looks inside the original. Turn on Deep mode to see them.	Clean room จะไม่ดูภายในต้นฉบับ เปิดโหมด Deep เพื่อดู
+Clean room scans your build only. The original's assets need Deep mode.	Clean room สแกนเฉพาะงานสร้างของคุณ แอสเซทของต้นฉบับต้องใช้โหมด Deep
+Clear selection	ล้างการเลือก
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	คลิกไทล์เพื่อดูที่นี่ Ctrl/⌘ หรือ Shift พร้อมคลิกเพื่อเลือกหลายรายการ
+Couldn't read the asset list	อ่านรายการแอสเซทไม่ได้
+Leave project	ออกจากโปรเจกต์
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	แสดงรายการรูปภาพ โมเดล และเสียงทุกชิ้นในสิ่งที่คุณกำลังสร้าง (และในต้นฉบับ) เพื่อให้เห็นว่าจะแทนที่อะไร
+Mark as	ทำเครื่องหมายเป็น
+Message to the builder	ข้อความถึงตัวสร้าง
+No assets listed yet	ยังไม่มีแอสเซทในรายการ
+No build of this project is running in this window.	ไม่มีการสร้างของโปรเจกต์นี้ทำงานอยู่ในหน้าต่างนี้
+No findings saved yet	ยังไม่มีสิ่งที่พบที่บันทึกไว้
+No original on this computer	ไม่มีต้นฉบับในคอมพิวเตอร์นี้
+No project open	ไม่มีโปรเจกต์ที่เปิดอยู่
+Not analysed yet	ยังไม่ได้วิเคราะห์
+Not scanned yet.	ยังไม่ได้สแกน
+Note	บันทึก
+Nothing in this project's build log yet.	ยังไม่มีอะไรในบันทึกการสร้างของโปรเจกต์นี้
+Nothing said in this project yet.	ยังไม่มีการสนทนาในโปรเจกต์นี้
+Open a project to see its pictures, models and sounds.	เปิดโปรเจกต์เพื่อดูรูปภาพ โมเดล และเสียงของมัน
+Open file location	เปิดตำแหน่งไฟล์
+Open the gallery	เปิดแกลเลอรี
+Open {name}'s findings	เปิดสิ่งที่พบของ {name}
+Opening the findings…	กำลังเปิดสิ่งที่พบ…
+Opening the original…	กำลังเปิดต้นฉบับ…
+Pick an asset	เลือกแอสเซท
+Project page	หน้าโปรเจกต์
+Project: {name}	โปรเจกต์: {name}
+Read the asset list	อ่านรายการแอสเซท
+Reading the asset list…	กำลังอ่านรายการแอสเซท…
+Save note	บันทึกโน้ต
+Scan again	สแกนอีกครั้ง
+Scan the assets	สแกนแอสเซท
+Scan the project to list its pictures, models and sounds.	สแกนโปรเจกต์เพื่อแสดงรายการรูปภาพ โมเดล และเสียง
+Scanned: {n} assets.	สแกนแล้ว: {n} แอสเซท
+Scanning the assets…	กำลังสแกนแอสเซท…
+Status	สถานะ
+The gallery is in Advanced mode.	แกลเลอรีอยู่ในโหมดขั้นสูง
+The original needs Deep mode	ต้นฉบับต้องใช้โหมด Deep
+The original's assets need Deep mode	แอสเซทของต้นฉบับต้องใช้โหมด Deep
+This project's build	การสร้างของโปรเจกต์นี้
+Use the Workbench without this project.	ใช้เวิร์กเบนช์โดยไม่มีโปรเจกต์นี้
+What to replace it with, or why…	จะแทนที่ด้วยอะไร หรือเพราะอะไร…
+{n} evidence records	หลักฐาน {n} รายการ
+{n} marked to replace	ทำเครื่องหมายให้แทนที่ {n} รายการ
+{n} of the original's assets need Deep mode to show.	แอสเซทของต้นฉบับ {n} รายการต้องใช้โหมด Deep จึงจะแสดง
+{n} selected	เลือกแล้ว {n} รายการ
+{n} shown	แสดง {n} รายการ
+Textures	เท็กซ์เจอร์
+Sprites	สไปรต์
+Models	โมเดล
+Sounds	เสียง
+Music	เพลง
+Fonts	ฟอนต์
+Videos	วิดีโอ
+Maps	แผนที่
+Materials	วัสดุ
+Engine assets	แอสเซทของเอนจิน
+Other files	ไฟล์อื่น
+Generated	สร้างขึ้นแล้ว
+Library	ไลบรารี
+Placeholder	ตัวแทนชั่วคราว
+Needs replacing	ต้องแทนที่
+Replaced	แทนที่แล้ว
+Keep	เก็บไว้
+Picture size	ขนาดรูปภาพ
+Length	ความยาว
+Origin	ที่มา
+A note for the builder…	โน้ตถึงตัวสร้าง…
+Ask for a change…	ขอให้เปลี่ยน…

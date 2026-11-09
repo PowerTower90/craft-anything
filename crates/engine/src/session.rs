@@ -310,6 +310,24 @@ impl Session {
         self.unknowns.get_mut(id)
     }
 
+    /// Close the open project, if any: its evidence and unknowns leave memory (they stay on disk in
+    /// the project), so the next project opened shows only its own. Records made while no
+    /// project was open stay. Does disk I/O (lists the project's records): call on a worker.
+    pub fn close_project(&mut self) -> Option<Project> {
+        let project = self.project.take()?;
+        let ids: std::collections::HashSet<String> = project.evidence_ids().into_iter().collect();
+        self.ledger.retain(|id, _| !ids.contains(id));
+        self.order.retain(|id| !ids.contains(id));
+        if let Ok(unknowns) = project.load_unknowns() {
+            for u in unknowns {
+                self.unknowns.remove(&u.id);
+            }
+        }
+        self.unloaded_evidence = 0;
+        crate::tools::investigation_tools::cache(self, Default::default());
+        Some(project)
+    }
+
     /// Open a project: its evidence and unknowns become available.
     ///
     /// The newest stored records (by write time) are loaded into the ledger, up to
@@ -348,5 +366,31 @@ impl Session {
         let investigation = crate::tools::investigation_tools::load(self);
         crate::tools::investigation_tools::cache(self, investigation);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::project::Purpose;
+
+    #[test]
+    fn closing_a_project_drops_only_its_records() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::isolated(dir.path());
+        session.put_unknown(Unknown::new("Asked before any project", "general", craft_anything_evidence::Severity::Low)).unwrap();
+        let a = Project::create(&dir.path().join("a.cany"), "A", Purpose::Education).unwrap();
+        session.open_project(a).unwrap();
+        session.put_unknown(Unknown::new("Only in A", "general", craft_anything_evidence::Severity::Low)).unwrap();
+        assert_eq!(session.unknowns().count(), 2);
+        let closed = session.close_project().unwrap();
+        assert_eq!(closed.meta.name, "A");
+        assert!(session.project.is_none());
+        let left: Vec<&str> = session.unknowns().map(|u| u.question.as_str()).collect();
+        assert_eq!(left, ["Asked before any project"]);
+        // Reopening brings A's back from disk.
+        session.open_project(Project::open(&dir.path().join("a.cany")).unwrap()).unwrap();
+        assert_eq!(session.unknowns().count(), 2);
+        assert!(Session::isolated(dir.path()).close_project().is_none());
     }
 }

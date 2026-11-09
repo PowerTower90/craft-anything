@@ -1498,3 +1498,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	Elenca le risorse di un progetto
 Mark a project's assets	Contrassegna le risorse di un progetto
 Scan a project's assets	Analizza le risorse di un progetto
+All	Tutti
+Analyse	Analizza
+Analyse the original to fill the lists. A large program takes a while.	Analizza l'originale per riempire gli elenchi. Un programma grande richiede un po' di tempo.
+Analysing the original can take a while. What the builder found is under Evidence already.	Analizzare l'originale può richiedere un po'. Ciò che il costruttore ha trovato è già in Prove.
+Another project's build is using the findings	La build di un altro progetto sta usando i risultati
+Any status	Qualsiasi stato
+Assets	Risorse
+Clean room never looks inside the original. Turn on Deep mode to see them.	Camera bianca non guarda mai dentro l'originale. Attiva la modalità Approfondita per vederle.
+Clean room scans your build only. The original's assets need Deep mode.	Camera bianca analizza solo la tua build. Le risorse dell'originale richiedono la modalità Approfondita.
+Clear selection	Annulla la selezione
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	Fai clic su un riquadro per vederlo qui. Ctrl/⌘-clic o Maiusc-clic ne sceglie diversi.
+Couldn't read the asset list	Impossibile leggere l'elenco delle risorse
+Leave project	Esci dal progetto
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	Elenca ogni immagine, modello e suono di ciò che stai creando (e dell'originale), così vedi cosa sostituire.
+Mark as	Segna come
+Message to the builder	Messaggio al costruttore
+No assets listed yet	Nessuna risorsa ancora elencata
+No build of this project is running in this window.	In questa finestra non è in corso nessuna build di questo progetto.
+No findings saved yet	Nessun risultato ancora salvato
+No original on this computer	Nessun originale su questo computer
+No project open	Nessun progetto aperto
+Not analysed yet	Non ancora analizzato
+Not scanned yet.	Non ancora analizzato.
+Note	Nota
+Nothing in this project's build log yet.	Ancora niente nel registro di build di questo progetto.
+Nothing said in this project yet.	In questo progetto non è ancora stato detto nulla.
+Open a project to see its pictures, models and sounds.	Apri un progetto per vederne immagini, modelli e suoni.
+Open file location	Apri il percorso del file
+Open the gallery	Apri la galleria
+Open {name}'s findings	Apri i risultati di {name}
+Opening the findings…	Apertura dei risultati…
+Opening the original…	Apertura dell'originale…
+Pick an asset	Scegli una risorsa
+Project page	Pagina del progetto
+Project: {name}	Progetto: {name}
+Read the asset list	Leggi l'elenco delle risorse
+Reading the asset list…	Lettura dell'elenco delle risorse…
+Save note	Salva la nota
+Scan again	Analizza di nuovo
+Scan the assets	Analizza le risorse
+Scan the project to list its pictures, models and sounds.	Analizza il progetto per elencarne immagini, modelli e suoni.
+Scanned: {n} assets.	Analisi completata: {n} risorse.
+Scanning the assets…	Analisi delle risorse…
+Status	Stato
+The gallery is in Advanced mode.	La galleria è nella modalità Avanzato.
+The original needs Deep mode	L'originale richiede la modalità Approfondita
+The original's assets need Deep mode	Le risorse dell'originale richiedono la modalità Approfondita
+This project's build	Build di questo progetto
+Use the Workbench without this project.	Usa il banco di lavoro senza questo progetto.
+What to replace it with, or why…	Con cosa sostituirlo, o perché…
+{n} evidence records	{n} prove
+{n} marked to replace	{n} da sostituire
+{n} of the original's assets need Deep mode to show.	{n} risorse dell'originale richiedono la modalità Approfondita per essere mostrate.
+{n} selected	{n} selezionati
+{n} shown	{n} mostrati
+Textures	Texture
+Sprites	Sprite
+Models	Modelli
+Sounds	Suoni
+Music	Musica
+Fonts	Font
+Videos	Video
+Maps	Mappe
+Materials	Materiali
+Engine assets	Risorse del motore
+Other files	Altri file
+Generated	Generato
+Library	Libreria
+Placeholder	Segnaposto
+Needs replacing	Da sostituire
+Replaced	Sostituito
+Keep	Mantieni
+Picture size	Dimensioni dell'immagine
+Length	Durata
+Origin	Origine
+A note for the builder…	Una nota per il costruttore…
+Ask for a change…	Chiedi una modifica…

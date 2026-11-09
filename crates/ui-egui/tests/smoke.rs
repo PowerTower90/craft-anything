@@ -3617,3 +3617,233 @@ fn a_build_on_another_screen_is_named_in_the_title_bar_and_opens_from_it() {
     assert!(runs.finish(&a.root));
     h.run_steps(2);
 }
+
+/// A project's inventory with two pictures (with thumbnails), a sound and a model, one of them
+/// marked to replace.
+fn asset_fixture(root: &std::path::Path) {
+    use craft_anything_engine::inventory::{self, INVENTORY_VERSION, Inventory, Item, Kind, Source, Status};
+    use craft_anything_engine::tools::web_common::{Image, encode_png};
+    let thumbs = root.join("reference/thumbs");
+    std::fs::create_dir_all(&thumbs).unwrap();
+    let png = encode_png(&Image { width: 4, height: 4, rgba: vec![200; 64] }).unwrap();
+    std::fs::write(thumbs.join("rock.png"), &png).unwrap();
+    std::fs::write(thumbs.join("grass.png"), &png).unwrap();
+    let mut rock = Item::new(Source::Original, "game.assets#1", Kind::Texture, "Rock", Status::Original);
+    rock.origin = Some("game.assets#1".into());
+    rock.thumb = Some("reference/thumbs/rock.png".into());
+    (rock.width, rock.height, rock.bytes) = (Some(4), Some(4), 64);
+    let mut grass = Item::new(Source::Build, "app/Assets/grass.png", Kind::Texture, "grass", Status::Placeholder);
+    grass.path = Some("app/Assets/grass.png".into());
+    grass.thumb = Some("reference/thumbs/grass.png".into());
+    let mut jump = Item::new(Source::Original, "game.assets#2", Kind::Sound, "Jump", Status::Original);
+    (jump.duration_secs, jump.bytes) = (Some(2.16), 114_912);
+    let mut model = Item::new(Source::Build, "app/Assets/crate.glb", Kind::Model, "Crate", Status::NeedsReplacing);
+    model.path = Some("app/Assets/crate.glb".into());
+    let inv = Inventory {
+        version: INVENTORY_VERSION,
+        build_scanned_ms: Some(1),
+        original_scanned_ms: Some(1),
+        items: vec![rock, grass, jump, model],
+        ..Default::default()
+    };
+    inventory::save(root, &inv).unwrap();
+}
+
+/// A game project with the asset fixture.
+fn asset_project(dir: &std::path::Path) -> craft_anything_engine::workspace::Workspace {
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let mut ws = Workspace::create(dir, "Snake", "A snake game", TargetRef::None).unwrap();
+    ws.manifest.stack = "Unity".into();
+    ws.save().unwrap();
+    asset_fixture(&ws.root);
+    ws
+}
+
+#[test]
+fn the_asset_gallery_lists_filters_and_marks_a_projects_assets() {
+    use craft_anything_engine::inventory::{self, Status};
+    let d = tempfile::tempdir().unwrap();
+    let ws = asset_project(d.path());
+    let root = ws.root.clone();
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 4), "the gallery read the inventory through project_inventory_list");
+    h.run_steps(2);
+    assert_eq!(h.state().state.rail, RailKind::Assets);
+    for name in ["Rock", "grass", "Jump", "Crate"] {
+        h.get_by_label(name);
+    }
+    // Thumbnails are decoded on workers for the tiles in view, then kept.
+    assert!(wait(&mut h, |a| craft_anything_ui_egui::assets_ui::cached_thumbs(a) == 2), "both thumbnails loaded");
+    // The kind chips carry their counts; one filters the grid.
+    h.get_by_label("Sounds 1").click();
+    h.run_steps(2);
+    assert!(h.query_by_label("Rock").is_none(), "only sounds are shown");
+    h.get_by_label("Jump");
+    h.get_by_label("Textures 2").click();
+    h.run_steps(2);
+    assert!(h.query_by_label("Jump").is_none());
+    h.get_by_label("Rock").click();
+    h.run_steps(6);
+    // The inspector shows it, and marking it goes through project_inventory_mark.
+    h.get_by_label("Mark as: Needs replacing").click();
+    assert!(wait(&mut h, |a| a.assets.items.iter().any(|i| i.name == "Rock" && i.status == Status::NeedsReplacing)), "the tile shows the new status");
+    let saved = inventory::load(&root).unwrap();
+    assert!(saved.items.iter().any(|i| i.name == "Rock" && i.status == Status::NeedsReplacing && i.marked_ms.is_some()), "saved in inventory.json");
+    // The status filter now finds it with the model that was already marked.
+    h.get_by_label("All 4").click();
+    h.get_all_by_label("Needs replacing").next().unwrap().click();
+    h.run_steps(2);
+    let app = h.state_mut();
+    let shown: Vec<String> = app.assets.shown().to_vec().iter().map(|i| app.assets.items[*i].name.clone()).collect();
+    assert_eq!(shown, ["Rock", "Crate"]);
+    h.get_by_label("Crate");
+}
+
+#[test]
+fn the_project_pages_assets_card_counts_and_opens_the_gallery() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = asset_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.summary.is_some()), "the card counted the assets");
+    h.run_steps(2);
+    assert_eq!(h.state().state.screen, Screen::Project);
+    h.get_by_label("Textures 2 · Models 1 · Sounds 1");
+    h.get_by_label("1 marked to replace");
+    h.get_by_label("Open the gallery").click();
+    h.run_steps(2);
+    assert_eq!(h.state().state.screen, Screen::Workbench);
+    assert_eq!(h.state().state.rail, RailKind::Assets);
+    assert!(wait(&mut h, |a| a.assets.items.len() == 4), "the gallery opened on this project's assets");
+    h.run_steps(2);
+    h.get_by_label("Project: Snake");
+}
+
+#[test]
+fn a_project_without_an_inventory_offers_a_scan_and_clean_room_scans_the_build_only() {
+    use craft_anything_engine::tools::web_common::{Image, encode_png};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let d = tempfile::tempdir().unwrap();
+    let mut ws = Workspace::create(d.path(), "Snake", "A snake game", TargetRef::None).unwrap();
+    ws.manifest.stack = "Unity".into();
+    ws.save().unwrap();
+    std::fs::create_dir_all(ws.app_dir()).unwrap();
+    std::fs::write(ws.app_dir().join("hero.png"), encode_png(&Image { width: 2, height: 2, rgba: vec![9; 16] }).unwrap()).unwrap();
+    let root = ws.root.clone();
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        a.open_workspace(ws);
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.summary.is_some()));
+    h.run_steps(2);
+    h.get_by_label("Not scanned yet.");
+    h.get_by_label("Scan the assets").click();
+    // Clean room: project_inventory_scan reads the build (app/) only.
+    assert!(wait(&mut h, |a| a.assets.scanning.is_none() && a.assets.summary.as_ref().is_some_and(|s| s.items == 1)), "scanned");
+    assert!(root.join("inventory.json").is_file());
+    h.run_steps(2);
+    h.get_by_label("Textures 1");
+}
+
+#[test]
+fn the_workbench_follows_the_open_project() {
+    use craft_anything_engine::evidence::{Severity, Unknown};
+    use craft_anything_engine::project::{Project, Purpose};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    use craft_anything_ui_egui::state::{FeedItem, UserItem};
+    use craft_anything_ui_egui::wb_project::Step;
+    let d = tempfile::tempdir().unwrap();
+    let program = d.path().join("calculator");
+    std::fs::write(&program, demo::sample_program()).unwrap();
+    let ws = Workspace::create(d.path(), "Snake", "A snake game", TargetRef::Local { path: program }).unwrap();
+    let investigation = Project::create(&ws.investigation_dir(), "Snake", Purpose::default()).unwrap();
+    investigation.store_unknown(&Unknown::new("Does the snake speed up as it grows?", "gameplay", Severity::Medium)).unwrap();
+    let feed =
+        [FeedItem::User(UserItem::Text("Make a snake game".into())), FeedItem::Agent { text: "The snake moves and grows now.".into(), streaming: false }];
+    craft_anything_engine::feed::save(&ws.root, &feed).unwrap();
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a.state.screen = Screen::Workbench;
+        a
+    });
+    assert!(
+        wait(&mut h, |a| matches!(a.follow.investigation, Step::Done(_)) && matches!(a.follow.original, Step::Done(_))),
+        "the investigation and the original were opened"
+    );
+    h.run_steps(3);
+    h.get_by_label("Project: Snake");
+    // The original isn't analysed until asked.
+    assert!(h.state().follow.holds_lists());
+    h.get_all_by_label("Analyse").next().unwrap().click();
+    h.run_steps(2);
+    assert!(!h.state().follow.holds_lists());
+    // The console's Agent tab is the project's conversation.
+    h.get_by_label("Agent").click();
+    h.run_steps(2);
+    h.get_by_label_contains("The snake moves and grows now.");
+    // What the builder couldn't establish is under Unknowns.
+    h.get_by_label("Unknowns").click();
+    h.run_steps(2);
+    h.get_by_label("Does the snake speed up as it grows?");
+    // Leaving the project's context gives back the plain Workbench.
+    h.get_by_label("Leave project").click();
+    h.run_steps(2);
+    assert!(!h.state().follow.on());
+    assert!(h.query_by_label("Project: Snake").is_none());
+}
+
+#[test]
+fn the_workbench_shows_a_running_builds_activity_and_sends_it_notes() {
+    use craft_anything_ai::rebuild::{RunEvent, StandIns, Step};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let d = tempfile::tempdir().unwrap();
+    let a = Workspace::create(d.path(), "Alpha", "A notes app", TargetRef::None).unwrap();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().to_path_buf(), runs.clone());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut app = stand_in_app(dir, &r);
+        app.settings.mode = Mode::Experienced;
+        app
+    });
+    h.run_steps(2);
+    h.state_mut().open_workspace(a.clone());
+    h.state_mut().follow_up(Some("Add tags".into()));
+    h.run_steps(2);
+    assert!(runs.send(&a.root, RunEvent::Step { step: Step::Build, text: "Building the tag list".into() }));
+    h.state_mut().state.screen = Screen::Workbench;
+    h.run_steps(3);
+    h.get_by_label("Project: Alpha");
+    // Jobs: the build's own activity, above the app's jobs.
+    h.query_all_by_label_contains("Jobs").next().unwrap().click();
+    h.run_steps(2);
+    h.get_by_label_contains("Building the tag list");
+    // Agent: a note for the builder while it works (the note path the project page uses).
+    h.get_by_label("Agent").click();
+    h.run_steps(2);
+    h.state_mut().state.project_input = "Make them blue".into();
+    h.run_steps(1);
+    h.get_by_label("Send").click();
+    h.run_steps(2);
+    assert!(h.state().runs.get(&a.root).unwrap().waiting().iter().any(|n| n.shown == "Make them blue"), "the note waits for the builder");
+    // Log: the project's build-activity.log, read on a worker.
+    h.get_by_label("Log").click();
+    assert!(wait(&mut h, |app| app.follow.log.iter().any(|l| l.contains("Building the tag list"))), "the build log was read");
+    h.run_steps(2);
+    h.get_by_label_contains("Building the tag list");
+    h.state_mut().pause();
+    assert!(runs.finish(&a.root));
+    h.run_steps(2);
+}

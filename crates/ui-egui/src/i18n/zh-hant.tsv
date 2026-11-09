@@ -1496,3 +1496,80 @@ Runs the checks on what's built now, without the builder. It's ready to try when
 List a project's assets	列出專案的資源
 Mark a project's assets	標記專案的資源
 Scan a project's assets	掃描專案的資源
+All	全部
+Analyse	分析
+Analyse the original to fill the lists. A large program takes a while.	分析原作以填入清單。大型程式需要一些時間。
+Analysing the original can take a while. What the builder found is under Evidence already.	分析原作可能需要一些時間。建構者的發現已經在「證據」中。
+Another project's build is using the findings	另一個專案的建構正在使用這些發現
+Any status	任何狀態
+Assets	素材
+Clean room never looks inside the original. Turn on Deep mode to see them.	淨室從不查看原作內部。開啟深度模式即可查看。
+Clean room scans your build only. The original's assets need Deep mode.	淨室只掃描你的建構。原作的素材需要深度模式。
+Clear selection	清除選取
+Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.	點選一個圖塊即可在此查看。按住 Ctrl/⌘ 或 Shift 點選可選取多個。
+Couldn't read the asset list	無法讀取素材清單
+Leave project	離開專案
+Lists every picture, model and sound in what you're making (and in the original), so you can see what to replace.	列出你正在製作的內容（以及原作）中的每張圖片、模型和聲音，方便你看出要替換什麼。
+Mark as	標記為
+Message to the builder	給建構者的訊息
+No assets listed yet	尚未列出素材
+No build of this project is running in this window.	此視窗中沒有正在執行的此專案建構。
+No findings saved yet	尚未儲存任何發現
+No original on this computer	這台電腦上沒有原作
+No project open	未開啟專案
+Not analysed yet	尚未分析
+Not scanned yet.	尚未掃描。
+Note	備註
+Nothing in this project's build log yet.	此專案的建構記錄中還沒有內容。
+Nothing said in this project yet.	這個專案裡還沒有任何對話。
+Open a project to see its pictures, models and sounds.	開啟一個專案即可查看它的圖片、模型和聲音。
+Open file location	開啟檔案位置
+Open the gallery	開啟圖庫
+Open {name}'s findings	開啟 {name} 的發現
+Opening the findings…	正在開啟發現…
+Opening the original…	正在開啟原作…
+Pick an asset	選擇一個素材
+Project page	專案頁面
+Project: {name}	專案：{name}
+Read the asset list	讀取素材清單
+Reading the asset list…	正在讀取素材清單…
+Save note	儲存備註
+Scan again	重新掃描
+Scan the assets	掃描素材
+Scan the project to list its pictures, models and sounds.	掃描專案即可列出它的圖片、模型和聲音。
+Scanned: {n} assets.	掃描完成：{n} 個素材。
+Scanning the assets…	正在掃描素材…
+Status	狀態
+The gallery is in Advanced mode.	圖庫在進階模式中。
+The original needs Deep mode	原作需要深度模式
+The original's assets need Deep mode	原作的素材需要深度模式
+This project's build	此專案的建構
+Use the Workbench without this project.	不帶這個專案使用工作臺。
+What to replace it with, or why…	替換成什麼，或者原因…
+{n} evidence records	{n} 筆證據
+{n} marked to replace	{n} 個標記為待替換
+{n} of the original's assets need Deep mode to show.	原作的 {n} 個素材需要深度模式才能顯示。
+{n} selected	已選取 {n} 個
+{n} shown	顯示 {n} 個
+Textures	紋理
+Sprites	精靈圖
+Models	模型
+Sounds	音效
+Music	音樂
+Fonts	字型
+Videos	影片
+Maps	地圖
+Materials	材質
+Engine assets	引擎素材
+Other files	其他檔案
+Generated	已生成
+Library	素材庫
+Placeholder	佔位
+Needs replacing	需要替換
+Replaced	已替換
+Keep	保留
+Picture size	圖片尺寸
+Length	時長
+Origin	來源位置
+A note for the builder…	給建構者的備註…
+Ask for a change…	請求修改…
