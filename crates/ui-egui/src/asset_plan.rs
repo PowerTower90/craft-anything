@@ -1,0 +1,479 @@
+//! Asset categories in the app: the category list (the gallery's main filter), a category per
+//! item, and rebuilding a category (or a selection) the cheapest way, through the project's own
+//! builder. The sorting rules, the methods and their costs are the engine's
+//! ([`craft_anything_engine::asset_categories`], [`craft_anything_engine::asset_rebuild`]); this
+//! draws them and calls their tools on workers.
+
+use crate::assets_ui::{Summary, count, kind_words};
+use crate::i18n::{tr, trf};
+use crate::state::Screen;
+use crate::theme::{self, Tokens};
+use crate::{CraftApp, Done, icons, widgets};
+use craft_anything_engine::evidence::ToolError;
+use craft_anything_engine::inventory::{Category, CategoryBy, Item, Kind};
+use craft_anything_engine::{CallOptions, Caller, Consent, Engine};
+use egui::{Margin, RichText, Sense, Ui, Vec2};
+use serde::Deserialize;
+use serde_json::{Value, json};
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+/// What the builder is asked when the person wants the Unsorted assets sorted. Fixed words (not
+/// translated): they're for the agent.
+pub const SORT_BRIEF: &str = "Sort this project's Unsorted assets into categories (characters, enemies, weapons, items, machines, hud, environment, effects, music). \
+Call project_inventory_unsorted_terms to see the most common words among them, then add project terms with project_inventory_category_rules \
+(a few terms usually sort thousands of items; they win over the built-in keywords), and use project_inventory_categorize for the odd ones. \
+Repeat until few are left. Don't change items a person sorted. This costs no money: don't use paid services. Say what you sorted when you're done.";
+
+pub fn category_icon(c: Category) -> &'static str {
+    match c {
+        Category::Characters => "user",
+        Category::Enemies => "bug",
+        Category::Weapons => "wrench",
+        Category::Items => "package",
+        Category::Machines => "box",
+        Category::Hud => "app-window",
+        Category::Environment => "globe",
+        Category::Effects => "sparkles",
+        Category::Music => "music",
+        Category::Unsorted => "circle-help",
+    }
+}
+
+/// One way to remake a kind, as project_inventory_rebuild_plan gives it.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct PlanOption {
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub detail: String,
+    pub credits: u64,
+    pub available: bool,
+    #[serde(default)]
+    pub why: Option<String>,
+}
+
+/// One kind of asset in a plan.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct PlanRow {
+    pub kind: Kind,
+    pub count: usize,
+    pub method: String,
+    pub available: bool,
+    pub credits: u64,
+    pub options: Vec<PlanOption>,
+}
+
+/// A plan, as project_inventory_rebuild_plan gives it.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct PlanView {
+    #[serde(default)]
+    pub category: Option<Category>,
+    pub items: usize,
+    pub rows: Vec<PlanRow>,
+    pub total_credits: u64,
+}
+
+/// The plan dialog: what it's for, the methods chosen, and the plan once read.
+#[derive(Debug, Clone, Default)]
+pub struct PlanState {
+    pub root: PathBuf,
+    pub category: Option<Category>,
+    pub ids: Vec<String>,
+    /// Kind id → method id the person chose.
+    pub methods: BTreeMap<String, String>,
+    pub view: Option<Result<PlanView, String>>,
+    pub loading: bool,
+    pub starting: bool,
+}
+
+fn call(engine: &Engine, tool: &str, params: Value, job: &crate::jobs::JobCtx) -> Result<Value, ToolError> {
+    let opts = CallOptions::new(Caller::Ui).with_consent(Consent::Granted).with_cancel(job.cancel.clone());
+    engine.call(tool, params, opts).map(|o| o.to_json().get("result").cloned().unwrap_or(Value::Null))
+}
+
+impl CraftApp {
+    /// Show the plan for rebuilding a category of the open project's assets, or items by id.
+    pub fn open_rebuild_plan(&mut self, category: Option<Category>, ids: Vec<String>) {
+        let Some(root) = self.workspace.as_ref().map(|w| w.root.clone()) else { return };
+        self.assets.plan = Some(PlanState { root, category, ids, ..Default::default() });
+        self.load_rebuild_plan();
+    }
+
+    /// Change one kind's method in the open plan (it's read again).
+    pub fn choose_rebuild_method(&mut self, kind: Kind, method: &str) {
+        if let Some(p) = self.assets.plan.as_mut() {
+            p.methods.insert(kind.id().to_string(), method.to_string());
+        }
+        self.load_rebuild_plan();
+    }
+
+    /// Read the open plan (project_inventory_rebuild_plan) on a worker.
+    fn load_rebuild_plan(&mut self) {
+        let Some(p) = self.assets.plan.as_mut() else { return };
+        p.loading = true;
+        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods});
+        let (engine, root) = (self.engine.clone(), p.root.clone());
+        self.jobs.spawn("Plan a rebuild", false, move |j| {
+            let result = call(&engine, "project_inventory_rebuild_plan", params, j)
+                .and_then(|v| serde_json::from_value::<PlanView>(v).map_err(|e| ToolError::internal(format!("The plan couldn't be read: {e}"))));
+            Ok(Done::AssetPlan { root, result })
+        });
+    }
+
+    /// Start the open plan: project_inventory_rebuild writes the list and marks the items, then
+    /// the brief goes to the project's builder the way a typed change does.
+    pub fn start_asset_rebuild(&mut self) {
+        let Some(p) = self.assets.plan.as_mut().filter(|p| !p.starting) else { return };
+        p.starting = true;
+        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "send": false});
+        let (engine, root) = (self.engine.clone(), p.root.clone());
+        self.jobs.spawn(tr("Start a rebuild"), true, move |j| {
+            let result = call(&engine, "project_inventory_rebuild", params, j);
+            Ok(Done::AssetRebuildStarted { root, result })
+        });
+    }
+
+    /// Put items in a category, as the person's choice (project_inventory_categorize, by: user).
+    pub fn categorize_assets(&mut self, ids: Vec<String>, category: Category) {
+        let Some(root) = self.workspace.as_ref().map(|w| w.root.clone()) else { return };
+        if ids.is_empty() {
+            return;
+        }
+        let engine = self.engine.clone();
+        self.jobs.spawn("Sort assets", false, move |j| {
+            let result = call(&engine, "project_inventory_categorize", json!({"project": root, "ids": ids, "category": category, "by": "user"}), j);
+            Ok(Done::AssetsCategorized { root, ids, category, result })
+        });
+    }
+
+    /// Ask the project's builder to sort the Unsorted assets with the sorting tools ([`SORT_BRIEF`]).
+    pub fn sort_unsorted_with_agent(&mut self) {
+        let Some(root) = self.workspace.as_ref().map(|w| w.root.clone()) else { return };
+        self.deliver(root, SORT_BRIEF.to_string(), Vec::new(), Ok(Vec::new()));
+        self.toast(tr("Sent to the builder. Its sorting shows here as it goes."), false);
+    }
+
+    /// A plan, rebuild or sorting worker finished.
+    pub(crate) fn asset_plan_done(&mut self, done: Done) {
+        match done {
+            Done::AssetPlan { root, result } => {
+                if let Some(p) = self.assets.plan.as_mut().filter(|p| p.root == root) {
+                    p.loading = false;
+                    p.view = Some(result.map_err(|e| e.for_people()));
+                }
+            }
+            Done::AssetRebuildStarted { root, result } => {
+                if let Some(p) = self.assets.plan.as_mut() {
+                    p.starting = false;
+                }
+                match result {
+                    Ok(v) => {
+                        let n = v["started"].as_u64().unwrap_or(0);
+                        let brief = v["brief"].as_str().unwrap_or_default().to_string();
+                        self.assets.plan = None;
+                        if n == 0 || brief.is_empty() {
+                            return self.toast(tr("Nothing to rebuild: every kind is kept or not set up yet."), true);
+                        }
+                        self.toast(trf("{n} assets sent to the builder.", &[("n", &count(n))]), false);
+                        // The marks changed: read the list and the counts again.
+                        self.assets.summary = None;
+                        if self.assets.root.as_ref() == Some(&root) {
+                            self.load_assets();
+                        }
+                        self.count_assets(&root);
+                        if self.workspace.as_ref().is_some_and(|w| w.root == root) {
+                            self.deliver(root, brief, Vec::new(), Ok(Vec::new()));
+                        }
+                    }
+                    Err(e) => self.toast(e.for_people(), true),
+                }
+            }
+            Done::AssetsCategorized { root, ids, category, result } => match result {
+                Ok(_) => {
+                    if self.assets.root.as_ref() == Some(&root) {
+                        self.assets.set_category(&ids, category, CategoryBy::User);
+                    }
+                    if self.assets.summary.as_ref().is_some_and(|s| s.root == root) {
+                        self.assets.summary = None;
+                        self.count_assets(&root);
+                    }
+                }
+                Err(e) => self.toast(e.for_people(), true),
+            },
+            _ => {}
+        }
+    }
+}
+
+/// The gallery's category list: icon, name, count and Rebuild… for each category with items;
+/// a click shows only that category (again: all of them).
+pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
+    let t = Tokens::get(ui.ctx());
+    widgets::caption(ui, "Category");
+    let mut pick = None;
+    let mut rebuild = None;
+    for c in Category::ALL {
+        let n = app.assets.category_count(c);
+        let on = app.assets.category == Some(c);
+        if n == 0 && !on {
+            continue;
+        }
+        // One row exactly as wide as the rail: the name and count, then Rebuild… at the end. (A
+        // row wider than the rail would widen it, every frame, moving the grid under the pointer.)
+        let (full, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 26.0), Sense::hover());
+        let rebuild_words = tr("Rebuild…");
+        let rg = ui.painter().layout_no_wrap(rebuild_words, egui::FontId::proportional(theme::CAPTION), t.accent_ink);
+        let rebuild_w = if n > 0 { rg.size().x + 14.0 } else { 0.0 };
+        let rect = egui::Rect::from_min_max(full.min, egui::pos2((full.right() - rebuild_w - 4.0).max(full.left() + 40.0), full.bottom()));
+        let resp = ui.interact(rect, egui::Id::new(("asset-category", c.id())), Sense::click());
+        let label = format!("{} {}", tr(c.title()), count(n as u64));
+        resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, on, &label));
+        let fill = if on { t.accent_soft } else { theme::mix(egui::Color32::TRANSPARENT, t.hover, widgets::hover_t(ui, &resp)) };
+        ui.painter().rect_filled(rect, t.r_sm(), fill);
+        icons::paint(
+            ui,
+            egui::Rect::from_min_size(rect.min + Vec2::new(6.0, 5.0), Vec2::splat(16.0)),
+            category_icon(c),
+            14.0,
+            if on { t.accent_ink } else { t.icon },
+        );
+        let num = ui.painter().layout_no_wrap(count(n as u64), theme::mono(theme::CAPTION), t.text_faint);
+        let name_clip = egui::Rect::from_min_max(rect.min, egui::pos2(rect.right() - num.size().x - 10.0, rect.bottom()));
+        let name = ui.painter().layout_no_wrap(tr(c.title()), egui::FontId::proportional(theme::CAPTION), t.text);
+        ui.painter().with_clip_rect(name_clip).galley(egui::pos2(rect.left() + 28.0, rect.center().y - name.size().y / 2.0), name, t.text);
+        ui.painter().galley(egui::pos2(rect.right() - num.size().x - 6.0, rect.center().y - num.size().y / 2.0), num, t.text_faint);
+        if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+            pick = Some(c);
+        }
+        if n > 0 {
+            let rr = egui::Rect::from_min_max(egui::pos2(full.right() - rebuild_w, full.top()), full.max);
+            let r = ui.interact(rr, egui::Id::new(("asset-category-rebuild", c.id())), Sense::click());
+            let name = trf("Rebuild {category}…", &[("category", &tr(c.title()))]);
+            r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &name));
+            let h = widgets::hover_t(ui, &r);
+            ui.painter().rect_filled(rr, t.r_sm(), theme::mix(egui::Color32::TRANSPARENT, t.hover, h));
+            ui.painter().galley(rr.center() - rg.size() / 2.0, rg, t.accent_ink);
+            widgets::focus_ring(ui, &r, rr);
+            if r.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                rebuild = Some(c);
+            }
+        }
+    }
+    if app.assets.category_count(Category::Unsorted) > 0
+        && widgets::secondary(ui, Some("sparkles"), "Sort the unsorted with the agent")
+            .on_hover_text(tr("The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it."))
+            .clicked()
+    {
+        app.sort_unsorted_with_agent();
+    }
+    if let Some(c) = pick {
+        app.assets.category = if app.assets.category == Some(c) { None } else { Some(c) };
+        app.assets.kind = None;
+    }
+    if let Some(c) = rebuild {
+        app.open_rebuild_plan(Some(c), Vec::new());
+    }
+}
+
+/// Above the grid while a category is shown: "HUD & menus · 412 items · Rebuild…".
+pub fn category_header(app: &mut CraftApp, ui: &mut Ui, category: Category, shown: usize) {
+    let t = Tokens::get(ui.ctx());
+    ui.horizontal(|ui| {
+        icons::show(ui, category_icon(category), 16.0, t.accent);
+        ui.label(
+            RichText::new(trf("{category} · {n} items", &[("category", &tr(category.title())), ("n", &count(shown as u64))]))
+                .font(theme::semibold(theme::BODY)),
+        );
+        if widgets::link(ui, "Rebuild…").clicked() {
+            app.open_rebuild_plan(Some(category), Vec::new());
+        }
+    });
+    ui.add_space(4.0);
+}
+
+/// A category picker; returns the category picked this frame.
+fn category_combo(ui: &mut Ui, salt: &str, current: Option<Category>, name: &str) -> Option<Category> {
+    let mut pick = None;
+    let shown = current.map_or_else(|| tr("Category…"), |c| tr(c.title()));
+    let r = egui::ComboBox::from_id_salt(("asset-category-combo", salt)).icon(widgets::combo_icon).selected_text(shown).width(170.0).height(420.0).show_ui(
+        ui,
+        |ui| {
+            for c in Category::ALL {
+                if ui.selectable_label(current == Some(c), tr(c.title())).clicked() {
+                    pick = Some(c);
+                }
+            }
+        },
+    );
+    widgets::named(r.response, name);
+    pick
+}
+
+/// The focused item's category, to change (the person's choice wins over the rules and agents).
+pub fn item_category(app: &mut CraftApp, ui: &mut Ui, item: &Item) {
+    let t = Tokens::get(ui.ctx());
+    widgets::caption(ui, "Category");
+    ui.horizontal(|ui| {
+        if let Some(c) = category_combo(ui, "item", Some(item.category), "Category of this asset") {
+            app.categorize_assets(vec![item.id.clone()], c);
+        }
+        let by = match item.category_by {
+            CategoryBy::Rule => "sorted by the rules",
+            CategoryBy::Agent => "sorted by the agent",
+            CategoryBy::User => "sorted by you",
+        };
+        ui.label(RichText::new(tr(by)).color(t.text_faint).size(theme::CAPTION));
+    });
+}
+
+/// For several selected items: a category for all of them, and Rebuild selected…
+pub fn selection_controls(app: &mut CraftApp, ui: &mut Ui, salt: &str) {
+    let ids: Vec<String> = app.assets.selected.iter().cloned().collect();
+    ui.horizontal_wrapped(|ui| {
+        if let Some(c) = category_combo(ui, salt, None, "Category for the selected") {
+            app.categorize_assets(ids.clone(), c);
+        }
+        if widgets::secondary(ui, Some("hammer"), "Rebuild selected…").clicked() {
+            app.open_rebuild_plan(None, ids.clone());
+        }
+    });
+}
+
+/// The project page's Assets card: each category, its count and Rebuild.
+pub fn card_categories(app: &mut CraftApp, ui: &mut Ui, s: &Summary) {
+    let t = Tokens::get(ui.ctx());
+    let mut rebuild = None;
+    ui.add_space(6.0);
+    for c in Category::ALL {
+        let n = s.by_category.get(&c).copied().unwrap_or(0);
+        if n == 0 {
+            continue;
+        }
+        // Right to left: the button, then the icon with the name over its count, so a narrow card
+        // keeps both readable (a name too long for the card is shortened, never the count).
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let r = widgets::secondary(ui, None, "Rebuild");
+                if widgets::named(r, &trf("Rebuild {category}", &[("category", &tr(c.title()))])).clicked() {
+                    rebuild = Some(c);
+                }
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    icons::show(ui, category_icon(c), 14.0, t.icon);
+                    ui.vertical(|ui| {
+                        ui.spacing_mut().item_spacing.y = 0.0;
+                        ui.add(egui::Label::new(RichText::new(tr(c.title())).size(theme::SMALL).color(t.text)).truncate());
+                        ui.label(RichText::new(count(n)).font(theme::mono(theme::CAPTION)).color(t.text_faint));
+                    });
+                });
+            });
+        });
+    }
+    if let Some(c) = rebuild {
+        app.open_rebuild_plan(Some(c), Vec::new());
+    }
+}
+
+/// The plan dialog (on every screen): per kind, how many, the method (only free ones are ready),
+/// what it costs, then the total and Start.
+pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
+    let Some(plan) = app.assets.plan.clone() else { return };
+    let t = Tokens::get(ctx);
+    let mut close = false;
+    let mut choose: Option<(Kind, String)> = None;
+    let mut start = false;
+    let resp = egui::Modal::new(egui::Id::new("asset-rebuild-plan"))
+        .frame(egui::Frame::new().fill(t.card).corner_radius(t.r_lg()).inner_margin(Margin::same(24)).stroke(egui::Stroke::new(1.0, t.card_border)))
+        .show(ctx, |ui| {
+            ui.set_width(560.0);
+            let what = match plan.category {
+                Some(c) => tr(c.title()),
+                None => trf("{n} selected", &[("n", &count(plan.ids.len() as u64))]),
+            };
+            ui.label(theme::heading(trf("Rebuild: {what}", &[("what", &what)]), theme::SECTION));
+            ui.add_space(4.0);
+            ui.label(RichText::new(tr("The builder remakes them with free tools. It never spends money.")).color(t.text_dim));
+            ui.add_space(12.0);
+            match &plan.view {
+                None => {
+                    ui.add(widgets::Spinner::new().color(t.accent));
+                }
+                Some(Err(e)) => {
+                    ui.colored_label(t.danger, e);
+                }
+                Some(Ok(view)) => {
+                    egui::Grid::new("asset-plan-rows").num_columns(4).spacing([14.0, 8.0]).show(ui, |ui| {
+                        for row in &view.rows {
+                            ui.label(RichText::new(tr(kind_words(row.kind))).font(theme::semibold(theme::SMALL)));
+                            ui.label(RichText::new(count(row.count as u64)).font(theme::mono(theme::CAPTION)).color(t.text_dim));
+                            let current = row.options.iter().find(|o| o.id == row.method);
+                            let shown = current.map_or_else(|| row.method.clone(), |o| tr(&o.title));
+                            let r = egui::ComboBox::from_id_salt(("asset-plan-method", row.kind.id()))
+                                .icon(widgets::combo_icon)
+                                .selected_text(shown)
+                                .width(220.0)
+                                .show_ui(ui, |ui| {
+                                    for o in &row.options {
+                                        let label = if o.available {
+                                            tr(&o.title)
+                                        } else {
+                                            format!("{} · {}", tr(&o.title), tr(o.why.as_deref().unwrap_or("Not set up yet")))
+                                        };
+                                        let item =
+                                            ui.add_enabled(o.available, egui::Button::selectable(o.id == row.method, label)).on_hover_text(tr(&o.detail));
+                                        if item.clicked() {
+                                            choose = Some((row.kind, o.id.clone()));
+                                        }
+                                    }
+                                });
+                            widgets::named(r.response, &trf("Method for {kind}", &[("kind", &tr(kind_words(row.kind)))]));
+                            let cost = if row.credits > 0 { trf("about {n} Tripo credits", &[("n", &count(row.credits))]) } else { tr("Free") };
+                            let cost = if row.available { cost } else { tr(current.and_then(|o| o.why.as_deref()).unwrap_or("Not set up yet")) };
+                            ui.label(RichText::new(cost).color(if row.available { t.success } else { t.warning }).size(theme::CAPTION));
+                            ui.end_row();
+                        }
+                    });
+                    ui.add_space(10.0);
+                    let total =
+                        if view.total_credits > 0 { trf("about {n} Tripo credits (an estimate)", &[("n", &count(view.total_credits))]) } else { tr("Free") };
+                    ui.label(RichText::new(trf("Total: {total}", &[("total", &total)])).font(theme::semibold(theme::BODY)));
+                    let kept: usize = view.rows.iter().filter(|r| r.method == "keep" || !r.available).map(|r| r.count).sum();
+                    if kept > 0 {
+                        ui.label(
+                            RichText::new(trf("{n} kept as they are this time (kept, or their method isn't set up yet).", &[("n", &count(kept as u64))]))
+                                .size(theme::CAPTION)
+                                .color(t.text_faint),
+                        );
+                    }
+                }
+            }
+            ui.add_space(16.0);
+            ui.horizontal(|ui| {
+                let ready = matches!(&plan.view, Some(Ok(v)) if v.rows.iter().any(|r| r.available && r.method != "keep"));
+                if widgets::primary_icon(ui, Some("hammer"), "Start", ready && !plan.starting && !plan.loading).clicked() {
+                    start = true;
+                }
+                if widgets::secondary(ui, None, "Cancel").clicked() {
+                    close = true;
+                }
+                if plan.loading || plan.starting {
+                    ui.add(widgets::Spinner::new().size(14.0).color(t.accent));
+                }
+            });
+        });
+    if resp.should_close() {
+        close = true;
+    }
+    if let Some((kind, method)) = choose {
+        app.choose_rebuild_method(kind, &method);
+    }
+    if start {
+        app.start_asset_rebuild();
+        // The person follows the builder on the project page.
+        if app.state.screen != Screen::Workbench {
+            app.state.screen = Screen::Project;
+        }
+    } else if close {
+        app.assets.plan = None;
+    }
+}

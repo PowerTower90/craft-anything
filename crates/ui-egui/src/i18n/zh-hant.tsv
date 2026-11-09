@@ -1575,3 +1575,59 @@ A note for the builder…	給建構者的備註…
 Ask for a change…	請求修改…
 Hide unreadable ({n})	隱藏無法讀取的 ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	掃描無法從原作中取出的素材：沒有檔案也沒有圖片，只有原因（例如遊戲執行時才填入的紋理）。
+Category	類別
+Category…	類別…
+Category of this asset	此素材的類別
+Category for the selected	所選項目的類別
+Find words among unsorted assets	在未分類素材中尋找詞語
+Free	免費
+Method for {kind}	{kind} 的方式
+Nothing to rebuild: every kind is kept or not set up yet.	沒有要重建的內容：每種都保留或尚未設定。
+Plan an asset rebuild	規劃素材重建
+Rebuild	重建
+Rebuild selected…	重建所選…
+Rebuild {category}	重建 {category}
+Rebuild {category}…	重建 {category}…
+Rebuild: {what}	重建：{what}
+Rebuild…	重建…
+Sent to the builder. Its sorting shows here as it goes.	已傳送給建構者。它的分類會隨進度顯示在這裡。
+Set a project's category rules	設定專案的類別規則
+Sort assets into a category	將素材歸入類別
+Sort the unsorted with the agent	讓智慧代理分類未分類的
+The builder remakes them with free tools. It never spends money.	建構者用免費工具重做它們，從不花錢。
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	建構者用分類工具來分類。不花錢：你的程式智慧代理方案已包含。
+Total: {total}	合計：{total}
+about {n} Tripo credits	約 {n} 個 Tripo 點數
+about {n} Tripo credits (an estimate)	約 {n} 個 Tripo 點數（估計）
+{category} · {n} items	{category} · {n} 項
+{n} assets sent to the builder.	已將 {n} 個素材傳送給建構者。
+{n} kept as they are this time (kept, or their method isn't set up yet).	這次有 {n} 個保持原樣（保留，或其方式尚未設定）。
+Characters	角色
+Enemies	敵人
+Weapons & tools	武器與工具
+Items & pickups	物品與拾取物
+Machines & props	機械與道具
+HUD & menus	HUD 與選單
+Environment	環境
+Effects	特效
+Unsorted	未分類
+Built in the engine	在引擎中建構
+Engine materials	引擎材質
+Engine particles	引擎粒子
+Blender	Blender
+Tripo (your web credits)	Tripo（你的網頁點數）
+Local generation (free)	本機生成（免費）
+Keep the original for now	暫時保留原樣
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	由遊戲自身程式碼繪製的元件和向量圖形，搭配開放授權字型。
+Engine materials and procedural textures, with Blender where a shape is needed.	引擎材質和程序化紋理，需要形狀時用 Blender。
+The engine's own particle systems.	引擎內建的粒子系統。
+Modelled in Blender from simple shapes.	在 Blender 中用簡單形狀建模。
+Generated on Tripo with the credits on your account (an estimate per model).	用你帳戶裡的點數在 Tripo 上生成（每個模型的估計）。
+Sounds generated on this computer.	在這台電腦上生成的聲音。
+Not rebuilt this time.	這次不重建。
+Not set up yet — next step	尚未設定 — 下一步
+Not set up yet	尚未設定
+sorted by the rules	由規則分類
+sorted by the agent	由智慧代理分類
+sorted by you	由你分類
+Rebuild a group of assets	重建一組素材

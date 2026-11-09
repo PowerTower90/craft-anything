@@ -14,6 +14,14 @@
       "default": null,
       "minimum": 0
     },
+    "category_rules": {
+      "description": "The project's own terms for sorting items into categories; they win over the built-in\nkeywords ([`crate::asset_categories::CategoryRule`]).",
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CategoryRule"
+      }
+    },
     "items": {
       "type": "array",
       "default": [],
@@ -59,6 +67,95 @@
     }
   },
   "$defs": {
+    "Category": {
+      "description": "What an asset is for in the game.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "enemies",
+            "music"
+          ]
+        },
+        {
+          "description": "The player and their gear and voice.",
+          "type": "string",
+          "const": "characters"
+        },
+        {
+          "description": "Weapons and tools.",
+          "type": "string",
+          "const": "weapons"
+        },
+        {
+          "description": "Items and pickups.",
+          "type": "string",
+          "const": "items"
+        },
+        {
+          "description": "Machines and props: vehicles, turrets, pods, crates.",
+          "type": "string",
+          "const": "machines"
+        },
+        {
+          "description": "HUD and menus: icons, buttons, fonts, menu and UI sounds, menu video.",
+          "type": "string",
+          "const": "hud"
+        },
+        {
+          "description": "Terrain, rocks, caves, sky, ambience.",
+          "type": "string",
+          "const": "environment"
+        },
+        {
+          "description": "Particles, emitters, trails, impacts.",
+          "type": "string",
+          "const": "effects"
+        },
+        {
+          "description": "Not sorted yet.",
+          "type": "string",
+          "const": "unsorted"
+        }
+      ]
+    },
+    "CategoryBy": {
+      "description": "Who chose an item's category.",
+      "oneOf": [
+        {
+          "description": "The rules (the project's terms, the built-in keywords, the kind); applied again on rescans.",
+          "type": "string",
+          "const": "rule"
+        },
+        {
+          "description": "An agent (project_inventory_categorize); kept on rescans.",
+          "type": "string",
+          "const": "agent"
+        },
+        {
+          "description": "The person; kept on rescans, and an agent's choice doesn't replace it.",
+          "type": "string",
+          "const": "user"
+        }
+      ]
+    },
+    "CategoryRule": {
+      "description": "A project's own term: items whose name, path or origin has it go to `category`. Wins over\nthe built-in keywords.",
+      "type": "object",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/Category"
+        },
+        "term": {
+          "description": "A word (`glyphid`) or words (`bugs small`), matched like the built-in keywords; any case.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term",
+        "category"
+      ]
+    },
     "Item": {
       "description": "One asset.",
       "type": "object",
@@ -69,6 +166,16 @@
           "format": "uint64",
           "default": 0,
           "minimum": 0
+        },
+        "category": {
+          "description": "What it is for in the game ([`crate::asset_categories`]).",
+          "$ref": "#/$defs/Category",
+          "default": "unsorted"
+        },
+        "category_by": {
+          "description": "Who chose the category: the rules, an agent or the person (who wins over an agent).",
+          "$ref": "#/$defs/CategoryBy",
+          "default": "rule"
         },
         "detail": {
           "description": "What it is in more words (an Unreal package's class, a sound bank's codec, what a generated\nasset was made from).",
@@ -145,6 +252,17 @@
           ],
           "default": null
         },
+        "rebuild": {
+          "description": "The rebuild it was sent to (project_inventory_rebuild), while it waits to be replaced.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RebuildMark"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "source": {
           "$ref": "#/$defs/Source"
         },
@@ -192,6 +310,28 @@
         "material",
         "engine_asset",
         "other"
+      ]
+    },
+    "RebuildMark": {
+      "description": "An item's place in a rebuild: how it's to be remade, when it was asked for, and the rebuild's\nlist (`rebuild/<category>-<time>.json`, by its file name without `.json`).",
+      "type": "object",
+      "properties": {
+        "job": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "requested_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "method",
+        "requested_ms",
+        "job"
       ]
     },
     "Source": {

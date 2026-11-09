@@ -3890,7 +3890,10 @@ fn a_real_click_on_a_gallery_tile_shows_it_and_ctrl_click_adds_another() {
     press_and_release(&mut h, rock, egui::Modifiers::NONE);
     assert_eq!(h.state().assets.selected.len(), 1, "the tile took the click");
     assert!(h.query_by_label("Pick an asset").is_none(), "the Inspector shows the asset");
+    let focus = h.state().assets.focus.clone().and_then(|id| h.state().assets.item(&id).map(|i| i.name.clone()));
+    assert_eq!(focus.as_deref(), Some("Rock"), "the Inspector is on it");
     assert!(h.query_all_by_label("Rock").count() >= 2, "its name is in the Inspector too");
+    h.get_by_label("Category of this asset");
     h.get_by_label("Mark as: Needs replacing");
     h.get_by_label("Mark as: Keep");
     // Ctrl/⌘-click adds another.
@@ -3945,4 +3948,165 @@ fn pictures_come_first_and_unreadable_assets_are_hidden_until_asked_for() {
     h.run_steps(2);
     assert_eq!(names(&mut h), ["Zebra", "Atlas", "Font Texture", "Font Texture", "Font Texture"], "shown last when asked for");
     h.get_by_label("Textures 5");
+}
+
+/// A game project whose inventory has HUD pictures, an enemy (sorted by a project term), a
+/// character model and a sound.
+fn category_project(dir: &std::path::Path) -> craft_anything_engine::workspace::Workspace {
+    use craft_anything_engine::inventory::{self, Category, CategoryRule, INVENTORY_VERSION, Inventory, Item, Kind, Source, Status};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let mut ws = Workspace::create(dir, "Cave", "A cave game", TargetRef::None).unwrap();
+    ws.manifest.stack = "Unity".into();
+    ws.save().unwrap();
+    let items = [
+        ("Icons_Back", Kind::Texture),
+        ("HexButton_Hover", Kind::Texture),
+        ("Glyphid_Grunt", Kind::Model),
+        ("Scout_BEARD", Kind::Model),
+        ("sfx_bugs_small_die", Kind::Sound),
+    ]
+    .iter()
+    .map(|(n, k)| {
+        let mut i = Item::new(Source::Build, n, *k, *n, Status::Placeholder);
+        i.path = Some(format!("app/Assets/{n}"));
+        i
+    })
+    .collect();
+    let mut inv = Inventory {
+        version: INVENTORY_VERSION,
+        build_scanned_ms: Some(1),
+        items,
+        category_rules: vec![CategoryRule { term: "glyphid".into(), category: Category::Enemies }],
+        ..Default::default()
+    };
+    craft_anything_engine::asset_categories::apply(&mut inv);
+    inventory::save(&ws.root, &inv).unwrap();
+    ws
+}
+
+fn shown_names(h: &mut Harness<'static, CraftApp>) -> Vec<String> {
+    let app = h.state_mut();
+    app.assets.shown().to_vec().iter().map(|i| app.assets.items[*i].name.clone()).collect()
+}
+
+#[test]
+fn categories_filter_the_gallery_and_a_hud_rebuild_is_free_and_goes_to_the_builder() {
+    use craft_anything_ai::rebuild::StandIns;
+    use craft_anything_engine::inventory::{self, Category, Status};
+    use craft_anything_ui_egui::state::FeedItem;
+    let d = tempfile::tempdir().unwrap();
+    let ws = category_project(&d.path().join("projects"));
+    let root = ws.root.clone();
+    let runs = StandIns::new();
+    let (dir, r) = (d.path().join("projects"), runs.clone());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = stand_in_app(dir, &r);
+        a.settings.mode = Mode::Experienced;
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 5));
+    h.run_steps(2);
+    // The categories come first, with their counts; one filters the grid.
+    h.get_by_label("HUD & menus 2").click();
+    h.run_steps(2);
+    assert_eq!(shown_names(&mut h), ["HexButton_Hover", "Icons_Back"]);
+    h.get_by_label("HUD & menus · 2 items");
+    h.get_by_label("Enemies 2").click();
+    h.run_steps(2);
+    assert_eq!(shown_names(&mut h), ["Glyphid_Grunt", "sfx_bugs_small_die"], "a project term (glyphid) and a built-in keyword (bugs)");
+    // The person moves an item to another category in the Inspector.
+    h.get_by_label("Glyphid_Grunt").click();
+    h.run_steps(4);
+    h.get_by_label("Category of this asset").click();
+    h.run_steps(5);
+    // All ten fit without scrolling the list.
+    h.get_by_label("Effects").click();
+    assert!(wait(&mut h, |a| a.assets.items.iter().any(|i| i.name == "Glyphid_Grunt" && i.category == Category::Effects)));
+    let saved = inventory::load(&root).unwrap();
+    assert!(saved.items.iter().any(|i| i.name == "Glyphid_Grunt" && i.category == Category::Effects && i.category_by == inventory::CategoryBy::User));
+    // Rebuilding the HUD: built in the engine, free.
+    h.get_by_label("Rebuild HUD & menus…").click();
+    assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| matches!(p.view, Some(Ok(_))))), "the plan was read");
+    h.run_steps(2);
+    h.get_by_label("Rebuild: HUD & menus");
+    h.get_by_label("Total: Free");
+    assert_eq!(h.get_by_label("Method for Textures").value().as_deref(), Some("Built in the engine"));
+    h.get_by_label("Start").click();
+    assert!(wait(&mut h, |a| a.assets.plan.is_none() && !runs.started().is_empty()), "started through the builder");
+    // The list and the marks are in the project; the brief is the builder's next message.
+    let lists: Vec<_> = std::fs::read_dir(root.join("rebuild")).unwrap().flatten().collect();
+    assert_eq!(lists.len(), 1);
+    assert!(lists[0].file_name().to_string_lossy().starts_with("hud-"));
+    let saved = inventory::load(&root).unwrap();
+    let marked: Vec<&str> = saved
+        .items
+        .iter()
+        .filter(|i| i.status == Status::NeedsReplacing && i.rebuild.as_ref().is_some_and(|r| r.method == "engine_ui"))
+        .map(|i| i.name.as_str())
+        .collect();
+    assert_eq!(marked.len(), 2, "{marked:?}");
+    assert!(h.state().state.feed.iter().any(|f| matches!(f, FeedItem::User(t) if t.text().contains("Rebuild the HUD & menus assets: 2 items"))));
+    h.state_mut().pause();
+    assert!(runs.finish(&root));
+    h.run_steps(2);
+}
+
+#[test]
+fn tripo_is_offered_for_enemies_but_not_ready_and_never_the_default() {
+    use egui_kittest::kittest::NodeT;
+    let d = tempfile::tempdir().unwrap();
+    let ws = category_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 5));
+    h.state_mut().open_rebuild_plan(Some(craft_anything_engine::inventory::Category::Enemies), Vec::new());
+    assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| matches!(p.view, Some(Ok(_))))));
+    h.run_steps(2);
+    h.get_by_label("Total: Free");
+    h.get_by_label("Method for Models").click();
+    h.run_steps(2);
+    let tripo = h.get_by_label("Tripo (your web credits) · Not set up yet — next step");
+    assert!(tripo.accesskit_node().is_disabled(), "Tripo can't be picked until it's set up");
+    assert!(!h.get_by_label("Blender").accesskit_node().is_disabled());
+}
+
+#[test]
+fn the_simple_assets_card_lists_categories_and_opens_the_plan_and_the_gallery() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = category_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Beginner, true));
+        a.open_workspace(ws);
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.summary.is_some()));
+    h.run_steps(2);
+    assert_eq!(h.state().state.screen, Screen::Project);
+    h.get_by_label("Rebuild HUD & menus").click();
+    assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| matches!(p.view, Some(Ok(_))))));
+    h.run_steps(2);
+    h.get_by_label("Rebuild: HUD & menus");
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().assets.plan.is_none());
+    // Esc closes the plan and nothing under it: the project page stays.
+    h.get_by_label("Rebuild HUD & menus").click();
+    assert!(wait(&mut h, |a| a.assets.plan.is_some()));
+    h.run_steps(2);
+    h.key_press(egui::Key::Escape);
+    h.run_steps(2);
+    assert!(h.state().assets.plan.is_none());
+    assert_eq!(h.state().state.screen, Screen::Project);
+    // No dead end in Simple mode: the gallery opens, in Advanced mode.
+    h.get_by_label("Open the gallery").click();
+    h.run_steps(2);
+    assert_eq!(h.state().settings.mode, Mode::Experienced);
+    assert_eq!(h.state().state.screen, Screen::Workbench);
+    assert_eq!(h.state().state.rail, RailKind::Assets);
 }

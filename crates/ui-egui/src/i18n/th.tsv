@@ -1575,3 +1575,59 @@ A note for the builder…	โน้ตถึงตัวสร้าง…
 Ask for a change…	ขอให้เปลี่ยน…
 Hide unreadable ({n})	ซ่อนรายการที่อ่านไม่ได้ ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	แอสเซทที่การสแกนดึงออกจากต้นฉบับไม่ได้: ไม่มีไฟล์และไม่มีรูป มีเพียงเหตุผล (เช่น เท็กซ์เจอร์ที่เกมเติมขณะทำงาน)
+Category	หมวดหมู่
+Category…	หมวดหมู่…
+Category of this asset	หมวดหมู่ของแอสเซทนี้
+Category for the selected	หมวดหมู่ของรายการที่เลือก
+Find words among unsorted assets	หาคำในแอสเซทที่ยังไม่จัดหมวด
+Free	ฟรี
+Method for {kind}	วิธีสำหรับ {kind}
+Nothing to rebuild: every kind is kept or not set up yet.	ไม่มีอะไรต้องสร้างใหม่: ทุกประเภทถูกเก็บไว้หรือยังไม่ได้ตั้งค่า
+Plan an asset rebuild	วางแผนสร้างแอสเซทใหม่
+Rebuild	สร้างใหม่
+Rebuild selected…	สร้างรายการที่เลือกใหม่…
+Rebuild {category}	สร้าง {category} ใหม่
+Rebuild {category}…	สร้าง {category} ใหม่…
+Rebuild: {what}	สร้างใหม่: {what}
+Rebuild…	สร้างใหม่…
+Sent to the builder. Its sorting shows here as it goes.	ส่งให้ตัวสร้างแล้ว การจัดหมวดจะแสดงที่นี่ระหว่างทำงาน
+Set a project's category rules	ตั้งกฎหมวดหมู่ของโปรเจกต์
+Sort assets into a category	จัดแอสเซทเข้าหมวดหมู่
+Sort the unsorted with the agent	ให้เอเจนต์จัดหมวดที่ยังไม่จัด
+The builder remakes them with free tools. It never spends money.	ตัวสร้างทำใหม่ด้วยเครื่องมือฟรี และไม่ใช้เงินเลย
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	ตัวสร้างจัดหมวดด้วยเครื่องมือจัดหมวด ไม่เสียเงิน: แพ็กเกจของเอเจนต์เขียนโค้ดครอบคลุมแล้ว
+Total: {total}	รวม: {total}
+about {n} Tripo credits	ประมาณ {n} เครดิต Tripo
+about {n} Tripo credits (an estimate)	ประมาณ {n} เครดิต Tripo (ประมาณการ)
+{category} · {n} items	{category} · {n} รายการ
+{n} assets sent to the builder.	ส่งแอสเซท {n} รายการให้ตัวสร้างแล้ว
+{n} kept as they are this time (kept, or their method isn't set up yet).	ครั้งนี้ {n} รายการคงไว้ตามเดิม (เก็บไว้ หรือยังไม่ได้ตั้งค่าวิธี)
+Characters	ตัวละคร
+Enemies	ศัตรู
+Weapons & tools	อาวุธและเครื่องมือ
+Items & pickups	ไอเท็มและของเก็บ
+Machines & props	เครื่องจักรและพร็อพ
+HUD & menus	HUD และเมนู
+Environment	สภาพแวดล้อม
+Effects	เอฟเฟกต์
+Unsorted	ยังไม่จัดหมวด
+Built in the engine	สร้างในเอนจิน
+Engine materials	วัสดุของเอนจิน
+Engine particles	อนุภาคของเอนจิน
+Blender	Blender
+Tripo (your web credits)	Tripo (เครดิตเว็บของคุณ)
+Local generation (free)	สร้างบนเครื่อง (ฟรี)
+Keep the original for now	เก็บต้นฉบับไว้ก่อน
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	วิดเจ็ตและรูปทรงเวกเตอร์ที่โค้ดของเกมวาดเอง พร้อมฟอนต์สัญญาอนุญาตเปิด
+Engine materials and procedural textures, with Blender where a shape is needed.	วัสดุของเอนจินและเท็กซ์เจอร์แบบโพรซีเดอรัล ใช้ Blender เมื่อต้องการรูปทรง
+The engine's own particle systems.	ระบบอนุภาคของเอนจินเอง
+Modelled in Blender from simple shapes.	ขึ้นโมเดลใน Blender จากรูปทรงง่าย ๆ
+Generated on Tripo with the credits on your account (an estimate per model).	สร้างบน Tripo ด้วยเครดิตในบัญชีของคุณ (ประมาณการต่อโมเดล)
+Sounds generated on this computer.	เสียงที่สร้างบนคอมพิวเตอร์นี้
+Not rebuilt this time.	ครั้งนี้ไม่สร้างใหม่
+Not set up yet — next step	ยังไม่ได้ตั้งค่า — ขั้นต่อไป
+Not set up yet	ยังไม่ได้ตั้งค่า
+sorted by the rules	จัดโดยกฎ
+sorted by the agent	จัดโดยเอเจนต์
+sorted by you	จัดโดยคุณ
+Rebuild a group of assets	สร้างกลุ่มแอสเซทใหม่

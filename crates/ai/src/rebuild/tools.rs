@@ -123,7 +123,68 @@ pub fn specs() -> Vec<ToolSpec> {
             input_schema: schema_of::<CheckParams>,
             run: rebuild_check,
         },
+        ToolSpec {
+            id: "project_inventory_rebuild",
+            title: "Rebuild a group of assets",
+            summary: "Rebuild a category of a project's assets (or items by id) the cheapest way (see project_inventory_rebuild_plan; `methods` chooses per kind). Writes the list with each item's method to <project>/rebuild/<category>-<time>.json, marks those items needs_replacing with their rebuild, and hands the builder a brief (free methods only, never paid services; mark each item replaced when it's in the build): as a note to a running build, or a follow-up build. Kinds whose method isn't set up yet, and kept ones, are skipped and listed. send: false only writes and marks, and returns the brief. It runs a coding agent, so it needs consent.",
+            beginner: "Remakes a group of assets, such as the HUD, as cheaply as possible.",
+            toolset: Toolset::Projects,
+            effects: Effects::LAUNCHES_PROCESS.union(Effects::EXECUTES_FOREIGN_CODE).union(Effects::WRITES_FILESYSTEM).union(Effects::ACCESSES_NETWORK),
+            requires: Requires::Nothing,
+            input_schema: schema_of::<AssetRebuildParams>,
+            run: project_inventory_rebuild,
+        },
     ]
+}
+
+fn d_true() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AssetRebuildParams {
+    /// The project's folder.
+    pub project: PathBuf,
+    /// The category to rebuild (characters, enemies, weapons, items, machines, hud, environment, effects, music, unsorted).
+    #[serde(default)]
+    pub category: Option<craft_anything_engine::asset_categories::Category>,
+    /// Or these items (ids from project_inventory_list).
+    #[serde(default)]
+    pub ids: Vec<String>,
+    /// A method per kind (kind id → method id); the rest get their default.
+    #[serde(default)]
+    pub methods: std::collections::BTreeMap<String, String>,
+    /// Hand it to the builder now (default true); false only writes the list and marks the items.
+    #[serde(default = "d_true")]
+    pub send: bool,
+}
+
+fn project_inventory_rebuild(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    use craft_anything_engine::tools::inventory_tools::categories::{PlanParams, start_plan};
+    let p: AssetRebuildParams = parse_params(params)?;
+    let plan = PlanParams { project: p.project, category: p.category, ids: p.ids, methods: p.methods };
+    let (ws, started, mut out) = start_plan(ctx, &plan)?;
+    if !p.send || started.items == 0 {
+        out["sent"] = json!(false);
+        return Ok(ToolOutput::Value(out));
+    }
+    // A running build reads it at its next step; otherwise it starts a follow-up.
+    let note = {
+        let runs = runs(ctx);
+        let mut set = runs.0.lock().unwrap_or_else(PoisonError::into_inner);
+        refresh(ctx, &mut set);
+        set.get(&ws.root).filter(|r| r.is_running()).map(|r| r.add_note(started.brief.clone(), started.brief.clone(), Vec::new()))
+    };
+    // The list and the marks are written either way; a builder that can't start is said, not hidden.
+    out["sent"] = match note {
+        Some(id) => json!({"note": id}),
+        None => match rebuild_start(ctx, json!({"project": ws.root, "request": started.brief})) {
+            Ok(o) => o.to_json()["result"].clone(),
+            Err(e) => json!({"error": e.message, "remediation": e.remediation}),
+        },
+    };
+    Ok(ToolOutput::Value(out))
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -622,6 +683,47 @@ mod tests {
             assert!(err.message.contains(expected), "{backend}: {err:?}");
             assert_eq!(std::fs::read_dir(d.path()).unwrap().count(), 0, "{backend}: a refused start must not make a project");
         }
+    }
+
+    #[test]
+    fn an_asset_group_is_rebuilt_through_the_projects_builder() {
+        use craft_anything_engine::inventory::{self, INVENTORY_VERSION, Inventory, Item, Kind, Source, Status};
+        let d = tempfile::tempdir().unwrap();
+        let mut s = craft_anything_engine::testing::session();
+        s.settings.ai = toml::from_str(
+            "[[backends]]
+name = \"Agent\"
+kind = \"agent_cli\"
+model = \"claude-code\"
+",
+        )
+        .unwrap();
+        s.settings.save_to(&s.config_dir().join("config.toml")).unwrap();
+        let fake = crate::rebuild::StandIns::new();
+        s.ext.insert(Arc::new(Runs(Arc::new(Mutex::new(RunSet::new(1).with_starter(fake.starter()))))));
+        let e = Engine::shared(s, specs());
+        let ws = Workspace::create(d.path(), "Game", "A game", TargetRef::None).unwrap();
+        let items = ["Icons_Back", "HexButton", "Glyphid_Grunt"].iter().map(|n| Item::new(Source::Build, n, Kind::Texture, *n, Status::Placeholder)).collect();
+        let mut inv = Inventory { version: INVENTORY_VERSION, items, ..Default::default() };
+        craft_anything_engine::asset_categories::apply(&mut inv);
+        inventory::save(&ws.root, &inv).unwrap();
+        let ok = || CallOptions::new(Caller::Cli).with_consent(Consent::Granted);
+        // Running a coding agent needs consent.
+        assert!(e.call("project_inventory_rebuild", json!({"project": ws.root, "category": "hud"}), CallOptions::new(Caller::Mcp)).is_err());
+        let r = e.call("project_inventory_rebuild", json!({"project": ws.root, "category": "hud"}), ok()).unwrap().to_json()["result"].clone();
+        assert_eq!(r["started"], 2, "{r}");
+        assert_eq!(r["sent"]["started"], true, "a follow-up build started: {r}");
+        assert_eq!(fake.started(), std::slice::from_ref(&ws.root));
+        assert!(std::path::Path::new(r["list"].as_str().unwrap()).is_file());
+        let inv = inventory::load(&ws.root).unwrap();
+        assert_eq!(inv.items.iter().filter(|i| i.status == Status::NeedsReplacing && i.rebuild.is_some()).count(), 2);
+        // While it builds, another group goes to it as a note.
+        let r = e.call("project_inventory_rebuild", json!({"project": ws.root, "ids": [inv.items[2].id]}), ok()).unwrap().to_json()["result"].clone();
+        assert!(r["sent"]["note"].is_u64(), "{r}");
+        // send: false only writes and marks.
+        let r = e.call("project_inventory_rebuild", json!({"project": ws.root, "category": "hud", "send": false}), ok()).unwrap().to_json()["result"].clone();
+        assert_eq!(r["sent"], false);
+        assert!(r["brief"].as_str().unwrap().contains("project_inventory_mark"));
     }
 
     /// A CLI watcher sees what the app's status row shows: how long the build has gone, how long

@@ -1575,3 +1575,59 @@ A note for the builder…	შენიშვნა შემქმნელი�
 Ask for a change…	ცვლილების თხოვნა…
 Hide unreadable ({n})	წაუკითხავის დამალვა ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	რესურსები, რომლებიც სკანირებამ ორიგინალიდან ვერ ამოიღო: არც ფაილი, არც სურათი, მხოლოდ მიზეზი (მაგალითად, ტექსტურა, რომელსაც თამაში მუშაობისას ავსებს).
+Category	კატეგორია
+Category…	კატეგორია…
+Category of this asset	ამ რესურსის კატეგორია
+Category for the selected	კატეგორია მონიშნულებისთვის
+Find words among unsorted assets	სიტყვების პოვნა დაუხარისხებელ რესურსებში
+Free	უფასო
+Method for {kind}	მეთოდი: {kind}
+Nothing to rebuild: every kind is kept or not set up yet.	ასაწყობი არაფერია: ყველა სახეობა რჩება ან ჯერ არ არის მოწყობილი.
+Plan an asset rebuild	რესურსების ხელახალი აწყობის დაგეგმვა
+Rebuild	ხელახლა აწყობა
+Rebuild selected…	მონიშნულის ხელახლა აწყობა…
+Rebuild {category}	{category} — ხელახლა აწყობა
+Rebuild {category}…	{category} — ხელახლა აწყობა…
+Rebuild: {what}	ხელახლა აწყობა: {what}
+Rebuild…	ხელახლა აწყობა…
+Sent to the builder. Its sorting shows here as it goes.	შემქმნელს გაეგზავნა. მისი დახარისხება აქ გამოჩნდება მუშაობისას.
+Set a project's category rules	პროექტის კატეგორიის წესების დაყენება
+Sort assets into a category	რესურსების კატეგორიაში დახარისხება
+Sort the unsorted with the agent	დაუხარისხებლის დახარისხება აგენტით
+The builder remakes them with free tools. It never spends money.	შემქმნელი მათ უფასო ხელსაწყოებით ხელახლა აკეთებს. ის არასდროს ხარჯავს ფულს.
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	შემქმნელი მათ დახარისხების ხელსაწყოებით ახარისხებს. ფული არ ჯდება: შენი კოდის აგენტის გეგმა ფარავს.
+Total: {total}	სულ: {total}
+about {n} Tripo credits	დაახლოებით {n} Tripo კრედიტი
+about {n} Tripo credits (an estimate)	დაახლოებით {n} Tripo კრედიტი (შეფასება)
+{category} · {n} items	{category} · {n} ელემენტი
+{n} assets sent to the builder.	{n} რესურსი გაეგზავნა შემქმნელს.
+{n} kept as they are this time (kept, or their method isn't set up yet).	{n} ამჯერად რჩება ისე, როგორც არის (დატოვებულია ან მეთოდი ჯერ არ არის მოწყობილი).
+Characters	პერსონაჟები
+Enemies	მტრები
+Weapons & tools	იარაღი და ხელსაწყოები
+Items & pickups	ნივთები და ასაღებები
+Machines & props	მანქანები და რეკვიზიტი
+HUD & menus	HUD და მენიუები
+Environment	გარემო
+Effects	ეფექტები
+Unsorted	დაუხარისხებელი
+Built in the engine	ძრავში აწყობილი
+Engine materials	ძრავის მასალები
+Engine particles	ძრავის ნაწილაკები
+Blender	Blender
+Tripo (your web credits)	Tripo (შენი ვებ-კრედიტები)
+Local generation (free)	ლოკალური გენერაცია (უფასო)
+Keep the original for now	ორიგინალის ჯერჯერობით დატოვება
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	ვიჯეტები და ვექტორული ფორმები, რომლებსაც თამაშის კოდი ხატავს, ღია ლიცენზიის შრიფტით.
+Engine materials and procedural textures, with Blender where a shape is needed.	ძრავის მასალები და პროცედურული ტექსტურები, Blender-ით, სადაც ფორმაა საჭირო.
+The engine's own particle systems.	ძრავის საკუთარი ნაწილაკების სისტემები.
+Modelled in Blender from simple shapes.	Blender-ში მარტივი ფორმებით დამოდელებული.
+Generated on Tripo with the credits on your account (an estimate per model).	Tripo-ზე შენი ანგარიშის კრედიტებით გენერირებული (შეფასება თითო მოდელზე).
+Sounds generated on this computer.	ამ კომპიუტერზე გენერირებული ხმები.
+Not rebuilt this time.	ამჯერად ხელახლა არ აიწყობა.
+Not set up yet — next step	ჯერ არ არის მოწყობილი — შემდეგი ნაბიჯი
+Not set up yet	ჯერ არ არის მოწყობილი
+sorted by the rules	წესებით დახარისხებული
+sorted by the agent	აგენტის მიერ დახარისხებული
+sorted by you	შენ მიერ დახარისხებული
+Rebuild a group of assets	რესურსების ჯგუფის ხელახლა აწყობა

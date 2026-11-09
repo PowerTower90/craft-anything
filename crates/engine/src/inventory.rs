@@ -10,6 +10,7 @@
 //! [`UNREAL_RULES`] sorts Unreal packages by folder or name prefix, and [`SKIPPED_FOLDERS`] lists
 //! the build-output folders a scan leaves out.
 
+pub use crate::asset_categories::{Category, CategoryBy, CategoryRule};
 use crate::project::write_atomic;
 use crate::tool::CancelToken;
 use crate::tools::web_common::{self, Image};
@@ -26,13 +27,19 @@ use std::path::{Path, PathBuf};
 /// The inventory file, in the project folder.
 pub const INVENTORY: &str = "inventory.json";
 /// The current `inventory.json` format version. Bumping it means appending a step to [`STEPS`].
-pub const INVENTORY_VERSION: u32 = 1;
+pub const INVENTORY_VERSION: u32 = 2;
 /// The steps that bring an older inventory forward; step `i` goes from version `i` to `i + 1`.
-const STEPS: &[versioned::Step<Value>] = &[inventory_v0_to_v1];
+const STEPS: &[versioned::Step<Value>] = &[inventory_v0_to_v1, inventory_v1_to_v2];
 const _: () = assert!(STEPS.len() == INVENTORY_VERSION as usize, "one step per inventory.json version");
 
 /// Version 0 (no `version` field) has the shape of version 1; only the number is new.
 fn inventory_v0_to_v1(doc: &mut Value) -> Result<(), String> {
+    if doc.is_object() { Ok(()) } else { Err("the inventory isn't a JSON object".into()) }
+}
+
+/// Version 2 adds each item's category (sorted by the rules when the file is read; see
+/// [`parse`]) and the project's category rules; both have defaults, so the shape is unchanged.
+fn inventory_v1_to_v2(doc: &mut Value) -> Result<(), String> {
     if doc.is_object() { Ok(()) } else { Err("the inventory isn't a JSON object".into()) }
 }
 
@@ -197,6 +204,24 @@ pub struct Item {
     /// item's status and note.
     #[serde(default)]
     pub marked_ms: Option<u64>,
+    /// What it is for in the game ([`crate::asset_categories`]).
+    #[serde(default)]
+    pub category: Category,
+    /// Who chose the category: the rules, an agent or the person (who wins over an agent).
+    #[serde(default)]
+    pub category_by: CategoryBy,
+    /// The rebuild it was sent to (project_inventory_rebuild), while it waits to be replaced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rebuild: Option<RebuildMark>,
+}
+
+/// An item's place in a rebuild: how it's to be remade, when it was asked for, and the rebuild's
+/// list (`rebuild/<category>-<time>.json`, by its file name without `.json`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RebuildMark {
+    pub method: String,
+    pub requested_ms: u64,
+    pub job: String,
 }
 
 impl Item {
@@ -219,6 +244,9 @@ impl Item {
             detail: None,
             problem: None,
             marked_ms: None,
+            category: Category::Unsorted,
+            category_by: CategoryBy::Rule,
+            rebuild: None,
         }
     }
 }
@@ -249,6 +277,10 @@ pub struct Inventory {
     pub notes: BTreeMap<Source, Vec<String>>,
     #[serde(default)]
     pub items: Vec<Item>,
+    /// The project's own terms for sorting items into categories; they win over the built-in
+    /// keywords ([`crate::asset_categories::CategoryRule`]).
+    #[serde(default)]
+    pub category_rules: Vec<CategoryRule>,
 }
 
 impl Inventory {
@@ -273,6 +305,7 @@ impl Inventory {
         }
         self.items.retain(|i| i.source != source);
         self.items.extend(fresh);
+        crate::asset_categories::apply(self);
         self.items
             .sort_by(|a, b| (a.source, a.kind, a.path.as_deref().or(a.origin.as_deref())).cmp(&(b.source, b.kind, b.path.as_deref().or(b.origin.as_deref()))));
     }
@@ -288,6 +321,17 @@ impl Inventory {
                 keep_marks(item, prev);
             }
         }
+        // A category chosen meanwhile (a person, an agent) isn't lost either.
+        let chosen: HashMap<&str, &Item> = disk.items.iter().filter(|i| i.category_by != CategoryBy::Rule).map(|i| (i.id.as_str(), i)).collect();
+        for item in self.items.iter_mut().filter(|i| i.category_by == CategoryBy::Rule) {
+            if let Some(prev) = chosen.get(item.id.as_str()) {
+                (item.category, item.category_by) = (prev.category, prev.category_by);
+            }
+        }
+        if self.category_rules.is_empty() && !disk.category_rules.is_empty() {
+            self.category_rules = disk.category_rules.clone();
+            crate::asset_categories::apply(self);
+        }
     }
 
     /// How many items there are of each source, kind and status.
@@ -295,11 +339,13 @@ impl Inventory {
         let mut by_source: BTreeMap<&str, u64> = BTreeMap::new();
         let mut by_kind: BTreeMap<&str, BTreeMap<&str, u64>> = BTreeMap::new();
         let mut by_status: BTreeMap<&str, u64> = BTreeMap::new();
+        let mut by_category: BTreeMap<&str, u64> = BTreeMap::new();
         let (mut not_taken_out, mut problems) = (0u64, 0u64);
         for i in &self.items {
             *by_source.entry(i.source.id()).or_default() += 1;
             *by_kind.entry(i.source.id()).or_default().entry(i.kind.id()).or_default() += 1;
             *by_status.entry(i.status.id()).or_default() += 1;
+            *by_category.entry(i.category.id()).or_default() += 1;
             not_taken_out += u64::from(i.path.is_none());
             problems += u64::from(i.problem.is_some());
         }
@@ -308,6 +354,7 @@ impl Inventory {
             "by_source": by_source,
             "by_kind": by_kind,
             "by_status": by_status,
+            "by_category": by_category,
             "without_file": not_taken_out,
             "with_problem": problems,
         })
@@ -319,6 +366,10 @@ fn keep_marks(item: &mut Item, prev: &Item) {
         item.status = prev.status;
         item.note = prev.note.clone();
         item.marked_ms = prev.marked_ms;
+        item.rebuild.clone_from(&prev.rebuild);
+    }
+    if prev.category_by != CategoryBy::Rule {
+        (item.category, item.category_by) = (prev.category, prev.category_by);
     }
 }
 
@@ -338,7 +389,12 @@ pub fn parse(bytes: &[u8]) -> Result<Inventory, ToolError> {
             obj.insert("version".into(), Value::from(reached));
         }
     }
-    serde_json::from_value(doc).map_err(|e| ToolError::invalid(format!("{INVENTORY} can't be read: {e}")))
+    let mut inv: Inventory = serde_json::from_value(doc).map_err(|e| ToolError::invalid(format!("{INVENTORY} can't be read: {e}")))?;
+    // Written before categories: sort its items now (the rules, nothing chosen by anyone yet).
+    if found < 2 {
+        crate::asset_categories::apply(&mut inv);
+    }
+    Ok(inv)
 }
 
 /// The inventory of the project at `root`; none yet is an empty one.

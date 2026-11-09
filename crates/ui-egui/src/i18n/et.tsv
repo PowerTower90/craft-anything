@@ -1575,3 +1575,59 @@ A note for the builder…	Märkus koostajale…
 Ask for a change…	Palu muudatust…
 Hide unreadable ({n})	Peida loetamatud ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	Varad, mida skannimine ei suutnud originaalist välja võtta: pole faili ega pilti, ainult põhjus (näiteks tekstuur, mille mäng täidab töö ajal).
+Category	Kategooria
+Category…	Kategooria…
+Category of this asset	Selle vara kategooria
+Category for the selected	Valitute kategooria
+Find words among unsorted assets	Leia sõnu sortimata varade seast
+Free	Tasuta
+Method for {kind}	Meetod: {kind}
+Nothing to rebuild: every kind is kept or not set up yet.	Pole midagi uuesti ehitada: iga liik jääb alles või pole veel seadistatud.
+Plan an asset rebuild	Planeeri varade uuesti ehitamine
+Rebuild	Ehita uuesti
+Rebuild selected…	Ehita valitud uuesti…
+Rebuild {category}	Ehita uuesti: {category}
+Rebuild {category}…	Ehita uuesti: {category}…
+Rebuild: {what}	Ehita uuesti: {what}
+Rebuild…	Ehita uuesti…
+Sent to the builder. Its sorting shows here as it goes.	Saadetud koostajale. Tema sortimine paistab siin töö käigus.
+Set a project's category rules	Määra projekti kategooriareeglid
+Sort assets into a category	Sordi varad kategooriasse
+Sort the unsorted with the agent	Sordi sortimata agendiga
+The builder remakes them with free tools. It never spends money.	Koostaja teeb need tasuta tööriistadega uuesti. Ta ei kuluta kunagi raha.
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Koostaja sordib need sortimistööriistadega. See ei maksa raha: sinu koodiagendi pakett katab selle.
+Total: {total}	Kokku: {total}
+about {n} Tripo credits	umbes {n} Tripo krediiti
+about {n} Tripo credits (an estimate)	umbes {n} Tripo krediiti (hinnang)
+{category} · {n} items	{category} · {n} üksust
+{n} assets sent to the builder.	{n} vara saadeti koostajale.
+{n} kept as they are this time (kept, or their method isn't set up yet).	{n} jäävad seekord nii, nagu on (alles jäetud või nende meetod pole veel seadistatud).
+Characters	Tegelased
+Enemies	Vaenlased
+Weapons & tools	Relvad ja tööriistad
+Items & pickups	Esemed ja korjatavad
+Machines & props	Masinad ja rekvisiidid
+HUD & menus	HUD ja menüüd
+Environment	Keskkond
+Effects	Efektid
+Unsorted	Sortimata
+Built in the engine	Ehitatud mootoris
+Engine materials	Mootori materjalid
+Engine particles	Mootori osakesed
+Blender	Blender
+Tripo (your web credits)	Tripo (sinu veebikrediidid)
+Local generation (free)	Kohalik genereerimine (tasuta)
+Keep the original for now	Jäta praegu originaal alles
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Vidinad ja vektorkujundid, mille joonistab mängu enda kood, avatud litsentsiga fondiga.
+Engine materials and procedural textures, with Blender where a shape is needed.	Mootori materjalid ja protseduursed tekstuurid, Blenderiga seal, kus on vaja kuju.
+The engine's own particle systems.	Mootori enda osakeste süsteemid.
+Modelled in Blender from simple shapes.	Modelleeritud Blenderis lihtsatest kujunditest.
+Generated on Tripo with the credits on your account (an estimate per model).	Genereeritud Tripos sinu konto krediitidega (hinnang mudeli kohta).
+Sounds generated on this computer.	Selles arvutis genereeritud helid.
+Not rebuilt this time.	Seekord uuesti ei ehitata.
+Not set up yet — next step	Pole veel seadistatud — järgmine samm
+Not set up yet	Pole veel seadistatud
+sorted by the rules	reeglite järgi sorditud
+sorted by the agent	agendi poolt sorditud
+sorted by you	sinu poolt sorditud
+Rebuild a group of assets	Ehita varade rühm uuesti

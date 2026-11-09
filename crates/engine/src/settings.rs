@@ -177,11 +177,17 @@ pub struct AssetSettings {
     /// The picture model, by its id in the asset table (`nano-banana-pro`, `flux-dev`…); `None` = the
     /// table's default.
     pub image_model: Option<String>,
+    /// Tripo web credits one 3D model takes, for the estimates a rebuild plan shows.
+    pub tripo_credits_per_model: u32,
 }
 
 impl Default for AssetSettings {
     fn default() -> Self {
-        AssetSettings { budget_usd: crate::workspace::ASSET_BUDGET_USD, image_model: None }
+        AssetSettings {
+            budget_usd: crate::workspace::ASSET_BUDGET_USD,
+            image_model: None,
+            tripo_credits_per_model: crate::asset_rebuild::TRIPO_CREDITS_PER_MODEL,
+        }
     }
 }
 

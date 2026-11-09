@@ -1575,3 +1575,59 @@ A note for the builder…	Oluşturucu için bir not…
 Ask for a change…	Bir değişiklik iste…
 Hide unreadable ({n})	Okunamayanları gizle ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	Taramanın orijinalden çıkaramadığı varlıklar: dosya ve resim yok, yalnızca nedeni var (örneğin oyunun çalışırken doldurduğu bir doku).
+Category	Kategori
+Category…	Kategori…
+Category of this asset	Bu varlığın kategorisi
+Category for the selected	Seçilenlerin kategorisi
+Find words among unsorted assets	Sıralanmamış varlıklarda kelime bul
+Free	Ücretsiz
+Method for {kind}	{kind} için yöntem
+Nothing to rebuild: every kind is kept or not set up yet.	Yeniden yapılacak bir şey yok: her tür korunuyor ya da henüz ayarlanmadı.
+Plan an asset rebuild	Varlık yeniden yapımını planla
+Rebuild	Yeniden yap
+Rebuild selected…	Seçilenleri yeniden yap…
+Rebuild {category}	{category} yeniden yap
+Rebuild {category}…	{category} yeniden yap…
+Rebuild: {what}	Yeniden yap: {what}
+Rebuild…	Yeniden yap…
+Sent to the builder. Its sorting shows here as it goes.	Oluşturucuya gönderildi. Sıralaması ilerledikçe burada görünür.
+Set a project's category rules	Bir projenin kategori kurallarını ayarla
+Sort assets into a category	Varlıkları bir kategoriye sırala
+Sort the unsorted with the agent	Sıralanmamışları ajanla sırala
+The builder remakes them with free tools. It never spends money.	Oluşturucu bunları ücretsiz araçlarla yeniden yapar. Asla para harcamaz.
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Oluşturucu bunları sıralama araçlarıyla sıralar. Para tutmaz: kodlama ajanının planı karşılar.
+Total: {total}	Toplam: {total}
+about {n} Tripo credits	yaklaşık {n} Tripo kredisi
+about {n} Tripo credits (an estimate)	yaklaşık {n} Tripo kredisi (tahmini)
+{category} · {n} items	{category} · {n} öğe
+{n} assets sent to the builder.	{n} varlık oluşturucuya gönderildi.
+{n} kept as they are this time (kept, or their method isn't set up yet).	{n} öğe bu sefer olduğu gibi kalıyor (korunuyor ya da yöntemi henüz ayarlanmadı).
+Characters	Karakterler
+Enemies	Düşmanlar
+Weapons & tools	Silahlar ve aletler
+Items & pickups	Eşyalar ve toplananlar
+Machines & props	Makineler ve sahne nesneleri
+HUD & menus	HUD ve menüler
+Environment	Çevre
+Effects	Efektler
+Unsorted	Sıralanmamış
+Built in the engine	Motor içinde yapılır
+Engine materials	Motor malzemeleri
+Engine particles	Motor parçacıkları
+Blender	Blender
+Tripo (your web credits)	Tripo (web kredilerin)
+Local generation (free)	Yerel üretim (ücretsiz)
+Keep the original for now	Şimdilik orijinali koru
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Oyunun kendi kodunun çizdiği widget'lar ve vektör şekiller, açık lisanslı bir yazı tipiyle.
+Engine materials and procedural textures, with Blender where a shape is needed.	Motor malzemeleri ve prosedürel dokular, şekil gereken yerde Blender ile.
+The engine's own particle systems.	Motorun kendi parçacık sistemleri.
+Modelled in Blender from simple shapes.	Blender'da basit şekillerden modellenir.
+Generated on Tripo with the credits on your account (an estimate per model).	Hesabındaki kredilerle Tripo'da üretilir (model başına tahmini).
+Sounds generated on this computer.	Bu bilgisayarda üretilen sesler.
+Not rebuilt this time.	Bu sefer yeniden yapılmaz.
+Not set up yet — next step	Henüz ayarlanmadı — sonraki adım
+Not set up yet	Henüz ayarlanmadı
+sorted by the rules	kurallarla sıralandı
+sorted by the agent	ajan tarafından sıralandı
+sorted by you	senin tarafından sıralandı
+Rebuild a group of assets	Bir varlık grubunu yeniden yap

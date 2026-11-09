@@ -8,6 +8,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 pub mod approvals;
+pub mod asset_plan;
 pub mod assets_ui;
 pub mod builders;
 pub mod chat;
@@ -68,6 +69,7 @@ pub const USED_ICONS: &[&str] = &[
     "book-open",
     "bot",
     "box",
+    "bug",
     "boxes",
     "braces",
     "check",
@@ -305,6 +307,23 @@ pub enum Done {
         root: PathBuf,
         id: String,
         image: Option<egui::TextureHandle>,
+    },
+    /// A rebuild plan was read (`asset_plan`).
+    AssetPlan {
+        root: PathBuf,
+        result: Result<asset_plan::PlanView, ToolError>,
+    },
+    /// project_inventory_rebuild wrote the list and marked the items (its result has the brief).
+    AssetRebuildStarted {
+        root: PathBuf,
+        result: Result<Value, ToolError>,
+    },
+    /// Items were put in a category (project_inventory_categorize).
+    AssetsCategorized {
+        root: PathBuf,
+        ids: Vec<String>,
+        category: craft_anything_engine::inventory::Category,
+        result: Result<Value, ToolError>,
     },
     /// A part of the project the Workbench follows was opened (`wb_project`).
     Followed {
@@ -1620,6 +1639,7 @@ impl CraftApp {
             d @ (Done::AssetsListed { .. } | Done::AssetsCounted { .. } | Done::AssetsMarked { .. } | Done::AssetThumbs { .. } | Done::AssetPreview { .. }) => {
                 self.assets_done(d)
             }
+            d @ (Done::AssetPlan { .. } | Done::AssetRebuildStarted { .. } | Done::AssetsCategorized { .. }) => self.asset_plan_done(d),
             Done::Followed { root, part, result } => self.followed(root, part, result),
             Done::LogTail { root, tail } => self.log_tail_read(root, tail),
             Done::Tool { tool, params, route, result } => self.tool_done(tool, params, route, result),
@@ -2003,6 +2023,7 @@ impl CraftApp {
         palette::show(self, &ctx);
         settings_ui::show(self, &ctx);
         home::modals(self, &ctx);
+        asset_plan::plan_modal(self, &ctx);
         self.toasts(&ctx);
         self.drop_overlay(&ctx);
         titlebar::window_edge(&ctx);
@@ -2112,6 +2133,9 @@ impl CraftApp {
         if esc {
             if self.state.palette.open {
                 self.state.palette.open = false;
+            } else if self.assets.plan.is_some() {
+                // The rebuild plan is on top: Esc closes it and nothing under it.
+                self.assets.plan = None;
             } else if self.state.modal.is_some() {
                 home::dismiss(self);
             } else if self.state.settings_open {

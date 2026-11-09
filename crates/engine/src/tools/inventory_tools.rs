@@ -3,6 +3,7 @@
 //! the build scan are in [`crate::inventory`]; taking the original apart is in [`original`].
 //! Ids follow docs/tool-ids.md.
 
+pub mod categories;
 pub mod original;
 
 use crate::inbox::now_ms;
@@ -23,7 +24,7 @@ const MAX_PAGE: usize = 1000;
 const MAX_MARK: usize = 5000;
 
 pub fn specs() -> Vec<ToolSpec> {
-    vec![
+    let mut v = vec![
         ToolSpec {
             id: SCAN_TOOL,
             title: "Scan a project's assets",
@@ -38,7 +39,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "project_inventory_list",
             title: "List a project's assets",
-            summary: "List the items of a project's asset inventory (from project_inventory_scan), filtered by source (build, original), kind (texture, sprite, model, sound, music, font, video, map, material, engine_asset, other), status (original, generated, library, placeholder, needs_replacing, replaced) and a text query (name, path, origin or note, any case), paged with offset/limit. Each item has its id, path, size, picture size, sound length, thumbnail, status and note. In Clean room the original's items are left out.",
+            summary: "List the items of a project's asset inventory (from project_inventory_scan), filtered by source (build, original), kind (texture, sprite, model, sound, music, font, video, map, material, engine_asset, other), status (original, generated, library, placeholder, needs_replacing, replaced), category (characters, enemies, weapons, items, machines, hud, environment, effects, music, unsorted; see project_inventory_category_rules) and a text query (name, path, origin or note, any case), paged with offset/limit. Each item has its id, path, size, picture size, sound length, thumbnail, status, note and category (with who chose it: rule, agent or user). In Clean room the original's items are left out.",
             beginner: "Shows the assets in what you're making, with their pictures.",
             toolset: Toolset::Projects,
             effects: Effects::READ_ONLY.union(Effects::CARRIES_TARGET_CONTENT),
@@ -57,7 +58,9 @@ pub fn specs() -> Vec<ToolSpec> {
             input_schema: schema_of::<MarkParams>,
             run: project_inventory_mark,
         },
-    ]
+    ];
+    v.extend(categories::specs());
+    v
 }
 
 fn d_true() -> bool {
@@ -186,6 +189,9 @@ pub struct ListParams {
     /// Only items with this status.
     #[serde(default)]
     pub status: Option<Status>,
+    /// Only items in this category (characters, enemies, weapons, items, machines, hud, environment, effects, music, unsorted).
+    #[serde(default)]
+    pub category: Option<crate::asset_categories::Category>,
     /// Only items whose name, path, origin or note contains this (any case).
     #[serde(default)]
     pub query: Option<String>,
@@ -208,7 +214,12 @@ fn project_inventory_list(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput
     let matching: Vec<&Item> = shown
         .iter()
         .copied()
-        .filter(|i| p.source.is_none_or(|s| i.source == s) && p.kind.is_none_or(|k| i.kind == k) && p.status.is_none_or(|s| i.status == s))
+        .filter(|i| {
+            p.source.is_none_or(|s| i.source == s)
+                && p.kind.is_none_or(|k| i.kind == k)
+                && p.status.is_none_or(|s| i.status == s)
+                && p.category.is_none_or(|c| i.category == c)
+        })
         .filter(|i| {
             needle.as_deref().is_none_or(|n| {
                 [Some(i.name.as_str()), i.path.as_deref(), i.origin.as_deref(), Some(i.note.as_str())]

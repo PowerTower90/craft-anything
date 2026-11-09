@@ -1575,3 +1575,59 @@ A note for the builder…	Poznámka pro sestavovatele…
 Ask for a change…	Požádat o změnu…
 Hide unreadable ({n})	Skrýt nečitelné ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	Prostředky, které prohledání nedokázalo z originálu vyjmout: žádný soubor ani obrázek, jen důvod (třeba textura, kterou hra plní až za běhu).
+Category	Kategorie
+Category…	Kategorie…
+Category of this asset	Kategorie tohoto prostředku
+Category for the selected	Kategorie pro vybrané
+Find words among unsorted assets	Najít slova mezi neroztříděnými prostředky
+Free	Zdarma
+Method for {kind}	Metoda pro {kind}
+Nothing to rebuild: every kind is kept or not set up yet.	Není co přestavět: každý druh se ponechá, nebo ještě není nastaven.
+Plan an asset rebuild	Naplánovat přestavbu prostředků
+Rebuild	Přestavět
+Rebuild selected…	Přestavět vybrané…
+Rebuild {category}	Přestavět: {category}
+Rebuild {category}…	Přestavět: {category}…
+Rebuild: {what}	Přestavět: {what}
+Rebuild…	Přestavět…
+Sent to the builder. Its sorting shows here as it goes.	Odesláno sestavovateli. Jeho třídění se tu ukazuje průběžně.
+Set a project's category rules	Nastavit pravidla kategorií projektu
+Sort assets into a category	Zařadit prostředky do kategorie
+Sort the unsorted with the agent	Roztřídit neroztříděné s agentem
+The builder remakes them with free tools. It never spends money.	Sestavovatel je předělá zdarma dostupnými nástroji. Nikdy neutrácí peníze.
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Sestavovatel je roztřídí třídicími nástroji. Nic to nestojí: pokrývá to předplatné vašeho kódovacího agenta.
+Total: {total}	Celkem: {total}
+about {n} Tripo credits	asi {n} kreditů Tripo
+about {n} Tripo credits (an estimate)	asi {n} kreditů Tripo (odhad)
+{category} · {n} items	{category} · položek: {n}
+{n} assets sent to the builder.	Sestavovateli odesláno prostředků: {n}.
+{n} kept as they are this time (kept, or their method isn't set up yet).	Tentokrát zůstane beze změny: {n} (ponechané, nebo jejich metoda ještě není nastavena).
+Characters	Postavy
+Enemies	Nepřátelé
+Weapons & tools	Zbraně a nástroje
+Items & pickups	Předměty a sběratelné
+Machines & props	Stroje a rekvizity
+HUD & menus	HUD a nabídky
+Environment	Prostředí
+Effects	Efekty
+Unsorted	Neroztříděné
+Built in the engine	Postaveno v enginu
+Engine materials	Materiály enginu
+Engine particles	Částice enginu
+Blender	Blender
+Tripo (your web credits)	Tripo (vaše webové kredity)
+Local generation (free)	Místní generování (zdarma)
+Keep the original for now	Zatím ponechat originál
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Widgety a vektorové tvary kreslené vlastním kódem hry, s písmem pod otevřenou licencí.
+Engine materials and procedural textures, with Blender where a shape is needed.	Materiály enginu a procedurální textury, s Blenderem tam, kde je potřeba tvar.
+The engine's own particle systems.	Vlastní částicové systémy enginu.
+Modelled in Blender from simple shapes.	Vymodelováno v Blenderu z jednoduchých tvarů.
+Generated on Tripo with the credits on your account (an estimate per model).	Vygenerováno na Tripo z kreditů vašeho účtu (odhad na model).
+Sounds generated on this computer.	Zvuky generované na tomto počítači.
+Not rebuilt this time.	Tentokrát se nepřestaví.
+Not set up yet — next step	Ještě není nastaveno — další krok
+Not set up yet	Ještě není nastaveno
+sorted by the rules	roztříděno pravidly
+sorted by the agent	roztříděno agentem
+sorted by you	roztříděno vámi
+Rebuild a group of assets	Přestavět skupinu prostředků

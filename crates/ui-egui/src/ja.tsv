@@ -1005,3 +1005,59 @@ A note for the builder…	ビルダーへのメモ…
 Ask for a change…	変更を頼む…
 Hide unreadable ({n})	読めないものを隠す ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	スキャンで元の版から取り出せなかったアセットです。ファイルも画像もなく、理由だけがあります（ゲームの実行中に埋められるテクスチャなど）。
+Category	カテゴリ
+Category…	カテゴリ…
+Category of this asset	このアセットのカテゴリ
+Category for the selected	選択したもののカテゴリ
+Find words among unsorted assets	未分類アセットの単語を探す
+Free	無料
+Method for {kind}	{kind} の方法
+Nothing to rebuild: every kind is kept or not set up yet.	作り直すものはありません。すべての種類がそのままか、まだ準備できていません。
+Plan an asset rebuild	アセットの作り直しを計画
+Rebuild	作り直す
+Rebuild selected…	選択したものを作り直す…
+Rebuild {category}	{category} を作り直す
+Rebuild {category}…	{category} を作り直す…
+Rebuild: {what}	作り直す: {what}
+Rebuild…	作り直す…
+Sent to the builder. Its sorting shows here as it goes.	ビルダーに送りました。仕分けの進み具合はここに表示されます。
+Set a project's category rules	プロジェクトのカテゴリ規則を設定
+Sort assets into a category	アセットをカテゴリに仕分ける
+Sort the unsorted with the agent	未分類のものをエージェントで仕分ける
+The builder remakes them with free tools. It never spends money.	ビルダーは無料のツールで作り直します。お金は一切使いません。
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	ビルダーが仕分けツールで仕分けます。お金はかかりません。コーディングエージェントのプランの範囲内です。
+Total: {total}	合計: {total}
+about {n} Tripo credits	Tripo クレジット約 {n}
+about {n} Tripo credits (an estimate)	Tripo クレジット約 {n}（見積もり）
+{category} · {n} items	{category} · {n} 件
+{n} assets sent to the builder.	{n} 個のアセットをビルダーに送りました。
+{n} kept as they are this time (kept, or their method isn't set up yet).	今回は {n} 件をそのままにします（そのまま、または方法がまだ準備できていません）。
+Characters	キャラクター
+Enemies	敵
+Weapons & tools	武器と道具
+Items & pickups	アイテムと拾得物
+Machines & props	機械と小道具
+HUD & menus	HUD とメニュー
+Environment	環境
+Effects	エフェクト
+Unsorted	未分類
+Built in the engine	エンジン内で作る
+Engine materials	エンジンのマテリアル
+Engine particles	エンジンのパーティクル
+Blender	Blender
+Tripo (your web credits)	Tripo（あなたのウェブクレジット）
+Local generation (free)	ローカル生成（無料）
+Keep the original for now	今は元のままにする
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	ゲーム自身のコードが描くウィジェットとベクター図形、オープンライセンスのフォントで。
+Engine materials and procedural textures, with Blender where a shape is needed.	エンジンのマテリアルとプロシージャルテクスチャ。形が必要なところは Blender で。
+The engine's own particle systems.	エンジン自身のパーティクルシステム。
+Modelled in Blender from simple shapes.	Blender で単純な形からモデリング。
+Generated on Tripo with the credits on your account (an estimate per model).	あなたのアカウントのクレジットで Tripo 上で生成（モデルごとの見積もり）。
+Sounds generated on this computer.	このコンピューターで生成するサウンド。
+Not rebuilt this time.	今回は作り直しません。
+Not set up yet — next step	まだ準備できていません — 次のステップ
+Not set up yet	まだ準備できていません
+sorted by the rules	規則で仕分け
+sorted by the agent	エージェントが仕分け
+sorted by you	あなたが仕分け
+Rebuild a group of assets	アセットのまとまりを作り直す

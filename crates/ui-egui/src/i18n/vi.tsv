@@ -1575,3 +1575,59 @@ A note for the builder…	Ghi chú cho trình dựng…
 Ask for a change…	Yêu cầu thay đổi…
 Hide unreadable ({n})	Ẩn mục không đọc được ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	Tài nguyên mà lượt quét không lấy ra được từ bản gốc: không có tệp, không có hình, chỉ có lý do (ví dụ một kết cấu mà trò chơi điền vào khi đang chạy).
+Category	Danh mục
+Category…	Danh mục…
+Category of this asset	Danh mục của tài nguyên này
+Category for the selected	Danh mục cho mục đã chọn
+Find words among unsorted assets	Tìm từ trong tài nguyên chưa phân loại
+Free	Miễn phí
+Method for {kind}	Cách làm cho {kind}
+Nothing to rebuild: every kind is kept or not set up yet.	Không có gì để dựng lại: mọi loại đều được giữ hoặc chưa được thiết lập.
+Plan an asset rebuild	Lên kế hoạch dựng lại tài nguyên
+Rebuild	Dựng lại
+Rebuild selected…	Dựng lại mục đã chọn…
+Rebuild {category}	Dựng lại {category}
+Rebuild {category}…	Dựng lại {category}…
+Rebuild: {what}	Dựng lại: {what}
+Rebuild…	Dựng lại…
+Sent to the builder. Its sorting shows here as it goes.	Đã gửi cho trình dựng. Việc phân loại sẽ hiện ở đây khi nó làm.
+Set a project's category rules	Đặt quy tắc danh mục của dự án
+Sort assets into a category	Xếp tài nguyên vào một danh mục
+Sort the unsorted with the agent	Phân loại phần chưa phân loại bằng tác tử
+The builder remakes them with free tools. It never spends money.	Trình dựng làm lại chúng bằng công cụ miễn phí. Nó không bao giờ tiêu tiền.
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Trình dựng phân loại bằng công cụ phân loại. Không tốn tiền: gói của tác tử lập trình đã bao gồm.
+Total: {total}	Tổng: {total}
+about {n} Tripo credits	khoảng {n} tín dụng Tripo
+about {n} Tripo credits (an estimate)	khoảng {n} tín dụng Tripo (ước tính)
+{category} · {n} items	{category} · {n} mục
+{n} assets sent to the builder.	Đã gửi {n} tài nguyên cho trình dựng.
+{n} kept as they are this time (kept, or their method isn't set up yet).	Lần này giữ nguyên {n} mục (được giữ, hoặc cách làm chưa được thiết lập).
+Characters	Nhân vật
+Enemies	Kẻ địch
+Weapons & tools	Vũ khí và công cụ
+Items & pickups	Vật phẩm và đồ nhặt
+Machines & props	Máy móc và đạo cụ
+HUD & menus	HUD và menu
+Environment	Môi trường
+Effects	Hiệu ứng
+Unsorted	Chưa phân loại
+Built in the engine	Dựng trong engine
+Engine materials	Vật liệu engine
+Engine particles	Hạt của engine
+Blender	Blender
+Tripo (your web credits)	Tripo (tín dụng web của bạn)
+Local generation (free)	Tạo cục bộ (miễn phí)
+Keep the original for now	Tạm giữ bản gốc
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Widget và hình vector do chính mã của trò chơi vẽ, với phông chữ giấy phép mở.
+Engine materials and procedural textures, with Blender where a shape is needed.	Vật liệu engine và kết cấu thủ tục, dùng Blender khi cần hình khối.
+The engine's own particle systems.	Hệ thống hạt có sẵn của engine.
+Modelled in Blender from simple shapes.	Dựng mô hình trong Blender từ các hình đơn giản.
+Generated on Tripo with the credits on your account (an estimate per model).	Tạo trên Tripo bằng tín dụng trong tài khoản của bạn (ước tính mỗi mô hình).
+Sounds generated on this computer.	Âm thanh tạo trên máy này.
+Not rebuilt this time.	Lần này không dựng lại.
+Not set up yet — next step	Chưa thiết lập — bước tiếp theo
+Not set up yet	Chưa thiết lập
+sorted by the rules	do quy tắc phân loại
+sorted by the agent	do tác tử phân loại
+sorted by you	do bạn phân loại
+Rebuild a group of assets	Dựng lại một nhóm tài nguyên

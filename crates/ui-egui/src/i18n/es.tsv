@@ -1575,3 +1575,59 @@ A note for the builder…	Una nota para el constructor…
 Ask for a change…	Pide un cambio…
 Hide unreadable ({n})	Ocultar ilegibles ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	Recursos que el escaneo no pudo sacar del original: sin archivo ni imagen, solo el motivo (por ejemplo, una textura que el juego llena mientras se ejecuta).
+Category	Categoría
+Category…	Categoría…
+Category of this asset	Categoría de este recurso
+Category for the selected	Categoría para la selección
+Find words among unsorted assets	Buscar palabras entre recursos sin ordenar
+Free	Gratis
+Method for {kind}	Método para {kind}
+Nothing to rebuild: every kind is kept or not set up yet.	Nada que reconstruir: cada tipo se conserva o aún no está configurado.
+Plan an asset rebuild	Planificar la reconstrucción de recursos
+Rebuild	Reconstruir
+Rebuild selected…	Reconstruir la selección…
+Rebuild {category}	Reconstruir {category}
+Rebuild {category}…	Reconstruir {category}…
+Rebuild: {what}	Reconstruir: {what}
+Rebuild…	Reconstruir…
+Sent to the builder. Its sorting shows here as it goes.	Enviado al constructor. Su clasificación aparece aquí a medida que avanza.
+Set a project's category rules	Definir las reglas de categoría de un proyecto
+Sort assets into a category	Clasificar recursos en una categoría
+Sort the unsorted with the agent	Clasificar lo no ordenado con el agente
+The builder remakes them with free tools. It never spends money.	El constructor los rehace con herramientas gratuitas. Nunca gasta dinero.
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	El constructor los clasifica con las herramientas de clasificación. No cuesta dinero: lo cubre el plan de tu agente de código.
+Total: {total}	Total: {total}
+about {n} Tripo credits	unos {n} créditos de Tripo
+about {n} Tripo credits (an estimate)	unos {n} créditos de Tripo (una estimación)
+{category} · {n} items	{category} · {n} elementos
+{n} assets sent to the builder.	{n} recursos enviados al constructor.
+{n} kept as they are this time (kept, or their method isn't set up yet).	{n} se quedan como están esta vez (se conservan, o su método aún no está configurado).
+Characters	Personajes
+Enemies	Enemigos
+Weapons & tools	Armas y herramientas
+Items & pickups	Objetos y recogibles
+Machines & props	Máquinas y utilería
+HUD & menus	HUD y menús
+Environment	Entorno
+Effects	Efectos
+Unsorted	Sin ordenar
+Built in the engine	Hecho en el motor
+Engine materials	Materiales del motor
+Engine particles	Partículas del motor
+Blender	Blender
+Tripo (your web credits)	Tripo (tus créditos web)
+Local generation (free)	Generación local (gratis)
+Keep the original for now	Conservar el original por ahora
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Widgets y formas vectoriales dibujados por el propio código del juego, con una fuente de licencia abierta.
+Engine materials and procedural textures, with Blender where a shape is needed.	Materiales del motor y texturas procedurales, con Blender donde haga falta una forma.
+The engine's own particle systems.	Los sistemas de partículas del propio motor.
+Modelled in Blender from simple shapes.	Modelado en Blender a partir de formas simples.
+Generated on Tripo with the credits on your account (an estimate per model).	Generado en Tripo con los créditos de tu cuenta (una estimación por modelo).
+Sounds generated on this computer.	Sonidos generados en este equipo.
+Not rebuilt this time.	No se reconstruye esta vez.
+Not set up yet — next step	Aún no configurado — siguiente paso
+Not set up yet	Aún no configurado
+sorted by the rules	clasificado por las reglas
+sorted by the agent	clasificado por el agente
+sorted by you	clasificado por ti
+Rebuild a group of assets	Reconstruir un grupo de recursos

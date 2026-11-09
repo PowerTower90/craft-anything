@@ -1575,3 +1575,59 @@ A note for the builder…	Заметка для сборщика…
 Ask for a change…	Попросить изменение…
 Hide unreadable ({n})	Скрыть нечитаемые ({n})
 Assets the scan couldn't take out of the original: no file and no picture, only why (a texture the game fills while it runs, say).	Ресурсы, которые сканирование не смогло извлечь из оригинала: нет ни файла, ни изображения, только причина (например, текстура, которую игра заполняет во время работы).
+Category	Категория
+Category…	Категория…
+Category of this asset	Категория этого ресурса
+Category for the selected	Категория для выбранных
+Find words among unsorted assets	Найти слова среди несортированных ресурсов
+Free	Бесплатно
+Method for {kind}	Способ для: {kind}
+Nothing to rebuild: every kind is kept or not set up yet.	Нечего пересобирать: каждый вид оставлен как есть или ещё не настроен.
+Plan an asset rebuild	Спланировать пересборку ресурсов
+Rebuild	Пересобрать
+Rebuild selected…	Пересобрать выбранные…
+Rebuild {category}	Пересобрать: {category}
+Rebuild {category}…	Пересобрать: {category}…
+Rebuild: {what}	Пересборка: {what}
+Rebuild…	Пересобрать…
+Sent to the builder. Its sorting shows here as it goes.	Отправлено сборщику. Его сортировка появится здесь по ходу работы.
+Set a project's category rules	Задать правила категорий проекта
+Sort assets into a category	Отнести ресурсы к категории
+Sort the unsorted with the agent	Рассортировать несортированные с агентом
+The builder remakes them with free tools. It never spends money.	Сборщик переделывает их бесплатными инструментами. Он никогда не тратит деньги.
+The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Сборщик рассортирует их инструментами сортировки. Это ничего не стоит: всё входит в план вашего агента для кода.
+Total: {total}	Итого: {total}
+about {n} Tripo credits	около {n} кредитов Tripo
+about {n} Tripo credits (an estimate)	около {n} кредитов Tripo (оценка)
+{category} · {n} items	{category} · элементов: {n}
+{n} assets sent to the builder.	Ресурсов отправлено сборщику: {n}.
+{n} kept as they are this time (kept, or their method isn't set up yet).	Остаются как есть в этот раз: {n} (оставлены, или их способ ещё не настроен).
+Characters	Персонажи
+Enemies	Враги
+Weapons & tools	Оружие и инструменты
+Items & pickups	Предметы и подбираемое
+Machines & props	Машины и реквизит
+HUD & menus	HUD и меню
+Environment	Окружение
+Effects	Эффекты
+Unsorted	Без категории
+Built in the engine	Сделать в движке
+Engine materials	Материалы движка
+Engine particles	Частицы движка
+Blender	Blender
+Tripo (your web credits)	Tripo (ваши веб-кредиты)
+Local generation (free)	Локальная генерация (бесплатно)
+Keep the original for now	Пока оставить оригинал
+Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Виджеты и векторные фигуры, которые рисует сам код игры, со шрифтом под открытой лицензией.
+Engine materials and procedural textures, with Blender where a shape is needed.	Материалы движка и процедурные текстуры, с Blender там, где нужна форма.
+The engine's own particle systems.	Собственные системы частиц движка.
+Modelled in Blender from simple shapes.	Смоделировано в Blender из простых форм.
+Generated on Tripo with the credits on your account (an estimate per model).	Создаётся на Tripo за кредиты вашего аккаунта (оценка на модель).
+Sounds generated on this computer.	Звуки, созданные на этом компьютере.
+Not rebuilt this time.	В этот раз не пересобирается.
+Not set up yet — next step	Ещё не настроено — следующий шаг
+Not set up yet	Ещё не настроено
+sorted by the rules	по правилам
+sorted by the agent	агентом
+sorted by you	вами
+Rebuild a group of assets	Пересобрать группу ресурсов

@@ -13,7 +13,7 @@ use crate::state::{Modal, RailKind, RightTab, Screen};
 use crate::theme::{self, Tokens};
 use crate::{CraftApp, Done, icons, widgets};
 use craft_anything_engine::evidence::ToolError;
-use craft_anything_engine::inventory::{Item, Kind, Source, Status};
+use craft_anything_engine::inventory::{Category, Item, Kind, Source, Status};
 use craft_anything_engine::tools::inventory_tools::SCAN_TOOL;
 use craft_anything_engine::{CallOptions, Caller, Consent, Engine};
 use egui::{Color32, Margin, RichText, Sense, Ui, Vec2};
@@ -139,6 +139,8 @@ pub struct Summary {
     pub root: PathBuf,
     pub items: u64,
     pub by_kind: BTreeMap<Kind, u64>,
+    /// Items in each category.
+    pub by_category: BTreeMap<Category, u64>,
     /// Items marked "needs replacing".
     pub marked: u64,
     /// The build or the original was scanned (an inventory exists).
@@ -161,10 +163,15 @@ impl Summary {
                 }
             }
         }
+        let by_category = counts["by_category"]
+            .as_object()
+            .map(|m| m.iter().filter_map(|(k, n)| Some((Category::from_id(k)?, n.as_u64().unwrap_or(0)))).collect())
+            .unwrap_or_default();
         Summary {
             root: root.to_path_buf(),
             items: counts["items"].as_u64().unwrap_or(0),
             by_kind,
+            by_category,
             marked: counts["by_status"][Status::NeedsReplacing.id()].as_u64().unwrap_or(0),
             scanned: !v["build_scanned_ms"].is_null() || !v["original_scanned_ms"].is_null() || counts["items"].as_u64().unwrap_or(0) > 0,
             hidden: counts["original_hidden_in_clean_room"].as_u64().unwrap_or(0),
@@ -214,6 +221,7 @@ pub enum ListState {
 /// What filters the grid; recomputed only when it changes.
 #[derive(Debug, Clone, PartialEq)]
 struct ViewKey {
+    category: Option<Category>,
     source: Option<Source>,
     kind: Option<Kind>,
     status: Option<Status>,
@@ -246,6 +254,8 @@ pub struct Gallery {
     count_error: Option<(PathBuf, String)>,
     pub items: Vec<Item>,
     pub list: ListState,
+    /// The category shown (the main filter).
+    pub category: Option<Category>,
     pub source: Option<Source>,
     pub kind: Option<Kind>,
     pub status: Option<Status>,
@@ -262,6 +272,8 @@ pub struct Gallery {
     shown: Vec<usize>,
     /// Items of each kind passing the other filters (the chips' counts).
     kinds: BTreeMap<Kind, usize>,
+    /// Items in each category passing the filters other than category and kind.
+    cats: BTreeMap<Category, usize>,
     generation: u64,
     pub selected: BTreeSet<String>,
     anchor: Option<String>,
@@ -280,7 +292,14 @@ pub struct Gallery {
     pub scanning: Option<u64>,
     /// Marks sent and not back yet.
     pub marking: usize,
+    /// The rebuild plan dialog, while it's open.
+    pub plan: Option<crate::asset_plan::PlanState>,
+    /// The filters the grid was last scrolled for: when they change, it starts at the top.
+    scrolled_for: Option<GridFilters>,
 }
+
+/// What the grid shows (category, source, kind, status, search, unreadable shown).
+type GridFilters = (Option<Category>, Option<Source>, Option<Kind>, Option<Status>, String, bool);
 
 impl Gallery {
     /// Start over for another project (or none).
@@ -300,6 +319,24 @@ impl Gallery {
         &self.shown
     }
 
+    /// How many items of `category` pass the filters other than category and kind.
+    pub fn category_count(&mut self, category: Category) -> usize {
+        self.refilter();
+        self.cats.get(&category).copied().unwrap_or(0)
+    }
+
+    /// Put items in a category here too, once the tool has saved it.
+    pub(crate) fn set_category(&mut self, ids: &[String], category: Category, by: craft_anything_engine::inventory::CategoryBy) {
+        for item in self.items.iter_mut().filter(|i| ids.contains(&i.id)) {
+            if by == craft_anything_engine::inventory::CategoryBy::Agent && item.category_by == craft_anything_engine::inventory::CategoryBy::User {
+                continue;
+            }
+            item.category = category;
+            item.category_by = by;
+        }
+        self.generation += 1;
+    }
+
     /// How many unreadable items the other filters let through.
     pub fn unreadable_count(&mut self) -> usize {
         self.refilter();
@@ -314,6 +351,7 @@ impl Gallery {
 
     fn refilter(&mut self) {
         let key = ViewKey {
+            category: self.category,
             source: self.source,
             kind: self.kind,
             status: self.status,
@@ -332,6 +370,7 @@ impl Gallery {
         }
         self.shown.clear();
         self.kinds.clear();
+        self.cats.clear();
         self.unreadable = 0;
         for &i in &self.order {
             let Some(item) = self.items.get(i) else { continue };
@@ -345,11 +384,16 @@ impl Gallery {
             if !pass {
                 continue;
             }
+            let in_category = key.category.is_none_or(|c| item.category == c);
             if unreadable(item) {
-                self.unreadable += usize::from(key.kind.is_none_or(|k| item.kind == k));
+                self.unreadable += usize::from(in_category && key.kind.is_none_or(|k| item.kind == k));
                 if !key.show_unreadable {
                     continue;
                 }
+            }
+            *self.cats.entry(item.category).or_insert(0) += 1;
+            if !in_category {
+                continue;
             }
             *self.kinds.entry(item.kind).or_insert(0) += 1;
             if key.kind.is_none_or(|k| item.kind == k) {
@@ -732,6 +776,8 @@ pub fn rail(app: &mut CraftApp, ui: &mut Ui) {
             "Filter",
         );
         ui.add_space(8.0);
+        crate::asset_plan::category_list(app, ui);
+        ui.add_space(8.0);
         widgets::caption(ui, "Source");
         let sel = match app.assets.source {
             None => 0,
@@ -871,6 +917,9 @@ fn toolbar(app: &mut CraftApp, ui: &mut Ui) {
     let shown = app.assets.shown().len();
     let picked = app.assets.selected.len();
     let mut mark = None;
+    if let Some(c) = app.assets.category {
+        crate::asset_plan::category_header(app, ui, c, shown);
+    }
     ui.horizontal_wrapped(|ui| {
         ui.label(RichText::new(trf("{n} shown", &[("n", &count(shown as u64))])).color(t.text_dim));
         // One item is marked from the Inspector; several from here too.
@@ -885,6 +934,7 @@ fn toolbar(app: &mut CraftApp, ui: &mut Ui) {
             if widgets::link(ui, "Clear selection").clicked() {
                 app.assets.selected.clear();
             }
+            crate::asset_plan::selection_controls(app, ui, "toolbar");
         }
         if app.assets.marking > 0 {
             ui.add(widgets::Spinner::new().size(12.0).color(t.accent));
@@ -918,7 +968,13 @@ fn grid(app: &mut CraftApp, ui: &mut Ui) {
     let g = &app.assets;
     // The rows' spacing is set before show_rows measures them, so the rows it counts are the rows drawn.
     ui.spacing_mut().item_spacing = Vec2::splat(GAP);
-    egui::ScrollArea::vertical().id_salt("asset-grid").auto_shrink([false, false]).show_rows(ui, TILE_H, rows, |ui, range| {
+    // Another category, kind, status or search starts at the top, not where the last list was.
+    let filters: GridFilters = (g.category, g.source, g.kind, g.status, g.query.clone(), g.show_unreadable);
+    let mut area = egui::ScrollArea::vertical().id_salt("asset-grid").auto_shrink([false, false]);
+    if g.scrolled_for.as_ref() != Some(&filters) {
+        area = area.vertical_scroll_offset(0.0);
+    }
+    area.show_rows(ui, TILE_H, rows, |ui, range| {
         for r in range {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = GAP;
@@ -946,6 +1002,7 @@ fn grid(app: &mut CraftApp, ui: &mut Ui) {
             });
         }
     });
+    app.assets.scrolled_for = Some(filters);
     let frame = app.assets.frame;
     for id in drawn {
         if let Some((_, at)) = app.assets.thumbs.get_mut(&id) {
@@ -1094,6 +1151,7 @@ pub fn inspector(app: &mut CraftApp, ui: &mut Ui) {
                         }
                     }
                 });
+                crate::asset_plan::selection_controls(app, ui, "inspector");
             });
             ui.add_space(8.0);
         }
@@ -1148,6 +1206,8 @@ pub fn inspector(app: &mut CraftApp, ui: &mut Ui) {
                     ui.add(egui::Label::new(RichText::new(problem).color(t.text_dim).size(theme::CAPTION)).wrap());
                 });
             }
+            ui.add_space(8.0);
+            crate::asset_plan::item_category(app, ui, &item);
             ui.add_space(8.0);
             widgets::caption(ui, "Mark as");
             ui.horizontal_wrapped(|ui| {
@@ -1232,6 +1292,7 @@ pub fn card(app: &mut CraftApp, ui: &mut Ui, ws: &craft_anything_engine::workspa
                 if s.marked > 0 {
                     ui.label(RichText::new(trf("{n} marked to replace", &[("n", &count(s.marked))])).size(theme::SMALL).color(t.warning));
                 }
+                crate::asset_plan::card_categories(app, ui, s);
                 if s.hidden > 0 {
                     ui.add(
                         egui::Label::new(
@@ -1243,9 +1304,11 @@ pub fn card(app: &mut CraftApp, ui: &mut Ui, ws: &craft_anything_engine::workspa
                     );
                 }
                 ui.add_space(6.0);
-                if app.beginner() {
-                    ui.label(RichText::new(tr("The gallery is in Advanced mode.")).size(theme::CAPTION).color(t.text_faint));
-                } else if widgets::secondary(ui, Some("image"), "Open the gallery").clicked() {
+                // In Simple mode it switches to Advanced, where the gallery is.
+                if widgets::secondary(ui, Some("image"), "Open the gallery").clicked() {
+                    if app.beginner() {
+                        app.set_mode(craft_anything_engine::Mode::Experienced);
+                    }
                     app.open_asset_gallery();
                 }
             }

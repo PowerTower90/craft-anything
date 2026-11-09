@@ -96,6 +96,11 @@ const ACTIONS: &[Action] = &[
     a("follow_project",      "the Workbench shows the open project: its findings and its original", Cli("tool <id> --project")),
     a("leave_project_context", "use the Workbench without the open project",   UiOnly("navigation")),
     a("analyse_followed",    "analyse the followed project's original",        UiOnly("a view; each list is a tool call by id")),
+    a("open_rebuild_plan",   "how a category or a selection of assets would be rebuilt, and its cost", Tool(&["project_inventory_rebuild_plan"])),
+    a("choose_rebuild_method", "another method for one kind of asset in a rebuild plan", Tool(&["project_inventory_rebuild_plan"])),
+    a("start_asset_rebuild", "rebuild a group of assets through the project's builder", Tool(&["project_inventory_rebuild"])),
+    a("categorize_assets",   "put assets in a category (the person's choice)", Tool(&["project_inventory_categorize"])),
+    a("sort_unsorted_with_agent", "ask the builder to sort the unsorted assets", Tool(&["project_inventory_unsorted_terms", "project_inventory_category_rules"])),
 
     // ---- Engines, Deep mode and assets --------------------------------------------------------
     a("refresh_game_engines","which game engines are on this computer",        Tool(&["engines_list"])),
@@ -185,6 +190,7 @@ const PLUMBING: &[(&str, &str)] = &[
     ("thumb_ready", "a job's result"), ("thumb", "drawing"), ("refresh_side_panel", "a view tally"),
     ("previews", "drawing"), ("preview", "drawing"), ("preview_ready", "a job's result"),
     ("open_project_investigation", "part of follow_project"), ("open_project_original", "part of follow_project (core_target_open)"),
+    ("load_rebuild_plan", "part of open_rebuild_plan and choose_rebuild_method"),
     ("tail_project_log", "drawing: reads build-activity.log on a worker"), ("want_asset_thumbs", "drawing"), ("want_asset_preview", "drawing"),
 ];
 

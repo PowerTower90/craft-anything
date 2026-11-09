@@ -107,7 +107,8 @@ pub fn engine(mode: Mode, first_run_done: bool) -> Arc<Engine> {
         let _ = session.record(e);
     }
     let _ = session.put_unknown(Unknown::new("Does check_for_updates send anything about the user?", "network", Severity::Medium));
-    Arc::new(Engine::new(session))
+    // The AI layer's tools too, as the app has them (rebuilds go through them).
+    Engine::shared(session, craft_anything_ai::tools())
 }
 
 /// Deep mode on, in the app and its engine: for scenes and tests that look inside the sample.
