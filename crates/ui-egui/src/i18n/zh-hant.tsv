@@ -1493,3 +1493,6 @@ The build stopped on an error	建置因錯誤而停止
 Building on another screen. Click to open it.	正在另一個畫面建置。點一下開啟。
 Check it now	立即檢查
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	不呼叫建構器，檢查目前已建構的內容。通過後即可試用。
+List a project's assets	列出專案的資源
+Mark a project's assets	標記專案的資源
+Scan a project's assets	掃描專案的資源

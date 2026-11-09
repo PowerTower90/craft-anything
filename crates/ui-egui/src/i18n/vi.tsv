@@ -1493,3 +1493,6 @@ The build stopped on an error	Bản dựng đã dừng vì lỗi
 Building on another screen. Click to open it.	Đang dựng ở màn hình khác. Nhấp để mở.
 Check it now	Kiểm tra ngay
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Chạy các bước kiểm tra trên những gì đã dựng, không cần trình dựng. Khi đạt, bạn có thể dùng thử.
+List a project's assets	Liệt kê tài nguyên của dự án
+Mark a project's assets	Đánh dấu tài nguyên của dự án
+Scan a project's assets	Quét tài nguyên của dự án

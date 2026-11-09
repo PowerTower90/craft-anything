@@ -1,6 +1,6 @@
 //! Find programs on `PATH` (with `PATHEXT` on Windows). On Windows the `PATH` the registry holds
-//! now is read too (through `reg.exe`, cached), since a process's own `PATH` is a copy from when
-//! it started; nothing else runs a subprocess.
+//! now is read too (straight from the registry, cached), since a process's own `PATH` is a copy from when
+//! it started. No program is started to find one.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -96,99 +96,54 @@ fn same_dir(a: &Path, b: &Path) -> bool {
 }
 
 /// The `Path` values of the machine (`HKLM\...\Session Manager\Environment`) and user
-/// (`HKCU\Environment`) environment in the registry, read with `reg.exe` and cached for a few
+/// (`HKCU\Environment`) environment in the registry, read directly and cached for a few
 /// seconds so a lookup stays cheap. Nothing on other systems.
 #[cfg(windows)]
 mod registry {
     use super::PathBuf;
     use crate::sync::Mutex;
-    use std::cell::Cell;
     use std::sync::OnceLock;
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::{Duration, Instant};
 
     /// Machine first, then user: the order Windows joins them in.
-    const KEYS: [&str; 2] = [r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", r"HKCU\Environment"];
-    /// How long a reading is used before it is refreshed (in the background, so no lookup waits).
+    const MACHINE: &str = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment";
+    const USER: &str = "Environment";
+    /// How long a reading is reused before the registry is read again.
     const FRESH_FOR: Duration = Duration::from_secs(10);
 
+    /// The last reading and when it was taken.
     type Cache = Mutex<Option<(Instant, Vec<PathBuf>)>>;
 
-    thread_local! {
-        /// Set while this thread runs `reg.exe`: starting it looks the program up through
-        /// [`super::search_path`], which must not read the registry again.
-        static READING: Cell<bool> = const { Cell::new(false) };
-    }
-
-    /// The registry's `PATH` folders, machine then user, each once. The first call reads them;
-    /// later calls get the cached reading, refreshed in the background once it is older than
-    /// [`FRESH_FOR`]. Empty while this thread is itself reading them.
+    /// The registry's `PATH` folders, machine then user, each once, read again when the last
+    /// reading is older than [`FRESH_FOR`]. A read is a few registry calls in this process: no
+    /// program is started, so nothing can be left behind holding a caller's pipes.
     pub(super) fn dirs() -> Vec<PathBuf> {
         static CACHE: OnceLock<Cache> = OnceLock::new();
-        static REFRESHING: AtomicBool = AtomicBool::new(false);
-        if READING.with(Cell::get) {
-            return Vec::new();
-        }
         let cache = CACHE.get_or_init(|| Mutex::new(None));
-        let cached = cache.lock().ok().and_then(|g| g.as_ref().cloned());
-        match cached {
-            Some((at, dirs)) => {
-                if at.elapsed() >= FRESH_FOR && !REFRESHING.swap(true, Ordering::AcqRel) {
-                    let spawned = std::thread::Builder::new().name("registry-path".into()).spawn(move || {
-                        let fresh = read();
-                        if let Ok(mut g) = cache.lock() {
-                            *g = Some((Instant::now(), fresh));
-                        }
-                        REFRESHING.store(false, Ordering::Release);
-                    });
-                    if spawned.is_err() {
-                        REFRESHING.store(false, Ordering::Release);
-                    }
-                }
-                dirs
-            }
-            None => {
-                let dirs = read();
-                if let Ok(mut g) = cache.lock() {
-                    *g = Some((Instant::now(), dirs.clone()));
-                }
-                dirs
-            }
+        if let Some((at, dirs)) = cache.lock().ok().and_then(|g| g.as_ref().cloned())
+            && at.elapsed() < FRESH_FOR
+        {
+            return dirs;
         }
+        let fresh = read();
+        if let Ok(mut g) = cache.lock() {
+            *g = Some((Instant::now(), fresh.clone()));
+        }
+        fresh
     }
 
-    /// Read both keys now (uncached). Any failure (no `reg.exe`, a timeout, odd output) is an
-    /// empty or shorter list, never an error: the process's own `PATH` is still searched.
+    /// Read both values now (uncached). A missing key or value, or one that isn't a string, is
+    /// skipped: the process's own `PATH` is still searched.
     pub(super) fn read() -> Vec<PathBuf> {
-        struct Reset;
-        impl Drop for Reset {
-            fn drop(&mut self) {
-                READING.with(|r| r.set(false));
-            }
-        }
-        READING.with(|r| r.set(true));
-        let _reset = Reset;
-        // By its full path: a bare name would be looked up through `search_path` (see `READING`),
-        // and a `reg.exe` earlier on PATH must not stand in for the system's.
-        let system_root = std::env::var_os("SystemRoot").filter(|v| !v.is_empty()).map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
-        let reg = system_root.join("System32").join("reg.exe");
+        // `var_os` panics on a name with `=` or NUL in it; such a `%name%` is left as written.
+        let env = |var: &str| if var.contains(['=', '\0']) { None } else { std::env::var_os(var).map(|v| v.to_string_lossy().into_owned()) };
+        let values = [
+            windows_registry::LOCAL_MACHINE.open(MACHINE).and_then(|k| k.get_string("Path")),
+            windows_registry::CURRENT_USER.open(USER).and_then(|k| k.get_string("Path")),
+        ];
         let mut out: Vec<PathBuf> = Vec::new();
-        for key in KEYS {
-            let run = crate::Process::new(&reg)
-                .args(["query", key, "/v", "Path"])
-                .timeout(Duration::from_secs(5))
-                .idle_timeout(Duration::from_secs(3))
-                .stdout_cap(64 * 1024)
-                .stderr_cap(4 * 1024)
-                .label("read PATH from the registry")
-                .run();
-            let Ok(output) = run else { continue };
-            if !output.success {
-                continue;
-            }
-            // `var_os` panics on a name with `=` or NUL in it; such a `%name%` is left as written.
-            let env = |var: &str| if var.contains(['=', '\0']) { None } else { std::env::var_os(var).map(|v| v.to_string_lossy().into_owned()) };
-            for d in super::parse_reg_path(&output.stdout_text(), &env) {
+        for value in values.into_iter().flatten() {
+            for d in super::path_value_dirs(&value, &env) {
                 if !out.iter().any(|have| super::same_dir(have, &d)) {
                     out.push(d);
                 }
@@ -205,28 +160,11 @@ mod registry {
     }
 }
 
-/// The folders in `reg.exe query <key> /v Path` output: the `Path` line's `REG_SZ` or
-/// `REG_EXPAND_SZ` value, `%VAR%` references expanded through `var` (kept as written when `var`
-/// doesn't know them, as Windows does), split on `;`, blanks dropped. Empty for an empty value,
-/// an error message or any other text.
+/// The folders in a registry `Path` value: `%VAR%` references expanded through `var` (kept as
+/// written when `var` doesn't know them, as Windows does), split on `;`, blanks dropped.
 #[cfg(any(windows, test))]
-fn parse_reg_path(output: &str, var: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
-    let value = output.lines().find_map(|line| {
-        let mut parts = line.split_whitespace();
-        if !parts.next()?.eq_ignore_ascii_case("Path") {
-            return None;
-        }
-        let kind = parts.next()?;
-        if !matches!(kind, "REG_SZ" | "REG_EXPAND_SZ") {
-            return None;
-        }
-        // The value itself may hold spaces (`C:\Program Files`): take all of the line after the type.
-        let after_kind = line.find(kind).map(|i| i.saturating_add(kind.len()))?;
-        Some((kind == "REG_EXPAND_SZ", line.get(after_kind..).unwrap_or_default().trim()))
-    });
-    let Some((expand, value)) = value else { return Vec::new() };
-    let value = if expand { expand_vars(value, var) } else { value.to_string() };
-    value.split(';').map(str::trim).filter(|d| !d.is_empty()).map(PathBuf::from).collect()
+fn path_value_dirs(value: &str, var: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
+    expand_vars(value, var).split(';').map(str::trim).filter(|d| !d.is_empty()).map(PathBuf::from).collect()
 }
 
 /// `text` with each `%NAME%` replaced by `var(NAME)`, left as it is when there is no such
@@ -918,21 +856,21 @@ mod tests {
         assert!(winget_packages(Some(&dir.path().join("nowhere"))).iter().all(|p| !p.starts_with(dir.path())), "a missing folder adds nothing");
     }
 
-    /// What `reg.exe query … /v Path` prints, for both value kinds, with `%VAR%` expanded through
+    /// A registry `Path` value, both kinds, with `%VAR%` expanded through
     /// the caller (unknown names kept, as Windows keeps them), and nothing for an empty value or
     /// an error.
     #[test]
-    fn reg_query_output_names_the_path_folders() {
+    fn a_registry_path_value_names_its_folders() {
         let var = |name: &str| match name {
             "USERPROFILE" => Some(r"C:\Users\u".to_string()),
             "SystemRoot" | "SYSTEMROOT" => Some(r"C:\Windows".to_string()),
             _ => None,
         };
-        let plain = "\r\nHKEY_CURRENT_USER\\Environment\r\n    Path    REG_SZ    C:\\Users\\u\\.cargo\\bin;C:\\Program Files\\Git\\cmd;\r\n\r\n";
-        assert_eq!(parse_reg_path(plain, &var), [PathBuf::from(r"C:\Users\u\.cargo\bin"), PathBuf::from(r"C:\Program Files\Git\cmd")]);
-        let expand = "\r\nHKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment\r\n    Path    REG_EXPAND_SZ    %SystemRoot%\\system32;%SYSTEMROOT%;;%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps; %NOT_SET%\\bin ;C:\\Users\\u\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe\r\n\r\n";
+        let plain = r"C:\Users\u\.cargo\bin;C:\Program Files\Git\cmd;";
+        assert_eq!(path_value_dirs(plain, &var), [PathBuf::from(r"C:\Users\u\.cargo\bin"), PathBuf::from(r"C:\Program Files\Git\cmd")]);
+        let expand = r"%SystemRoot%\system32;%SYSTEMROOT%;;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps; %NOT_SET%\bin ;C:\Users\u\AppData\Local\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe";
         assert_eq!(
-            parse_reg_path(expand, &var),
+            path_value_dirs(expand, &var),
             [
                 PathBuf::from(r"C:\Windows\system32"),
                 PathBuf::from(r"C:\Windows"),
@@ -941,15 +879,8 @@ mod tests {
                 PathBuf::from(r"C:\Users\u\AppData\Local\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe"),
             ]
         );
-        // A REG_SZ value is taken as written, and the value's name is matched without case.
-        assert_eq!(parse_reg_path("    PATH    REG_SZ    %USERPROFILE%\\bin\r\n", &var), [PathBuf::from(r"%USERPROFILE%\bin")]);
-        assert!(parse_reg_path("\r\nHKEY_CURRENT_USER\\Environment\r\n    Path    REG_EXPAND_SZ    \r\n\r\n", &var).is_empty(), "an empty value");
-        assert!(parse_reg_path("    Path    REG_EXPAND_SZ\r\n", &var).is_empty(), "no value at all");
-        assert!(parse_reg_path("\r\nERROR: The system was unable to find the specified registry key or value.\r\n", &var).is_empty());
-        assert!(parse_reg_path("    Path    REG_BINARY    0A0B\r\n", &var).is_empty(), "not a string");
-        assert!(parse_reg_path("", &var).is_empty());
-        // Other values in the same output are not taken for PATH.
-        assert!(parse_reg_path("    TEMP    REG_EXPAND_SZ    %USERPROFILE%\\AppData\\Local\\Temp\r\n", &var).is_empty());
+        assert!(path_value_dirs("", &var).is_empty(), "an empty value");
+        assert!(path_value_dirs(" ; ;", &var).is_empty(), "only separators");
         assert_eq!(expand_vars("%USERPROFILE%\\a%%b%", &var), "C:\\Users\\u\\a%%b%");
         assert_eq!(expand_vars("100%", &var), "100%");
         assert_eq!(expand_vars("", &var), "");
@@ -985,6 +916,10 @@ mod tests {
             assert!(searched.iter().any(|s| same_dir(s, d)), "{d:?} missing from {searched:?}");
         }
         assert_eq!(registry::dirs(), registry::dirs(), "the cache answers the same");
+        // A read starts no program (no reg.exe left suspended holding a caller's pipes) and is quick.
+        let t = std::time::Instant::now();
+        let _ = registry::read();
+        assert!(t.elapsed() < std::time::Duration::from_secs(1), "{:?}", t.elapsed());
     }
 
     const NPM_SHIM: &str = "@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\n\r\n\

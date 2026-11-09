@@ -1493,3 +1493,6 @@ The build stopped on an error	Сборка остановилась из-за о
 Building on another screen. Click to open it.	Сборка идёт на другом экране. Нажмите, чтобы открыть.
 Check it now	Проверить сейчас
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Запускает проверки того, что уже собрано, без сборщика. Когда они пройдут, можно пробовать.
+List a project's assets	Список ресурсов проекта
+Mark a project's assets	Отметить ресурсы проекта
+Scan a project's assets	Просканировать ресурсы проекта

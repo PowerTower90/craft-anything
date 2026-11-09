@@ -1484,3 +1484,6 @@ The build stopped on an error	La construction s’est arrêtée sur une erreur
 Building on another screen. Click to open it.	Construction en cours sur un autre écran. Cliquez pour l’ouvrir.
 Check it now	Vérifier maintenant
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Lance les vérifications sur ce qui est construit, sans le constructeur. C’est prêt à essayer quand elles réussissent.
+List a project's assets	Lister les ressources d’un projet
+Mark a project's assets	Marquer les ressources d’un projet
+Scan a project's assets	Analyser les ressources d’un projet

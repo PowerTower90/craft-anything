@@ -1493,3 +1493,6 @@ The build stopped on an error	Sestavení se zastavilo na chybě
 Building on another screen. Click to open it.	Sestavuje se na jiné obrazovce. Kliknutím ji otevřeš.
 Check it now	Zkontrolovat teď
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Spustí kontroly toho, co je zatím postavené, bez buildera. Až projdou, je to připravené k vyzkoušení.
+List a project's assets	Vypsat prostředky projektu
+Mark a project's assets	Označit prostředky projektu
+Scan a project's assets	Prohledat prostředky projektu
