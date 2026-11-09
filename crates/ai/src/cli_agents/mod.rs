@@ -33,7 +33,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, PoisonError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Name our MCP server is registered under.
 pub const MCP_NAME: &str = "craft-anything";
@@ -740,6 +740,10 @@ pub struct CliConversation {
     rx: Receiver<AgentEvent>,
     busy: Arc<AtomicBool>,
     stop: Stop,
+    /// How the turn under way ended, as its program and stream said.
+    watch: Arc<TurnWatch>,
+    /// How long a turn may stay open after its program ended (see [`CliConversation::poll`]).
+    close_grace: Duration,
     session: Arc<Mutex<Option<String>>>,
     verified: Arc<Mutex<Option<bool>>>,
     /// The last run's saved session wasn't there (see [`Conversation::session_lost`]).
@@ -759,11 +763,19 @@ impl CliConversation {
             rx,
             busy: Arc::default(),
             stop: Stop::default(),
+            watch: Arc::default(),
+            close_grace: TURN_CLOSE_GRACE,
             session,
             verified: Arc::default(),
             lost: Arc::default(),
             failure: Arc::default(),
         }
+    }
+
+    /// How long a turn may stay open once its program has ended ([`TURN_CLOSE_GRACE`] unless set).
+    pub fn with_close_grace(mut self, grace: Duration) -> Self {
+        self.close_grace = grace;
+        self
     }
 
     /// The agent's session id once a run has reported it (to continue later).
@@ -783,8 +795,15 @@ impl CliConversation {
         self.stop.reset();
         self.lost.store(false, Ordering::SeqCst);
         *self.failure.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        self.watch = Arc::default();
         let (spec, tx, stop, busy) = (self.spec.clone(), self.tx.clone(), self.stop.clone(), self.busy.clone());
-        let state = RunState { session: self.session.clone(), verified: self.verified.clone(), lost: self.lost.clone(), failure: self.failure.clone() };
+        let state = RunState {
+            session: self.session.clone(),
+            verified: self.verified.clone(),
+            lost: self.lost.clone(),
+            failure: self.failure.clone(),
+            watch: self.watch.clone(),
+        };
         let text = text.to_string();
         let spawned = std::thread::Builder::new().name("ai-cli".into()).spawn(move || {
             let done = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_cli(&spec, &text, retry, &tx, &stop, &state))).unwrap_or_else(|_| {
@@ -801,6 +820,99 @@ impl CliConversation {
                 let _ = self.tx.send(e);
             });
         }
+    }
+
+    /// The events that close a turn whose program ended more than `close_grace` ago while its
+    /// runner never said the turn was done (its program's clean-up hung, or anything after it):
+    /// a notice, then `TurnDone` with the usage the stream reported. Empty while that isn't so.
+    /// The runner is left behind: it's told to stop, and whatever it sends later, a late
+    /// `TurnDone` included, goes to a channel nobody reads, so it can't end the next turn.
+    fn close_if_overdue(&mut self) -> Vec<AgentEvent> {
+        if !self.busy.load(Ordering::SeqCst) {
+            return Vec::new();
+        }
+        let Some(end) = self.watch.overdue(self.close_grace) else { return Vec::new() };
+        let agent = display_for(&self.spec.config.model);
+        log::warn!(
+            "{agent} ({}) ended {} s ago ({}) but its turn never closed; closing it now",
+            self.spec.config.name,
+            end.at.elapsed().as_secs(),
+            if end.finished { "its answer was complete" } else { "without finishing its answer" },
+        );
+        self.stop.stop();
+        self.stop = Stop::default();
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.tx = tx;
+        self.rx = rx;
+        self.busy = Arc::default();
+        // A complete answer carries on as a finished turn; one cut short is an error, as a
+        // program that stopped early is.
+        let notice = if end.finished {
+            AgentEvent::Status { text: format!("{agent} finished but its turn didn't close; closing it now.") }
+        } else {
+            AgentEvent::Error {
+                message: format!("{agent} finished but its turn didn't close; closing it now."),
+                remediation: Some("It stopped without finishing its answer. Send a message to carry on from where it was.".into()),
+                log: None,
+            }
+        };
+        let (input_tokens, output_tokens, cost_usd) = end.usage;
+        vec![notice, AgentEvent::TurnDone { backend: self.spec.config.name.clone(), input_tokens, output_tokens, cost_usd, cost_is_estimate: true }]
+    }
+}
+
+/// How long a turn may stay open after its agent's program ended or its stream gave its final
+/// event, before the conversation closes it itself. Normally the turn closes within a few
+/// seconds of either.
+pub const TURN_CLOSE_GRACE: Duration = Duration::from_secs(45);
+
+/// How a turn's program ended, as told apart from the thread that runs it.
+#[derive(Debug, Clone, Copy)]
+struct TurnEnd {
+    at: Instant,
+    /// It exited with success, or its stream's final event reported no failure.
+    finished: bool,
+    /// Input and output tokens and cost, from the stream's final event.
+    usage: (u64, u64, Option<f64>),
+}
+
+/// What a turn's program and stream said about its end. Written by the runner's threads (the
+/// program's supervisor and its output reader), read by [`CliConversation::poll`], so a turn
+/// whose runner never comes back still ends.
+#[derive(Debug, Default)]
+struct TurnWatch {
+    /// When the program was seen to end, and whether it exited with success.
+    exited: Mutex<Option<(Instant, bool)>>,
+    /// When the stream's final event arrived, whether it reported no failure, and its usage.
+    result: Mutex<Option<TurnEnd>>,
+}
+
+impl TurnWatch {
+    fn exited(&self, ok: bool) {
+        self.exited.lock().unwrap_or_else(PoisonError::into_inner).get_or_insert((Instant::now(), ok));
+    }
+
+    fn result(&self, finished: bool, usage: (u64, u64, Option<f64>)) {
+        let mut result = self.result.lock().unwrap_or_else(PoisonError::into_inner);
+        let at = result.map_or_else(Instant::now, |r| r.at);
+        *result = Some(TurnEnd { at, finished: finished && result.is_none_or(|r| r.finished), usage });
+    }
+
+    /// The end of a program that ended (or a stream that finished) at least `grace` ago.
+    fn overdue(&self, grace: Duration) -> Option<TurnEnd> {
+        let exited = *self.exited.lock().unwrap_or_else(PoisonError::into_inner);
+        let result = *self.result.lock().unwrap_or_else(PoisonError::into_inner);
+        let at = match (exited, result) {
+            (Some((a, _)), Some(r)) => a.min(r.at),
+            (Some((a, _)), None) => a,
+            (None, Some(r)) => r.at,
+            (None, None) => return None,
+        };
+        (at.elapsed() >= grace).then(|| TurnEnd {
+            at,
+            finished: exited.is_some_and(|(_, ok)| ok) || result.is_some_and(|r| r.finished),
+            usage: result.map(|r| r.usage).unwrap_or_default(),
+        })
     }
 }
 
@@ -846,6 +958,8 @@ struct RunState {
     verified: Arc<Mutex<Option<bool>>>,
     lost: Arc<AtomicBool>,
     failure: Arc<Mutex<Option<TurnFailure>>>,
+    /// Told when the program ends and when its stream gives its final event.
+    watch: Arc<TurnWatch>,
 }
 
 /// End a turn: take the next message first, then say the turn is done (`send(done)`), since
@@ -867,7 +981,7 @@ fn nothing_done(backend: &str) -> AgentEvent {
 /// next message; one it was asked to continue but doesn't have is forgotten and flagged in
 /// `state.lost` before the error that says so is sent.
 fn run_cli(spec: &CliSpec, text: &str, retry: bool, tx: &Sender<AgentEvent>, stop: &Stop, state: &RunState) -> AgentEvent {
-    let RunState { session, verified, lost, failure } = state;
+    let RunState { session, verified, lost, failure, watch } = state;
     let name = spec.config.name.clone();
     let agent = spec.config.model.clone();
     let program = match program_of(&spec.config, &spec.options) {
@@ -996,6 +1110,7 @@ fn run_cli(spec: &CliSpec, text: &str, retry: bool, tx: &Sender<AgentEvent>, sto
     let failed_tools = Arc::new(AtomicBool::new(false));
     let (failed_tools2, failed_tools3) = (failed_tools.clone(), failed_tools.clone());
     let stop2 = stop.clone();
+    let (watch2, watch3) = (watch.clone(), watch.clone());
     let mut proc = (if remote.is_none() { adapter.process(&prog) } else { Process::new(&prog) })
         .args(&argv)
         .timeout(Duration::from_secs(spec.options.timeout_secs.unwrap_or(turn)))
@@ -1028,6 +1143,9 @@ fn run_cli(spec: &CliSpec, text: &str, retry: bool, tx: &Sender<AgentEvent>, sto
                     failed_tools3.store(true, Ordering::SeqCst);
                 }
             }
+            if p.saw_result {
+                watch2.result(p.failure.is_none() && !p.session_missing, (p.input_tokens, p.output_tokens, p.cost_usd));
+            }
             for e in events {
                 let _ = tx2.send(e);
             }
@@ -1037,6 +1155,7 @@ fn run_cli(spec: &CliSpec, text: &str, retry: bool, tx: &Sender<AgentEvent>, sto
                 let _ = tx_err.send(AgentEvent::Output { text: l.to_string() });
             }
         })
+        .on_end(move |ok| watch3.exited(ok))
         .remediation(format!("Install {}, or choose its program in Settings → AI.", display_for(&agent)));
     if let Some(p) = spec.project.as_ref().filter(|_| remote.is_none()) {
         proc = proc.cwd(p);
@@ -1045,6 +1164,7 @@ fn run_cli(spec: &CliSpec, text: &str, retry: bool, tx: &Sender<AgentEvent>, sto
         proc = proc.stdin_bytes(adapter.stdin_text(&preamble, text));
     }
     let result = proc.run();
+    watch.exited(matches!(&result, Ok(out) if out.success));
     let p = parser.lock().unwrap_or_else(PoisonError::into_inner);
     if p.session_missing {
         // The id it reported is the one it couldn't find: the next message starts a new session.
@@ -1258,8 +1378,16 @@ impl Conversation for CliConversation {
         self.send_prompt(text, false);
     }
 
+    /// What the turn's runner sent. A turn whose program ended (or whose stream gave its final
+    /// event) more than the close grace ago and that still isn't done is closed here
+    /// ([`CliConversation::close_if_overdue`]), so a runner that never comes back can't keep
+    /// the conversation busy for good.
     fn poll(&mut self) -> Vec<AgentEvent> {
-        self.rx.try_iter().collect()
+        let mut events: Vec<AgentEvent> = self.rx.try_iter().collect();
+        if !events.iter().any(|e| matches!(e, AgentEvent::TurnDone { .. })) {
+            events.extend(self.close_if_overdue());
+        }
+        events
     }
 
     /// Agent CLIs ask for approval through their own UI; our MCP server refuses consent-gated
@@ -1685,6 +1813,182 @@ mod tests {
             let left = std::fs::read_dir(unfinished::dir_in(logs.path())).map(|rd| rd.flatten().count());
             assert_eq!(left.ok(), Some(0), "{how}: the session was recorded, then its record removed");
         }
+    }
+
+    const TURN_END_CHILD_ENV: &str = "CRAFT_ANYTHING_TEST_TURN_END_CHILD";
+
+    /// The stand-in agent of the turn-end tests, as `TURN_END_CHILD_ENV` says: `grandchild` gives
+    /// Claude Code's final `result` line, leaves a grandchild holding its output open and exits;
+    /// `hold` (that grandchild) prints nothing and waits; `result-fail` gives the result, then
+    /// exits with an error; `cut-short` says a word and exits with an error, no result. Run as an
+    /// ordinary test, it does nothing.
+    #[test]
+    fn turn_end_child() {
+        let Some(how) = std::env::var_os(TURN_END_CHILD_ENV) else { return };
+        let how = how.to_string_lossy().to_string();
+        let result = json!({"type":"result","subtype":"success","is_error":false,"session_id":"ses_turn","result":"Done.","usage":{"input_tokens":5,"output_tokens":7},"total_cost_usd":0.01});
+        let said = json!({"type":"assistant","session_id":"ses_turn","message":{"content":[{"type":"text","text":"Working on it."}]}});
+        // On a line of its own: libtest has already written "test … ... " without a line break.
+        match how.as_str() {
+            "hold" => std::thread::sleep(Duration::from_secs(30)),
+            "grandchild" => {
+                println!("\n{result}");
+                std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                // Inherits this program's output, so the pipe stays open after it exits: it's meant
+                // to outlive this program, so nothing waits for it here.
+                #[allow(clippy::zombie_processes)]
+                let _holder = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args(["--exact", "--test-threads=1", "--nocapture", "cli_agents::tests::turn_end_child"])
+                    .env(TURN_END_CHILD_ENV, "hold")
+                    .spawn()
+                    .unwrap();
+            }
+            "result-fail" | "cut-short" => {
+                println!("\n{}", if how == "result-fail" { result } else { said });
+                std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                std::process::exit(1);
+            }
+            other => panic!("unknown stand-in mode {other}"),
+        }
+    }
+
+    /// Claude Code's stream, with the session named as the run's own, so a turn that didn't finish
+    /// is cleaned up (`discard_unfinished`), which waits until `released` when told to.
+    struct TurnEndStandIn {
+        how: &'static str,
+        released: Option<Arc<AtomicBool>>,
+    }
+
+    impl AgentAdapter for TurnEndStandIn {
+        /// Register the fixture without replacing any built-in agent.
+        fn ids(&self) -> &'static [&'static str] {
+            &["test-turn-end"]
+        }
+        /// Run only `turn_end_child` in this test program.
+        fn args(&self, _cx: &ArgsCx) -> Vec<String> {
+            ["--exact", "--test-threads=1", "--nocapture", "cli_agents::tests::turn_end_child"].map(String::from).to_vec()
+        }
+        fn streams_json(&self) -> bool {
+            true
+        }
+        /// Tell the child how to behave (the runner hands the agent this variable).
+        fn mcp_env(&self, _mcp: &McpCommand) -> Result<Option<(&'static str, String)>, ToolError> {
+            Ok(Some((TURN_END_CHILD_ENV, self.how.to_string())))
+        }
+        fn parse(&self, p: &mut StreamParser, v: &Value) -> Vec<AgentEvent> {
+            let events = adapters::ClaudeCode::default().parse(p, v);
+            p.run_session = p.session_id.clone();
+            events
+        }
+        /// Stands in for whatever keeps the runner from coming back after the program exited.
+        fn discard_unfinished(&self, _program: &str, _id: &str, _host: Option<&str>) -> Result<(), ToolError> {
+            let deadline = Instant::now() + Duration::from_secs(60);
+            while self.released.as_ref().is_some_and(|r| !r.load(Ordering::SeqCst)) && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Ok(())
+        }
+    }
+
+    fn turn_end_conversation(how: &'static str, released: Option<Arc<AtomicBool>>, logs: &Path) -> CliConversation {
+        let config =
+            BackendConfig { name: "Test".into(), kind: BackendKind::AgentCli, model: "test-turn-end".into(), base_url: None, ssh_host: None, enabled: true };
+        let options = BackendOptions { command: Some(std::env::current_exe().unwrap().display().to_string()), ..Default::default() };
+        let mut spec = CliSpec::new(config, options, false, None);
+        spec.logs = Some(logs.to_path_buf());
+        spec.adapters.register(Arc::new(TurnEndStandIn { how, released }));
+        CliConversation::new(spec)
+    }
+
+    /// Every event until the turn is done (at most `most`).
+    fn until_turn_done(c: &mut CliConversation, most: Duration) -> Vec<AgentEvent> {
+        let deadline = Instant::now() + most;
+        let mut all = Vec::new();
+        while !all.iter().any(|e| matches!(e, AgentEvent::TurnDone { .. })) {
+            assert!(Instant::now() < deadline, "no TurnDone: {all:?}");
+            all.extend(c.poll());
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        all
+    }
+
+    fn closed_late(e: &AgentEvent) -> bool {
+        match e {
+            AgentEvent::Status { text } => text.contains("turn didn't close"),
+            AgentEvent::Error { message, .. } => message.contains("turn didn't close"),
+            _ => false,
+        }
+    }
+
+    /// A builder that gave its result and exited while something it started still held its output
+    /// open: the turn ends with the result's usage, soon, and on its own.
+    #[test]
+    fn a_turn_ends_when_its_agent_exits_while_a_grandchild_holds_its_output() {
+        let logs = tempfile::tempdir().unwrap();
+        let mut c = turn_end_conversation("grandchild", None, logs.path());
+        let began = Instant::now();
+        c.send("go");
+        let all = until_turn_done(&mut c, Duration::from_secs(25));
+        assert!(began.elapsed() < Duration::from_secs(20), "took {:?}", began.elapsed());
+        assert!(!all.iter().any(closed_late), "closed by the runner, not the safety net: {all:?}");
+        assert!(all.iter().any(|e| matches!(e, AgentEvent::TurnDone { input_tokens: 5, output_tokens: 7, .. })), "{all:?}");
+        assert!(!c.is_busy());
+    }
+
+    /// The live bug: the agent gave its last words and exited, but the run never came back, so its
+    /// turn never ended and the build sat at "building" for good. Once the program has ended (or
+    /// its stream gave its final result) and the grace has passed, the conversation closes the
+    /// turn itself, once: a complete answer as a finished turn, one cut short as an error. The
+    /// runner's own TurnDone, when it finally comes, can't end the next turn.
+    #[test]
+    fn a_turn_whose_runner_never_comes_back_is_closed_once_after_the_program_ended() {
+        for (how, finished) in [("result-fail", true), ("cut-short", false)] {
+            let logs = tempfile::tempdir().unwrap();
+            let released = Arc::new(AtomicBool::new(false));
+            let mut c = turn_end_conversation(how, Some(released.clone()), logs.path()).with_close_grace(Duration::from_millis(300));
+            c.send("go");
+            let all = until_turn_done(&mut c, Duration::from_secs(30));
+            let notice = all.iter().position(closed_late).unwrap_or_else(|| panic!("{how}: no notice: {all:?}"));
+            let done = all.iter().position(|e| matches!(e, AgentEvent::TurnDone { .. })).unwrap();
+            assert!(notice < done, "{how}: {all:?}");
+            assert_eq!(matches!(all[notice], AgentEvent::Status { .. }), finished, "{how}: {all:?}");
+            let usage = if finished { (5, 7) } else { (0, 0) };
+            assert!(matches!(all[done], AgentEvent::TurnDone { input_tokens, output_tokens, .. } if (input_tokens, output_tokens) == usage), "{how}: {all:?}");
+            assert!(!c.is_busy(), "{how}: the next message can be taken");
+            // The runner comes back now: its TurnDone goes nowhere.
+            released.store(true, Ordering::SeqCst);
+            let until = Instant::now() + Duration::from_secs(2);
+            while Instant::now() < until {
+                let late = c.poll();
+                assert!(!late.iter().any(|e| matches!(e, AgentEvent::TurnDone { .. })), "{how}: a late TurnDone got through: {late:?}");
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            // The next turn runs and ends once, by its own runner.
+            c.send("again");
+            let next = until_turn_done(&mut c, Duration::from_secs(30));
+            assert_eq!(next.iter().filter(|e| matches!(e, AgentEvent::TurnDone { .. })).count(), 1, "{how}: {next:?}");
+            assert!(!next.iter().any(closed_late), "{how}: {next:?}");
+        }
+    }
+
+    /// What the watch says: nothing until the program ends or its stream finishes, then the
+    /// earliest of them once the grace has passed; a failed result isn't a finished answer.
+    #[test]
+    fn a_turn_is_overdue_only_after_its_program_ended_and_the_grace_passed() {
+        let w = TurnWatch::default();
+        assert!(w.overdue(Duration::ZERO).is_none());
+        w.result(true, (1, 2, None));
+        assert!(w.overdue(Duration::from_secs(3600)).is_none());
+        let end = w.overdue(Duration::ZERO).unwrap();
+        assert!(end.finished && end.usage == (1, 2, None));
+        // A later failed result line marks the answer unfinished, keeping when it first ended.
+        w.result(false, (3, 4, None));
+        let later = w.overdue(Duration::ZERO).unwrap();
+        assert!(!later.finished && later.at == end.at && later.usage == (3, 4, None));
+        let w = TurnWatch::default();
+        w.exited(false);
+        w.exited(true);
+        assert!(!w.overdue(Duration::ZERO).unwrap().finished, "the first end is kept");
     }
 
     /// Validation failures finish exactly once, preserving cancellation status and other error details.
@@ -2846,7 +3150,7 @@ echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
             let options = BackendOptions { acp: Some(false), command: Some("no-such-copilot-xyz".into()), ..Default::default() };
             let spec = CliSpec::new(config, options, false, None);
             let (sender, receiver) = std::sync::mpsc::channel();
-            let state = RunState { session: Arc::default(), verified: Arc::default(), lost: Arc::default(), failure: Arc::default() };
+            let state = RunState { session: Arc::default(), verified: Arc::default(), lost: Arc::default(), failure: Arc::default(), watch: Arc::default() };
             let done = run_cli(&spec, "hello", false, &sender, &Stop::default(), &state);
             let mut output: Vec<_> = receiver.try_iter().collect();
             output.push(done);
@@ -2883,7 +3187,7 @@ echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
             let mut spec = CliSpec::new(config, BackendOptions::default(), false, None);
             spec.adapters.register(Arc::new(AcpOnlyAgent(guidance)));
             let (sender, receiver) = std::sync::mpsc::channel();
-            let state = RunState { session: Arc::default(), verified: Arc::default(), lost: Arc::default(), failure: Arc::default() };
+            let state = RunState { session: Arc::default(), verified: Arc::default(), lost: Arc::default(), failure: Arc::default(), watch: Arc::default() };
             let done = run_cli(&spec, "hello", false, &sender, &Stop::default(), &state);
             let mut output: Vec<_> = receiver.try_iter().collect();
             output.push(done);

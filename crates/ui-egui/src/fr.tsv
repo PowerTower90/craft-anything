@@ -1482,3 +1482,5 @@ The build stopped on an error	La construction s’est arrêtée sur une erreur
 {name} · quiet {time}	{name} · silencieux depuis {time}
 {name} · Building · {time}	{name} · En construction · {time}
 Building on another screen. Click to open it.	Construction en cours sur un autre écran. Cliquez pour l’ouvrir.
+Check it now	Vérifier maintenant
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Lance les vérifications sur ce qui est construit, sans le constructeur. C’est prêt à essayer quand elles réussissent.

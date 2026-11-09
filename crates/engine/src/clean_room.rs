@@ -71,6 +71,7 @@ pub const TOOLS: &[&str] = &[
     "rebuild_status",
     "rebuild_activity_show",
     "rebuild_check",
+    "rebuild_check_now",
     "rebuild_note",
     "rebuild_note_withdraw",
     "rebuild_question_ask",

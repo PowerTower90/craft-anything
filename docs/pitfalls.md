@@ -201,6 +201,15 @@ call it and make them `wait` for the result, not `run_steps(n)`.
 
 ## Building and running
 
+**A finished agent's turn never closed: a Job Object wait after `try_wait` polling.** The
+supervisor polls `try_wait`, and on Windows each call takes one message off the Job Object's
+completion port. After the leader exited it called `ChildWrapper::kill`, whose `wait` blocks on
+that port for one more message; when the polls had already taken the last ones, it never
+returned, so the builder's run sat at "building" for good after Claude Code had exited. Never
+call `kill`/`wait` on a wrapped child after polling: kill with `start_kill` and reap with a
+bounded `try_wait` loop. Anything that waits on another program's end also needs a way out that
+doesn't depend on that wait (the conversation closes a turn whose program ended a while ago).
+
 **A documentation edit rebuilt dependencies in a separate cache.** A sequential review follow-up
 used another target directory for its commit hook, triggering an unnecessary build. Separate
 build caches are for concurrent work; reuse the current checkout's cache for sequential work.

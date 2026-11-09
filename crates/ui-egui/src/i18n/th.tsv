@@ -1491,3 +1491,5 @@ The build stopped on an error	การสร้างหยุดเพรา�
 {name} · quiet {time}	{name} · เงียบมา {time}
 {name} · Building · {time}	{name} · กำลังสร้าง · {time}
 Building on another screen. Click to open it.	กำลังสร้างอยู่ในหน้าจออื่น คลิกเพื่อเปิด
+Check it now	ตรวจสอบตอนนี้
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	ตรวจสอบสิ่งที่สร้างไว้แล้วโดยไม่ใช้ตัวสร้าง เมื่อผ่านการตรวจสอบก็พร้อมให้ลองใช้

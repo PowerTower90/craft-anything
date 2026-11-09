@@ -1491,3 +1491,5 @@ The build stopped on an error	建置因錯誤而停止
 {name} · quiet {time}	{name} · 已安靜 {time}
 {name} · Building · {time}	{name} · 建置中 · {time}
 Building on another screen. Click to open it.	正在另一個畫面建置。點一下開啟。
+Check it now	立即檢查
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	不呼叫建構器，檢查目前已建構的內容。通過後即可試用。

@@ -67,6 +67,7 @@ const ACTIONS: &[Action] = &[
     a("open_project_at",     "open the project a background build belongs to (the title bar's pill)", Tool(&["project_show"])),
     a("unsend",              "take back a note the builder hasn't read yet",   Tool(&["rebuild_note_withdraw"])),
     a("continue_build",      "carry on a build that stopped part-way",         Cli("rebuild <target> <request> --continue-in --resume")),
+    a("check_now",           "check a stopped build; Ready (and Play) when it works", Tool(&["rebuild_check_now"])),
     a("open_preview",        "open the built website in the browser",          Tool(&["project_preview"])),
     a("play",                "play the built game or start the built app",     Tool(&["project_play"])),
     a("ask_about_build",     "a question about the build, answered without building", Tool(&["rebuild_question_ask"])),

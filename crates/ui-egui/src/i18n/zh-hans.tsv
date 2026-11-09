@@ -1491,3 +1491,5 @@ The build stopped on an error	构建因错误而停止
 {name} · quiet {time}	{name} · 已安静 {time}
 {name} · Building · {time}	{name} · 构建中 · {time}
 Building on another screen. Click to open it.	正在另一个界面构建。点击打开。
+Check it now	立即检查
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	不调用构建器，检查目前已构建的内容。通过后即可试用。

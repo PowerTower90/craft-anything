@@ -1491,3 +1491,5 @@ The build stopped on an error	A construção parou com um erro
 {name} · quiet {time}	{name} · em silêncio há {time}
 {name} · Building · {time}	{name} · Construindo · {time}
 Building on another screen. Click to open it.	Construindo em outra tela. Clique para abrir.
+Check it now	Verificar agora
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Executa as verificações no que já foi construído, sem o construtor. Fica pronto para testar quando elas passarem.

@@ -1491,3 +1491,5 @@ The build stopped on an error	Bản dựng đã dừng vì lỗi
 {name} · quiet {time}	{name} · im lặng {time}
 {name} · Building · {time}	{name} · Đang dựng · {time}
 Building on another screen. Click to open it.	Đang dựng ở màn hình khác. Nhấp để mở.
+Check it now	Kiểm tra ngay
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Chạy các bước kiểm tra trên những gì đã dựng, không cần trình dựng. Khi đạt, bạn có thể dùng thử.

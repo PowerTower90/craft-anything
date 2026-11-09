@@ -1491,3 +1491,5 @@ The build stopped on an error	Derleme bir hatayla durdu
 {name} · quiet {time}	{name} · {time} sessiz
 {name} · Building · {time}	{name} · Derleniyor · {time}
 Building on another screen. Click to open it.	Başka bir ekranda derleniyor. Açmak için tıkla.
+Check it now	Şimdi denetle
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Şu ana kadar yapılanı oluşturucu olmadan denetler. Denetimlerden geçince denemeye hazırdır.

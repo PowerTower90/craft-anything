@@ -1491,3 +1491,5 @@ The build stopped on an error	აწყობა შეცდომით შე
 {name} · quiet {time}	{name} · სიჩუმე {time}
 {name} · Building · {time}	{name} · იწყობა · {time}
 Building on another screen. Click to open it.	იწყობა სხვა ეკრანზე. დააწკაპუნე გასახსნელად.
+Check it now	ახლავე შემოწმება
+Runs the checks on what's built now, without the builder. It's ready to try when they pass.	ამოწმებს უკვე აწყობილს, ამწყობის გარეშე. როცა შემოწმებები გაივლის, მზადაა გამოსაცდელად.
