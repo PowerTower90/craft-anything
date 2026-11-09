@@ -1,0 +1,35 @@
+# Keeps this fork's main up to date with storytold/craft-anything.
+# Runs daily and on demand (Actions tab -> "Sync fork with upstream" -> Run workflow).
+# It merges upstream/main into main, so this file survives each sync. Keep your own work on
+# branches other than main to avoid merge conflicts stopping the sync.
+name: Sync fork with upstream
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # daily, 03:17 UTC (about 14:17 Sydney)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Merge upstream main into fork main
+        run: |
+          git config user.name "fork-sync"
+          git config user.email "fork-sync@users.noreply.github.com"
+          git remote add upstream https://github.com/storytold/craft-anything.git
+          git fetch upstream main
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with upstream."
+            exit 0
+          fi
+          git merge --no-edit upstream/main
+          git push origin HEAD:main
+          echo "Synced to $(git rev-parse --short upstream/main)"
