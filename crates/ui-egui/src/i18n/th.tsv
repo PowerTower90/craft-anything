@@ -1493,3 +1493,6 @@ The build stopped on an error	การสร้างหยุดเพรา�
 Building on another screen. Click to open it.	กำลังสร้างอยู่ในหน้าจออื่น คลิกเพื่อเปิด
 Check it now	ตรวจสอบตอนนี้
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	ตรวจสอบสิ่งที่สร้างไว้แล้วโดยไม่ใช้ตัวสร้าง เมื่อผ่านการตรวจสอบก็พร้อมให้ลองใช้
+List a project's assets	แสดงรายการแอสเซ็ตของโปรเจกต์
+Mark a project's assets	ทำเครื่องหมายแอสเซ็ตของโปรเจกต์
+Scan a project's assets	สแกนแอสเซ็ตของโปรเจกต์

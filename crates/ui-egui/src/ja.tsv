@@ -923,3 +923,6 @@ The build stopped on an error	ビルドがエラーで停止しました
 Building on another screen. Click to open it.	別の画面でビルド中です。クリックで開きます。
 Check it now	今すぐチェック
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	ビルダーを使わずに、今できているものをチェックします。合格すれば試せます。
+List a project's assets	プロジェクトのアセットを一覧表示
+Mark a project's assets	プロジェクトのアセットに印を付ける
+Scan a project's assets	プロジェクトのアセットをスキャン

@@ -1493,3 +1493,6 @@ The build stopped on an error	Derleme bir hatayla durdu
 Building on another screen. Click to open it.	Başka bir ekranda derleniyor. Açmak için tıkla.
 Check it now	Şimdi denetle
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Şu ana kadar yapılanı oluşturucu olmadan denetler. Denetimlerden geçince denemeye hazırdır.
+List a project's assets	Bir projenin varlıklarını listele
+Mark a project's assets	Bir projenin varlıklarını işaretle
+Scan a project's assets	Bir projenin varlıklarını tara

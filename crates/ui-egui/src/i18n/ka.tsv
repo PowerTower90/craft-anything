@@ -1493,3 +1493,6 @@ The build stopped on an error	აწყობა შეცდომით შე
 Building on another screen. Click to open it.	იწყობა სხვა ეკრანზე. დააწკაპუნე გასახსნელად.
 Check it now	ახლავე შემოწმება
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	ამოწმებს უკვე აწყობილს, ამწყობის გარეშე. როცა შემოწმებები გაივლის, მზადაა გამოსაცდელად.
+List a project's assets	პროექტის რესურსების ჩამონათვალი
+Mark a project's assets	პროექტის რესურსების მონიშვნა
+Scan a project's assets	პროექტის რესურსების სკანირება

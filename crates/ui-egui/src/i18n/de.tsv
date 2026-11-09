@@ -1493,3 +1493,6 @@ The build stopped on an error	Der Build ist mit einem Fehler stehen geblieben
 Building on another screen. Click to open it.	Wird auf einem anderen Bildschirm gebaut. Klicken, um es zu öffnen.
 Check it now	Jetzt prüfen
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Prüft, was bisher gebaut ist, ohne den Builder. Wenn die Prüfungen bestehen, ist es bereit zum Ausprobieren.
+List a project's assets	Assets eines Projekts auflisten
+Mark a project's assets	Assets eines Projekts markieren
+Scan a project's assets	Assets eines Projekts erfassen

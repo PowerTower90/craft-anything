@@ -1493,3 +1493,6 @@ The build stopped on an error	빌드가 오류로 멈췄습니다
 Building on another screen. Click to open it.	다른 화면에서 빌드 중입니다. 클릭하면 엽니다.
 Check it now	지금 확인
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	빌더 없이 지금까지 만든 것을 확인합니다. 확인을 통과하면 바로 써 볼 수 있습니다.
+List a project's assets	프로젝트 에셋 목록 보기
+Mark a project's assets	프로젝트 에셋 표시하기
+Scan a project's assets	프로젝트 에셋 검사하기

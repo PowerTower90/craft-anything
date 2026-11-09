@@ -1493,3 +1493,6 @@ The build stopped on an error	Ehitus peatus vea tõttu
 Building on another screen. Click to open it.	Ehitamine käib teisel ekraanil. Klõpsa, et see avada.
 Check it now	Kontrolli kohe
 Runs the checks on what's built now, without the builder. It's ready to try when they pass.	Käivitab kontrollid seni ehitatu peal, ilma ehitajata. Kui need läbivad, on see proovimiseks valmis.
+List a project's assets	Projekti varade loend
+Mark a project's assets	Projekti varade märkimine
+Scan a project's assets	Projekti varade skannimine
