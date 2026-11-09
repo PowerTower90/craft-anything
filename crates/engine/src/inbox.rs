@@ -162,8 +162,10 @@ impl Inbox {
             if let Ok(bytes) = std::fs::read(&ans)
                 && let Ok(a) = serde_json::from_slice::<Answer>(&bytes)
             {
-                let _ = std::fs::remove_file(&ans);
+                // The request goes first: a reader listing pending requests must never see the
+                // request still there with its answer already gone, or it answers it again.
                 let _ = std::fs::remove_file(&req);
+                let _ = std::fs::remove_file(&ans);
                 return Some(a);
             }
             if cancelled() || start.elapsed() >= timeout {
