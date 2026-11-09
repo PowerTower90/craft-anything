@@ -476,7 +476,17 @@ fn settings_show(ctx: &mut Ctx<'_>, _params: Value) -> Result<ToolOutput, ToolEr
             }
         }
     }
-    Ok(ToolOutput::Value(json!({"path": ctx.session.config_dir().join("config.toml").display().to_string(), "settings": settings})))
+    let dir = ctx.session.config_dir();
+    let copies = crate::settings::packaged_copies(&dir);
+    let note = (!copies.is_empty()).then_some(
+        "Another app on this computer keeps its own copy of this settings folder (listed in other_copies): programs started from that app read and write the copy, while Craft Anything started normally uses this one, so a change made in one doesn't show in the other.",
+    );
+    Ok(ToolOutput::Value(json!({
+        "path": dir.join("config.toml").display().to_string(),
+        "settings": settings,
+        "other_copies": copies.iter().map(|c| c.join("config.toml").display().to_string()).collect::<Vec<_>>(),
+        "note": note,
+    })))
 }
 
 /// `settings` with `key` (dotted) set to `value`, checked by reading the result back as

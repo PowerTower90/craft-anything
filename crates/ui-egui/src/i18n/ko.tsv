@@ -1597,8 +1597,6 @@ Sort the unsorted with the agent	에이전트로 미분류 항목 분류
 The builder remakes them with free tools. It never spends money.	빌더가 무료 도구로 다시 만듭니다. 돈은 절대 쓰지 않습니다.
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	빌더가 분류 도구로 분류합니다. 돈이 들지 않습니다. 코딩 에이전트 요금제에 포함됩니다.
 Total: {total}	합계: {total}
-about {n} Tripo credits	Tripo 크레딧 약 {n}
-about {n} Tripo credits (an estimate)	Tripo 크레딧 약 {n}(추정)
 {category} · {n} items	{category} · {n}개
 {n} assets sent to the builder.	에셋 {n}개를 빌더에게 보냈습니다.
 {n} kept as they are this time (kept, or their method isn't set up yet).	이번에는 {n}개를 그대로 둡니다(유지하거나 방법이 아직 준비되지 않음).
@@ -1615,17 +1613,12 @@ Built in the engine	엔진에서 만들기
 Engine materials	엔진 머티리얼
 Engine particles	엔진 파티클
 Blender	Blender
-Tripo (your web credits)	Tripo(내 웹 크레딧)
-Local generation (free)	로컬 생성(무료)
 Keep the original for now	지금은 원본 유지
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	게임 코드가 직접 그리는 위젯과 벡터 도형, 오픈 라이선스 글꼴 사용.
 Engine materials and procedural textures, with Blender where a shape is needed.	엔진 머티리얼과 절차적 텍스처, 모양이 필요하면 Blender 사용.
 The engine's own particle systems.	엔진 자체의 파티클 시스템.
 Modelled in Blender from simple shapes.	Blender에서 단순한 도형으로 모델링.
-Generated on Tripo with the credits on your account (an estimate per model).	내 계정의 크레딧으로 Tripo에서 생성(모델당 추정).
-Sounds generated on this computer.	이 컴퓨터에서 생성한 소리.
 Not rebuilt this time.	이번에는 다시 만들지 않습니다.
-Not set up yet — next step	아직 준비되지 않음 — 다음 단계
 Not set up yet	아직 준비되지 않음
 sorted by the rules	규칙으로 분류됨
 sorted by the agent	에이전트가 분류함
@@ -1645,7 +1638,6 @@ Local generation was already running.	로컬 생성이 이미 실행 중이었�
 Make a 3D model locally	로컬에서 3D 모델 만들기
 Make a picture locally	로컬에서 그림 만들기
 Make many assets locally	로컬에서 많은 에셋 만들기
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	이 컴퓨터의 그래픽 카드로 그림과 3D 모델을 무료로 만듭니다. 그림용 ComfyUI 서버(Z-Image Turbo)와 3D 형상용 서버(Hunyuan3D 2.1). 그래픽 카드가 하나면 두 곳에 같은 주소를 넣으세요.
 Missing model	모델 없음
 Not running	실행 중 아님
 Not set up	설정 안 됨
@@ -1669,5 +1661,15 @@ Gritty realistic	거친 사실풍
 Cartoon cel-shaded	카툰 셀 셰이딩
 Match the original's mood	원본 분위기에 맞추기
 Local AI on your graphics cards (free)	그래픽 카드의 로컬 AI(무료)
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	이 컴퓨터의 그래픽 카드로 고른 스타일에 맞춰 만듭니다. 그림과 Blender에서 마무리하는 3D 모델.
 Not running and can't be started: set it up in Settings → Local generation	실행 중이 아니고 시작할 수 없습니다. 설정 → 로컬 생성에서 설정하세요
+Listen to an original sound	원본 소리 듣기
+Make a sound locally	로컬에서 소리 만들기
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	이 컴퓨터의 그래픽 카드로 그림, 3D 모델, 소리, 음악, 목소리를 무료로 만듭니다: 그림용 ComfyUI 서버(Z-Image Turbo), 3D 형태용 서버(Hunyuan3D 2.1), 소리와 음악용 서버(Stable Audio 3, ACE-Step 1.5, 보통 3D 서버)가 있고, 목소리는 Qwen3-TTS가 있는 Python에서 나옵니다. 그래픽 카드가 하나라면 서버들에 같은 주소를 주세요.
+Sound and music	소리와 음악
+Sound decoder	소리 디코더
+Speak a line locally	로컬에서 대사 말하기
+The Python that has Qwen3-TTS and Whisper installed.	Qwen3-TTS와 Whisper가 설치된 Python.
+Usually the 3D server's address: it starts with it.	보통 3D 서버의 주소: 그 서버와 함께 시작됩니다.
+Voices	목소리
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, 게임 고유 형식으로 된 원본의 소리를 듣기 위한 도구.
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	이 컴퓨터의 그래픽 카드로 고른 스타일에 맞춰 만듭니다: 그림, Blender에서 마무리한 3D 모델, 소리, 음악, 목소리.

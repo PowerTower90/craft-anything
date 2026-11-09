@@ -3,7 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use craft_anything_ai::AiHub;
-use craft_anything_engine::{Engine, Session, Settings};
+use craft_anything_engine::{Engine, Session};
 use craft_anything_ui_egui::CraftApp;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -47,8 +47,7 @@ fn main() -> eframe::Result {
     let renderer = pick_renderer(&config, last_failed);
     start_guard::begin(&config);
 
-    let settings = Settings::load();
-    let mut session = Session::new(settings);
+    let mut session = Session::start_in(&config);
     let plugins = craft_anything_engine::plugins::install(&mut session);
     let mut layer_tools = craft_anything_ai::tools();
     layer_tools.extend(craft_anything_setup::tools::specs());

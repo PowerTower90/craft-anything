@@ -1,7 +1,8 @@
 //! Generating game assets on this computer's own graphics cards, for free (no keys, no credits):
 //! `local_generation_status` and `local_generation_start` for the servers, and
-//! `asset_generate_image`, `asset_generate_model` and `asset_generate_batch` to make pictures and
-//! 3D models into a project. The work itself is the engines layer's
+//! `asset_generate_image`, `asset_generate_model`, `asset_generate_sound`, `asset_generate_voice`
+//! and `asset_generate_batch` to make pictures, 3D models, sounds, music and voice lines into a
+//! project. The work itself is the engines layer's
 //! ([`craft_anything_engines::local_gen`]); the generation runs after the session is released, so
 //! other tool calls carry on meanwhile, and it reports how far it got.
 
@@ -9,7 +10,7 @@ use crate::inventory::{self, RebuildMark, Source, Status};
 use crate::session::Session;
 use crate::tool::{Ctx, Effects, Progress, Requires, ToolOutput, ToolSpec, Toolset, parse_params, schema_of};
 use crate::workspace::{Workspace, really_inside};
-use craft_anything_engines::local_gen::{self, BatchItem, ItemKind, Setup};
+use craft_anything_engines::local_gen::{self, BatchItem, ItemKind, Setup, SoundKind};
 use craft_anything_evidence::{ErrorCode, ToolError};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -19,6 +20,8 @@ use std::time::Instant;
 
 /// The folder generated files go in, in the project folder.
 pub const GENERATED_DIR: &str = "generated";
+/// Where the characters' designed voices are kept, in the generated folder.
+pub const VOICES_DIR: &str = "voices";
 /// Most items one batch makes.
 const MAX_BATCH: usize = 500;
 
@@ -28,8 +31,8 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "local_generation_status",
             title: "Check local generation",
-            summary: "Whether this computer can generate assets on its own graphics cards: the picture server and the 3D server (ComfyUI; answering, and which model files they have), background removal (rembg) and Blender, each ready, not running (and whether it can be started), missing a model, or not set up. Set them up with settings_set local_gen.*.",
-            beginner: "Checks whether this computer can make pictures and 3D models by itself.",
+            summary: "Whether this computer can generate assets on its own graphics cards: the picture server, the 3D server and the audio server (ComfyUI; answering, and which model files they have), background removal (rembg), Blender and voices (the Python with Qwen3-TTS), each ready, not running (and whether it can be started), missing a model, or not set up. Set them up with settings_set local_gen.*.",
+            beginner: "Checks whether this computer can make pictures, 3D models, sounds and voices by itself.",
             toolset: Toolset::Core,
             effects: Effects::ACCESSES_NETWORK,
             requires: Requires::Nothing,
@@ -39,8 +42,8 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "local_generation_start",
             title: "Start local generation",
-            summary: "Start the local generation servers that aren't running (their start commands from local_gen.picture_start and local_gen.shape_start) and wait until they answer (up to 4 minutes). Returns what was started and the status.",
-            beginner: "Starts the programs that make pictures and 3D models on this computer.",
+            summary: "Start the local generation servers that aren't running (their start commands from local_gen.picture_start and local_gen.shape_start; the audio server starts with the server it shares an address with) and wait until they answer (up to 4 minutes). Returns what was started and the status.",
+            beginner: "Starts the programs that make pictures, 3D models and sounds on this computer.",
             toolset: Toolset::Core,
             effects: Effects::LAUNCHES_PROCESS.union(Effects::ACCESSES_NETWORK),
             requires: Requires::Nothing,
@@ -70,9 +73,42 @@ pub fn specs() -> Vec<ToolSpec> {
             run: asset_generate_model,
         },
         ToolSpec {
+            id: "asset_generate_sound",
+            title: "Make a sound locally",
+            summary: "Make a sound effect, ambience, UI sound or piece of music on this computer's graphics card (free): `kind` sfx|ambience|ui (Stable Audio 3, up to 47 s) or music (ACE-Step 1.5, instrumental, 10–240 s); `description` says what makes the sound and its mood, in your own words; `style` words join the prompt; `seconds` keeps it close to the original's length. Saved as WAV at `out` inside the project (default generated/sounds/<name>.wav, music in generated/music/). Never feed an original sound into it: listen to it only to describe it.",
+            beginner: "Makes a sound or a piece of music for your game on this computer, for free.",
+            toolset: Toolset::Core,
+            effects: gen_effects,
+            requires: Requires::Nothing,
+            input_schema: schema_of::<SoundParams>,
+            run: asset_generate_sound,
+        },
+        ToolSpec {
+            id: "asset_generate_voice",
+            title: "Speak a line locally",
+            summary: "Speak a character's line on this computer (Qwen3-TTS; free). Each character gets one new voice, designed once from `voice_description` (write one per character and reuse it) and kept at generated/voices/<character>.wav; every line of that character is spoken in it, never in the original actor's voice. The words are `text`, or transcribed locally (Whisper) from `transcribe_from`, an original recording used only for its words (not in Clean room). Saved as WAV at `out` inside the project (default generated/voice_lines/<character>/<words>.wav).",
+            beginner: "Speaks a character's line in a new voice made for that character, on this computer, for free.",
+            toolset: Toolset::Core,
+            effects: gen_effects,
+            requires: Requires::Nothing,
+            input_schema: schema_of::<VoiceParams>,
+            run: asset_generate_voice,
+        },
+        ToolSpec {
+            id: "asset_decode_sound",
+            title: "Listen to an original sound",
+            summary: "Decode one of the original's sounds in a game's own format (an FMOD .fsb bank, a Wwise stream and the like; vgmstream) to a temporary WAV, to learn what it is: its length (seconds), sample rate and channels, and a file to transcribe (asset_generate_voice transcribe_from) or listen to. Only to understand it: never give the decoded sound to a generator. Deep mode only (it reads the original).",
+            beginner: "Turns one of the original game's sounds into a file you can listen to, to see what it is.",
+            toolset: Toolset::Core,
+            effects: Effects::LAUNCHES_PROCESS.union(Effects::WRITES_FILESYSTEM),
+            requires: Requires::Nothing,
+            input_schema: schema_of::<DecodeParams>,
+            run: asset_decode_sound,
+        },
+        ToolSpec {
             id: "asset_generate_batch",
             title: "Make many assets locally",
-            summary: "Make a list of pictures and 3D models on this computer's graphics cards in one `style` (free): items {id, kind: image|model, description, width/height or height_m, faces, transparent}. Pictures are made one after another on the picture server while the models' shapes are made on the 3D server. Files go to <project>/generated/<job>/<id>.png (or .glb, .fbx, _preview.png) with a manifest at generated/<job>.json; an id that is an inventory item's id marks that item Generated with its file. One item failing doesn't stop the rest; the result lists what failed and why.",
+            summary: "Make a list of pictures, 3D models, sounds, music and voice lines on this computer's graphics cards in one `style` (free): items {id, kind: image|model|sound|music|voice, description, width/height or height_m, faces, transparent; for sound and music seconds and sound: sfx|ambience|ui; for voice character, voice_description, text or transcribe_from}. Pictures are made one after another on the picture server while the models' shapes are made on the 3D server, the sounds and music on the audio server and the voice lines on the voice helper, all at the same time. Files go to <project>/generated/<job>/<id>.png (or .glb, .fbx, _preview.png, .wav) with a manifest at generated/<job>.json; the characters' voices are kept in generated/voices/; an id that is an inventory item's id marks that item Generated with its file. One item failing doesn't stop the rest; the result lists what failed and why.",
             beginner: "Makes a whole set of assets on this computer, in one style, for free.",
             toolset: Toolset::Core,
             effects: gen_effects,
@@ -97,6 +133,9 @@ pub fn setup_of(session: &Session) -> Setup {
         shape_start: s.shape_start.clone(),
         bg_python: s.bg_python.clone(),
         blender: s.blender.clone(),
+        audio_url: s.audio_url.clone(),
+        voice_python: s.voice_python.clone(),
+        sound_decoder: s.sound_decoder.clone(),
         scripts_dir: session.config_dir().join("local_gen"),
         limits: Default::default(),
     }
@@ -105,14 +144,18 @@ pub fn setup_of(session: &Session) -> Setup {
 /// What local AI can make here (now, or once its servers are started): for rebuild plans.
 pub fn ready(session: &Session) -> crate::asset_rebuild::Ready {
     let st = local_gen::status(&setup_of(session));
-    crate::asset_rebuild::Ready { pictures: st.pictures_possible(), models: st.models_possible() }
+    crate::asset_rebuild::Ready { pictures: st.pictures_possible(), models: st.models_possible(), sounds: st.sounds_possible() }
 }
 
 fn status_json(st: &local_gen::Status) -> Value {
     json!({
         "pictures": st.pictures, "shapes": st.shapes, "background_removal": st.background_removal, "blender": st.blender,
-        "can_make": {"pictures": st.pictures.ready, "models": st.pictures.ready && st.shapes.ready && st.blender.ready},
-        "can_start": {"pictures": st.pictures_possible(), "models": st.models_possible()},
+        "audio": st.audio, "voices": st.voices, "sound_decoder": st.sound_decoder,
+        "can_make": {
+            "pictures": st.pictures.ready, "models": st.pictures.ready && st.shapes.ready && st.blender.ready,
+            "sounds": st.audio.ready, "voices": st.voices.ready,
+        },
+        "can_start": {"pictures": st.pictures_possible(), "models": st.models_possible(), "sounds": st.sounds_possible(), "voices": st.voices.ready},
     })
 }
 
@@ -265,18 +308,12 @@ fn asset_generate_model(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, 
     let setup = setup_of(ctx.session);
     let dir = base.parent().map(Path::to_path_buf).unwrap_or_else(|| ws.root.clone());
     let id = base.file_name().and_then(|s| s.to_str()).map(local_gen::file_stem).unwrap_or_else(|| "model".into());
+    let voices = voices_dir(&ws);
     ctx.after_unlocking_reporting(move |cancel, progress| {
-        let item = BatchItem {
-            id: id.clone(),
-            kind: ItemKind::Model,
-            description: p.prompt.clone(),
-            width: None,
-            height: None,
-            transparent: None,
-            height_m: p.height_m,
-            faces: p.faces,
-        };
-        let results = local_gen::run_batch(&setup, std::slice::from_ref(&item), &p.style, &dir, &cancel, &|_, _, what| {
+        let mut item = BatchItem::new(id.clone(), ItemKind::Model, p.prompt.clone());
+        item.height_m = p.height_m;
+        item.faces = p.faces;
+        let results = local_gen::run_batch(&setup, std::slice::from_ref(&item), &p.style, &dir, &voices, &cancel, &|_, _, what| {
             progress(Progress { fraction: None, message: what.to_string() })
         });
         cancel.check()?;
@@ -313,6 +350,187 @@ pub struct BatchParams {
     pub items: Vec<BatchItem>,
 }
 
+/// Where the characters' voices are kept.
+fn voices_dir(ws: &Workspace) -> PathBuf {
+    ws.root.join(GENERATED_DIR).join(VOICES_DIR)
+}
+
+fn clean_room_transcribe() -> ToolError {
+    ToolError::new(ErrorCode::ConsentRequired, "Clean room doesn't read the original's recordings, so it can't transcribe them.")
+        .with_remediation("Give the line's words as text, or turn Deep mode on.")
+}
+
+/// An original recording to transcribe: an existing file, by its full path.
+fn original_recording(p: &Path) -> Result<PathBuf, ToolError> {
+    if !p.is_absolute() || !p.is_file() {
+        return Err(ToolError::new(ErrorCode::NotFound, format!("{} isn't a recording here.", p.display()))
+            .with_remediation("Pass the full path of the original's audio file (WAV, OGG, MP3 or FLAC)."));
+    }
+    Ok(p.to_path_buf())
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DecodeParams {
+    /// The original's sound file (full path).
+    pub file: PathBuf,
+}
+
+fn asset_decode_sound(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    let p: DecodeParams = parse_params(params)?;
+    if ctx.session.clean_room() {
+        return Err(ToolError::new(ErrorCode::ConsentRequired, "Clean room doesn't read the original's sounds.")
+            .with_remediation("Turn Deep mode on to listen to them."));
+    }
+    let src = original_recording(&p.file)?;
+    let setup = setup_of(ctx.session);
+    let stem = src.file_stem().and_then(|s| s.to_str()).map(local_gen::file_stem).unwrap_or_else(|| "sound".into());
+    let out = std::env::temp_dir().join("craft-anything-decoded").join(format!("{stem}_{:x}.wav", local_gen::seed_for(&src.display().to_string())));
+    ctx.after_unlocking(move |cancel| {
+        let info = local_gen::audio::decode_sound(&setup, &src, &out, &cancel)?;
+        Ok(ToolOutput::Value(json!({
+            "wav": out.display().to_string(),
+            "length_seconds": (info.seconds * 100.0).round() / 100.0,
+            "sample_rate": info.sample_rate,
+            "channels": info.channels,
+            "bits": info.bits,
+            "note": "Only to understand the original: describe it in your own words, and never give this file to a generator.",
+        })))
+    });
+    Ok(ToolOutput::Value(Value::Null))
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SoundParams {
+    /// The project's folder.
+    pub project: PathBuf,
+    /// What makes the sound and its mood, in your own words (e.g. "a heavy wooden door creaks open slowly").
+    pub description: String,
+    /// sfx (default), ambience, ui or music.
+    #[serde(default)]
+    pub kind: Option<SoundKind>,
+    /// Its length in seconds, close to the original's (sounds 0.5–47, music 10–240).
+    #[serde(default)]
+    pub seconds: Option<f32>,
+    /// Style words for the prompt (e.g. "Dark fantasy").
+    #[serde(default)]
+    pub style: String,
+    /// The same seed gives the same sound.
+    #[serde(default)]
+    pub seed: Option<u64>,
+    /// Where to save it, inside the project (default generated/sounds/<name>.wav, music generated/music/<name>.wav).
+    #[serde(default)]
+    pub out: Option<String>,
+}
+
+fn asset_generate_sound(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    let p: SoundParams = parse_params(params)?;
+    check_prompt(&p.description)?;
+    let kind = p.kind.unwrap_or(SoundKind::Sfx);
+    let ws = open(&p.project)?;
+    let folder = if kind == SoundKind::Music { "music" } else { "sounds" };
+    let out = out_path(&ws, p.out.as_deref(), format!("{GENERATED_DIR}/{folder}/{}.wav", name_from(&p.description)))?;
+    let setup = setup_of(ctx.session);
+    ctx.after_unlocking_reporting(move |cancel, progress| {
+        let t0 = Instant::now();
+        let say = |m: &str| progress(Progress { fraction: None, message: m.to_string() });
+        let seed = p.seed.unwrap_or_else(|| local_gen::seed_for(&p.description));
+        let seconds = local_gen::audio::clamp_seconds(kind, p.seconds);
+        let bytes = local_gen::audio::sound(&setup, kind, &p.description, &p.style, Some(seconds), seed, &out, &cancel, &say)?;
+        Ok(ToolOutput::Value(json!({
+            "file": out.display().to_string(),
+            "bytes": bytes,
+            "kind": kind,
+            "length_seconds": seconds,
+            "seconds": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0,
+        })))
+    });
+    Ok(ToolOutput::Value(Value::Null))
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct VoiceParams {
+    /// The project's folder.
+    pub project: PathBuf,
+    /// Whose line it is: one voice per character, reused for all their lines.
+    pub character: String,
+    /// The character's voice in words (e.g. "an old man, deep and slow, a little hoarse"). Needed
+    /// the first time; later lines reuse the voice already made.
+    #[serde(default)]
+    pub voice_description: Option<String>,
+    /// The words to speak.
+    #[serde(default)]
+    pub text: Option<String>,
+    /// Or: the original recording (full path), transcribed only for its words.
+    #[serde(default)]
+    pub transcribe_from: Option<PathBuf>,
+    /// Where to save it, inside the project (default generated/voice_lines/<character>/<words>.wav).
+    #[serde(default)]
+    pub out: Option<String>,
+}
+
+fn asset_generate_voice(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    let p: VoiceParams = parse_params(params)?;
+    let character = p.character.trim().to_string();
+    if character.is_empty() || character.chars().count() > 120 {
+        return Err(ToolError::invalid("Say whose line it is (character, up to 120 characters)."));
+    }
+    let text = p.text.as_deref().map(str::trim).filter(|t| !t.is_empty()).map(str::to_string);
+    if text.as_deref().is_some_and(|t| t.chars().count() > 2000) {
+        return Err(ToolError::invalid("A line is at most 2000 characters."));
+    }
+    let transcribe_from = match (&text, &p.transcribe_from) {
+        (Some(_), _) => None,
+        (None, Some(f)) => {
+            if ctx.session.clean_room() {
+                return Err(clean_room_transcribe());
+            }
+            Some(original_recording(f)?)
+        }
+        (None, None) => return Err(ToolError::invalid("Give the words (text), or the original recording to transcribe (transcribe_from).")),
+    };
+    let ws = open(&p.project)?;
+    let voices = voices_dir(&ws);
+    if local_gen::voice::voice_of(&voices, &character).is_none() && p.voice_description.as_deref().is_none_or(|d| d.trim().is_empty()) {
+        return Err(ToolError::invalid(format!("{character} has no voice yet: describe it in voice_description (once per character).")));
+    }
+    let words = text.as_deref().map(name_from).unwrap_or_else(|| {
+        transcribe_from.as_deref().and_then(Path::file_stem).and_then(|s| s.to_str()).map(local_gen::file_stem).unwrap_or_else(|| "line".into())
+    });
+    let default = format!("{GENERATED_DIR}/voice_lines/{}/{words}.wav", local_gen::file_stem(&character));
+    let out = out_path(&ws, p.out.as_deref(), default)?;
+    let setup = setup_of(ctx.session);
+    ctx.after_unlocking_reporting(move |cancel, progress| {
+        let t0 = Instant::now();
+        let line = local_gen::voice::VoiceLine {
+            id: "line".into(),
+            character,
+            voice_description: p.voice_description.unwrap_or_default(),
+            text,
+            transcribe_from,
+            out: out.clone(),
+        };
+        let say = |m: &str| progress(Progress { fraction: None, message: m.to_string() });
+        let r = local_gen::voice::voice_lines(&setup, &voices, std::slice::from_ref(&line), &cancel, &say)?;
+        cancel.check()?;
+        let r = r.into_iter().next().ok_or_else(|| ToolError::internal("No result."))?;
+        if !r.ok {
+            return Err(ToolError::new(ErrorCode::ProgramFailed, r.error.unwrap_or_default()));
+        }
+        Ok(ToolOutput::Value(json!({
+            "file": out.display().to_string(),
+            "bytes": std::fs::metadata(&out).map(|m| m.len()).unwrap_or(0),
+            "text": r.text,
+            "voice": r.reference.display().to_string(),
+            "designed_voice": r.designed_voice,
+            "seconds": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0,
+        })))
+    });
+    Ok(ToolOutput::Value(Value::Null))
+}
+
 /// Mark the inventory items the batch made (by id) Generated, with their file.
 fn mark_generated(ws: &Workspace, job: &str, results: &[local_gen::ItemResult], clean: bool) -> Result<usize, ToolError> {
     let mut inv = inventory::load(&ws.root)?;
@@ -339,7 +557,7 @@ fn mark_generated(ws: &Workspace, job: &str, results: &[local_gen::ItemResult], 
 }
 
 fn asset_generate_batch(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
-    let p: BatchParams = parse_params(params)?;
+    let mut p: BatchParams = parse_params(params)?;
     if p.items.is_empty() || p.items.len() > MAX_BATCH {
         return Err(ToolError::invalid(format!("items needs 1 to {MAX_BATCH} things to make.")));
     }
@@ -352,9 +570,18 @@ fn asset_generate_batch(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, 
     let manifest_path = ws.root.join(GENERATED_DIR).join(format!("{job}.json"));
     let setup = setup_of(ctx.session);
     let clean = ctx.session.clean_room();
+    if clean && p.items.iter().any(|i| i.transcribe_from.is_some()) {
+        return Err(clean_room_transcribe());
+    }
+    for item in p.items.iter_mut().filter(|i| i.kind == ItemKind::Voice) {
+        if let Some(f) = item.transcribe_from.take() {
+            item.transcribe_from = Some(original_recording(&f)?);
+        }
+    }
+    let voices = voices_dir(&ws);
     ctx.after_unlocking_reporting(move |cancel, progress| {
         let t0 = Instant::now();
-        let results = local_gen::run_batch(&setup, &p.items, &p.style, &dir, &cancel, &|done, total, what| {
+        let results = local_gen::run_batch(&setup, &p.items, &p.style, &dir, &voices, &cancel, &|done, total, what| {
             progress(Progress { fraction: Some(done as f32 / total.max(1) as f32), message: format!("{done} of {total} · {what}") })
         });
         let manifest = local_gen::manifest(&job, &p.style, &ws.root, &p.items, &results);

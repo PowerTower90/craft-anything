@@ -1597,8 +1597,6 @@ Sort the unsorted with the agent	Sıralanmamışları ajanla sırala
 The builder remakes them with free tools. It never spends money.	Oluşturucu bunları ücretsiz araçlarla yeniden yapar. Asla para harcamaz.
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Oluşturucu bunları sıralama araçlarıyla sıralar. Para tutmaz: kodlama ajanının planı karşılar.
 Total: {total}	Toplam: {total}
-about {n} Tripo credits	yaklaşık {n} Tripo kredisi
-about {n} Tripo credits (an estimate)	yaklaşık {n} Tripo kredisi (tahmini)
 {category} · {n} items	{category} · {n} öğe
 {n} assets sent to the builder.	{n} varlık oluşturucuya gönderildi.
 {n} kept as they are this time (kept, or their method isn't set up yet).	{n} öğe bu sefer olduğu gibi kalıyor (korunuyor ya da yöntemi henüz ayarlanmadı).
@@ -1615,17 +1613,12 @@ Built in the engine	Motor içinde yapılır
 Engine materials	Motor malzemeleri
 Engine particles	Motor parçacıkları
 Blender	Blender
-Tripo (your web credits)	Tripo (web kredilerin)
-Local generation (free)	Yerel üretim (ücretsiz)
 Keep the original for now	Şimdilik orijinali koru
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Oyunun kendi kodunun çizdiği widget'lar ve vektör şekiller, açık lisanslı bir yazı tipiyle.
 Engine materials and procedural textures, with Blender where a shape is needed.	Motor malzemeleri ve prosedürel dokular, şekil gereken yerde Blender ile.
 The engine's own particle systems.	Motorun kendi parçacık sistemleri.
 Modelled in Blender from simple shapes.	Blender'da basit şekillerden modellenir.
-Generated on Tripo with the credits on your account (an estimate per model).	Hesabındaki kredilerle Tripo'da üretilir (model başına tahmini).
-Sounds generated on this computer.	Bu bilgisayarda üretilen sesler.
 Not rebuilt this time.	Bu sefer yeniden yapılmaz.
-Not set up yet — next step	Henüz ayarlanmadı — sonraki adım
 Not set up yet	Henüz ayarlanmadı
 sorted by the rules	kurallarla sıralandı
 sorted by the agent	ajan tarafından sıralandı
@@ -1645,7 +1638,6 @@ Local generation was already running.	Yerel üretim zaten çalışıyordu.
 Make a 3D model locally	Yerelde 3B model yap
 Make a picture locally	Yerelde resim yap
 Make many assets locally	Yerelde çok sayıda varlık yap
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Bu bilgisayarın ekran kartlarında ücretsiz resim ve 3B model yap: resimler için bir ComfyUI sunucusu (Z-Image Turbo) ve 3B şekiller için bir tane (Hunyuan3D 2.1); tek ekran kartıyla ikisine aynı adresi ver.
 Missing model	Model eksik
 Not running	Çalışmıyor
 Not set up	Ayarlanmadı
@@ -1669,5 +1661,15 @@ Gritty realistic	Sert gerçekçi
 Cartoon cel-shaded	Çizgi film cel-shading
 Match the original's mood	Orijinalin havasına uy
 Local AI on your graphics cards (free)	Ekran kartlarındaki yerel yapay zekâ (ücretsiz)
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Bu bilgisayarın ekran kartlarında seçtiğin stilde yapılır: resimler ve Blender'da bitirilen 3B modeller.
 Not running and can't be started: set it up in Settings → Local generation	Çalışmıyor ve başlatılamıyor: Ayarlar → Yerel üretim'den kur
+Listen to an original sound	Orijinal bir sesi dinle
+Make a sound locally	Yerelde ses oluştur
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	Bu bilgisayarın ekran kartlarında ücretsiz olarak resim, 3B model, ses, müzik ve seslendirme oluşturun: resimler için bir ComfyUI sunucusu (Z-Image Turbo), 3B şekiller için bir tane (Hunyuan3D 2.1) ve ses ile müzik için bir tane (Stable Audio 3, ACE-Step 1.5), genellikle 3B sunucusu; seslendirmeler Qwen3-TTS kurulu bir Python'dan gelir. Tek ekran kartıyla sunuculara aynı adresi verin.
+Sound and music	Ses ve müzik
+Sound decoder	Ses çözücü
+Speak a line locally	Bir repliği yerelde seslendir
+The Python that has Qwen3-TTS and Whisper installed.	Qwen3-TTS ve Whisper'ın kurulu olduğu Python.
+Usually the 3D server's address: it starts with it.	Genellikle 3B sunucusunun adresi: onunla birlikte başlar.
+Voices	Seslendirmeler
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, orijinalin seslerini oyunun kendi biçiminde dinlemek için.
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Bu bilgisayarın ekran kartlarında seçtiğiniz tarzda yapılır: resimler, Blender'da tamamlanan 3B modeller, sesler, müzik ve seslendirmeler.

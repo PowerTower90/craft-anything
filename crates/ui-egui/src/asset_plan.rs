@@ -47,7 +47,6 @@ pub struct PlanOption {
     pub title: String,
     #[serde(default)]
     pub detail: String,
-    pub credits: u64,
     pub available: bool,
     #[serde(default)]
     pub why: Option<String>,
@@ -60,7 +59,6 @@ pub struct PlanRow {
     pub count: usize,
     pub method: String,
     pub available: bool,
-    pub credits: u64,
     pub options: Vec<PlanOption>,
 }
 
@@ -71,7 +69,6 @@ pub struct PlanView {
     pub category: Option<Category>,
     pub items: usize,
     pub rows: Vec<PlanRow>,
-    pub total_credits: u64,
     /// Some kind is made with local AI (then the style is asked for).
     #[serde(default)]
     pub uses_local_ai: bool,
@@ -476,16 +473,14 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
                                     }
                                 });
                             widgets::named(r.response, &trf("Method for {kind}", &[("kind", &tr(kind_words(row.kind)))]));
-                            let cost = if row.credits > 0 { trf("about {n} Tripo credits", &[("n", &count(row.credits))]) } else { tr("Free") };
-                            let cost = if row.available { cost } else { tr(current.and_then(|o| o.why.as_deref()).unwrap_or("Not set up yet")) };
+                            // Every method is free.
+                            let cost = if row.available { tr("Free") } else { tr(current.and_then(|o| o.why.as_deref()).unwrap_or("Not set up yet")) };
                             ui.label(RichText::new(cost).color(if row.available { t.success } else { t.warning }).size(theme::CAPTION));
                             ui.end_row();
                         }
                     });
                     ui.add_space(10.0);
-                    let total =
-                        if view.total_credits > 0 { trf("about {n} Tripo credits (an estimate)", &[("n", &count(view.total_credits))]) } else { tr("Free") };
-                    ui.label(RichText::new(trf("Total: {total}", &[("total", &total)])).font(theme::semibold(theme::BODY)));
+                    ui.label(RichText::new(trf("Total: {total}", &[("total", &tr("Free"))])).font(theme::semibold(theme::BODY)));
                     if view.uses_local_ai {
                         style_picker(ui, &mut style);
                     }

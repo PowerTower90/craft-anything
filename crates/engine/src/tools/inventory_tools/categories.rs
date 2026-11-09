@@ -5,7 +5,7 @@
 
 use super::{load_for_change, open};
 use crate::asset_categories::{self, Category, CategoryBy, CategoryRule, glob_matches};
-use crate::asset_rebuild::{self, Plan, TRIPO_CREDITS_PER_MODEL};
+use crate::asset_rebuild::{self, Plan};
 use crate::inbox::now_ms;
 use crate::inventory::{self, Item, Source};
 use crate::tool::{Ctx, Effects, Requires, ToolOutput, ToolSpec, Toolset, parse_params, schema_of};
@@ -58,7 +58,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "project_inventory_rebuild_plan",
             title: "Plan an asset rebuild",
-            summary: "How a category (or items by id) would be rebuilt, cheapest first: for each kind of asset among them, how many, the method (`methods` chooses per kind, e.g. {\"model\": \"blender\"}), its cost and whether it can be used yet, with every method offered. HUD → local AI on this computer's graphics cards when it's set up (else built in the engine); environment → engine materials and Blender; effects → engine particles; items, machines, weapons, characters and enemies → local AI when set up, else Blender (Tripo with the person's web credits is offered, an estimate from assets.tripo_credits_per_model, not set up yet); sounds → keep the original. `style` is the look local AI makes them in (the presets are listed; default the project's last). Nothing is written. Start it with project_inventory_rebuild.",
+            summary: "How a category (or items by id) would be rebuilt, cheapest first: for each kind of asset among them, how many, the method (`methods` chooses per kind, e.g. {\"model\": \"blender\"}) and whether it can be used yet, with every method offered. Every method is free. HUD → local AI on this computer's graphics cards when it's set up (else built in the engine); environment → engine materials and Blender; effects → engine particles; items, machines, weapons, characters and enemies → local AI when set up, else Blender; sounds, music and voices → local AI when the audio server is set up, else keep the original. `style` is the look local AI makes them in (the presets are listed; default the project's last). Nothing is written. Start it with project_inventory_rebuild.",
             beginner: "Shows how a group of assets would be remade, and what it costs.",
             toolset: Toolset::Projects,
             effects: Effects::READ_ONLY,
@@ -245,18 +245,10 @@ pub fn plan_for(ctx: &Ctx<'_>, p: &PlanParams) -> Result<(crate::workspace::Work
     Ok((ws, inv, plan))
 }
 
-/// Tripo credits one model takes, from the settings (an estimate).
-pub fn credits_per_model(ctx: &Ctx<'_>) -> u32 {
-    match ctx.session.settings.assets.tripo_credits_per_model {
-        0 => TRIPO_CREDITS_PER_MODEL,
-        n => n,
-    }
-}
-
 fn project_inventory_rebuild_plan(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
     let p: PlanParams = parse_params(params)?;
     let (ws, inv, plan) = plan_for(ctx, &p)?;
-    let mut v = plan.to_json(credits_per_model(ctx));
+    let mut v = plan.to_json();
     v["project"] = json!(ws.root.display().to_string());
     v["last_style"] = json!(inv.last_style);
     v["styles"] = json!(asset_rebuild::STYLES);
@@ -274,7 +266,7 @@ pub fn start_plan(ctx: &Ctx<'_>, p: &PlanParams) -> Result<(crate::workspace::Wo
         "started": started.items,
         "skipped": started.skipped.iter().map(|(k, m, why, n)| json!({"kind": k, "method": m, "why": why, "count": n})).collect::<Vec<_>>(),
         "brief": started.brief,
-        "plan": plan.to_json(credits_per_model(ctx)),
+        "plan": plan.to_json(),
     });
     Ok((ws, started, v))
 }

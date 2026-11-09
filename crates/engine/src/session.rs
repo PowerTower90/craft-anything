@@ -95,6 +95,17 @@ impl Session {
         Session { settings, ..Default::default() }
     }
 
+    /// The session an app starts with: the settings in `dir`'s config.toml (edits left pending by a
+    /// busy shutdown recovered first), written back there.
+    pub fn start_in(dir: &std::path::Path) -> Self {
+        Session { settings: Settings::load_in(dir), config_dir: Some(dir.to_path_buf()), ..Default::default() }
+    }
+
+    /// Where this session's settings are saved.
+    pub fn settings_path(&self) -> std::path::PathBuf {
+        self.config_dir().join("config.toml")
+    }
+
     /// A session that keeps everything under `dir` (config.toml, plugin caches, the engine store,
     /// new projects) instead of this computer's own folders: for tests, and anything that must not
     /// touch the person's setup.

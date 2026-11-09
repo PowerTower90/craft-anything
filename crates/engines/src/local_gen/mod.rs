@@ -2,14 +2,18 @@
 //! Z-Image Turbo and 3D shapes with Hunyuan3D 2.1, each on a ComfyUI server (one per card, or the
 //! same server for both), the background taken off a picture with rembg (BiRefNet), and a shape
 //! finished in Blender (cleaned, decimated to a budget, sized, pivoted, textured from its
-//! reference picture, exported as GLB and FBX with a preview).
+//! reference picture, exported as GLB and FBX with a preview). Sounds and music come from the
+//! audio server ([`audio`]), voice lines from Qwen3-TTS in its own Python ([`voice`]).
 //!
-//! The helper scripts ship inside the app ([`BG_REMOVE_PY`], [`FINISH_MODEL_PY`]) and are written
-//! next to each other on first use. Every wait has a deadline; a server that stops moving fails the
+//! The helper scripts ship inside the app ([`BG_REMOVE_PY`], [`FINISH_MODEL_PY`],
+//! [`voice::VOICE_LINE_PY`]) and are written next to each other on first use. Every wait has a deadline; a server that stops moving fails the
 //! item with a plain message ([`comfy::Stall`]); a batch keeps going past one item's failure.
 
+pub mod audio;
 pub mod comfy;
+pub mod voice;
 
+pub use audio::SoundKind;
 use comfy::{Comfy, Limits};
 use craft_anything_evidence::{ErrorCode, ToolError};
 use craft_anything_platform::cancel::CancelToken;
@@ -37,6 +41,8 @@ pub struct Setup {
     pub picture_url: String,
     /// The 3D server; the same as the picture server with one card.
     pub shape_url: String,
+    /// The sound and music server; usually one of the two above (it starts with that one).
+    pub audio_url: String,
     /// What starts each server, when it isn't running: a script (`.ps1`, `.bat`, `.cmd`, `.sh`) or a program.
     pub picture_start: Option<PathBuf>,
     pub shape_start: Option<PathBuf>,
@@ -44,6 +50,11 @@ pub struct Setup {
     pub bg_python: Option<PathBuf>,
     /// Blender.
     pub blender: Option<PathBuf>,
+    /// The Python that has Qwen3-TTS and Whisper (voice lines).
+    pub voice_python: Option<PathBuf>,
+    /// vgmstream's command-line decoder, for an original's sounds in a game's own format (FMOD
+    /// banks and the like); none: looked for on the search path.
+    pub sound_decoder: Option<PathBuf>,
     /// Where the helper scripts are written.
     pub scripts_dir: PathBuf,
     /// Waiting limits for the servers.
@@ -59,17 +70,35 @@ impl Setup {
         Comfy::new(&self.shape_url, "3D server")
     }
 
-    /// Write the helper scripts (when missing or changed); their paths.
-    fn scripts(&self) -> Result<(PathBuf, PathBuf), ToolError> {
+    pub fn audio(&self) -> Comfy {
+        Comfy::new(&self.audio_url, "audio server")
+    }
+
+    /// What starts the audio server: the start command of the server it shares an address with.
+    pub fn audio_start(&self) -> Option<&Path> {
+        let base = self.audio().base().to_string();
+        if base == self.shape().base() {
+            self.shape_start.as_deref()
+        } else if base == self.picture().base() {
+            self.picture_start.as_deref()
+        } else {
+            None
+        }
+    }
+
+    /// Write a helper script (when missing or changed); its path.
+    fn write_script(&self, name: &str, text: &str) -> Result<PathBuf, ToolError> {
         std::fs::create_dir_all(&self.scripts_dir).map_err(|e| ToolError::io(self.scripts_dir.display(), e))?;
-        let write = |name: &str, text: &str| -> Result<PathBuf, ToolError> {
-            let p = self.scripts_dir.join(name);
-            if std::fs::read_to_string(&p).ok().as_deref() != Some(text) {
-                std::fs::write(&p, text).map_err(|e| ToolError::io(p.display(), e))?;
-            }
-            Ok(p)
-        };
-        Ok((write("bg_remove.py", BG_REMOVE_PY)?, write("finish_model.py", FINISH_MODEL_PY)?))
+        let p = self.scripts_dir.join(name);
+        if std::fs::read_to_string(&p).ok().as_deref() != Some(text) {
+            std::fs::write(&p, text).map_err(|e| ToolError::io(p.display(), e))?;
+        }
+        Ok(p)
+    }
+
+    /// The background-removal and Blender scripts.
+    fn scripts(&self) -> Result<(PathBuf, PathBuf), ToolError> {
+        Ok((self.write_script("bg_remove.py", BG_REMOVE_PY)?, self.write_script("finish_model.py", FINISH_MODEL_PY)?))
     }
 }
 
@@ -104,7 +133,7 @@ pub fn find_blender(configured: Option<&Path>) -> Option<PathBuf> {
 }
 
 /// What one part looks like.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PartStatus {
     pub ready: bool,
     /// "ready", "not_running", "missing_model", "not_set_up".
@@ -122,6 +151,15 @@ pub struct Status {
     pub shapes: PartStatus,
     pub background_removal: PartStatus,
     pub blender: PartStatus,
+    /// Sounds and music (the audio server).
+    #[serde(default)]
+    pub audio: PartStatus,
+    /// Voice lines (the voice Python).
+    #[serde(default)]
+    pub voices: PartStatus,
+    /// The decoder for an original's sounds (vgmstream).
+    #[serde(default)]
+    pub sound_decoder: PartStatus,
 }
 
 impl Status {
@@ -133,6 +171,11 @@ impl Status {
     /// 3D models can be made now, or once the servers are started (Blender is needed either way).
     pub fn models_possible(&self) -> bool {
         self.pictures_possible() && (self.shapes.ready || self.shapes.startable) && self.blender.ready
+    }
+
+    /// Sounds and music can be made now, or once the audio server is started.
+    pub fn sounds_possible(&self) -> bool {
+        self.audio.ready || self.audio.startable
     }
 }
 
@@ -179,7 +222,28 @@ pub fn status(setup: &Setup) -> Status {
         Some(p) => part(true, "ready", format!("{}", p.display()), false),
         None => part(false, "not_set_up", "Blender wasn't found. Install it, or set its path in Settings → Local generation.", false),
     };
-    Status { pictures, shapes, background_removal, blender }
+    let audio = server_status(
+        &setup.audio(),
+        setup.audio_start(),
+        &[
+            ("checkpoints", audio::SOUND_CHECKPOINT),
+            ("text_encoders", audio::SOUND_TEXT_ENCODER),
+            ("diffusion_models", audio::MUSIC_UNET),
+            ("text_encoders", audio::MUSIC_TEXT_ENCODER_SMALL),
+            ("text_encoders", audio::MUSIC_TEXT_ENCODER_LARGE),
+            ("vae", audio::MUSIC_VAE),
+        ],
+    );
+    let voices = match setup.voice_python.as_deref() {
+        Some(p) if p.is_file() => part(true, "ready", format!("Python at {}", p.display()), false),
+        Some(p) => part(false, "not_set_up", format!("{} isn't there.", p.display()), false),
+        None => part(false, "not_set_up", "Not set up: set the Python that has Qwen3-TTS.", false),
+    };
+    let sound_decoder = match audio::find_decoder(setup.sound_decoder.as_deref()) {
+        Some(p) => part(true, "ready", format!("{}", p.display()), false),
+        None => part(false, "not_set_up", "vgmstream wasn't found: an original's sounds in a game's own format can't be listened to.", false),
+    };
+    Status { pictures, shapes, background_removal, blender, audio, voices, sound_decoder }
 }
 
 /// Start what isn't running (each start command once; a server shared by both parts once), then
@@ -187,8 +251,10 @@ pub fn status(setup: &Setup) -> Status {
 pub fn start(setup: &Setup, cancel: &CancelToken, progress: &dyn Fn(&str)) -> Result<Vec<String>, ToolError> {
     let mut started = Vec::new();
     let mut servers: Vec<(Comfy, Option<PathBuf>)> = vec![(setup.picture(), setup.picture_start.clone())];
-    if setup.shape().base() != setup.picture().base() {
-        servers.push((setup.shape(), setup.shape_start.clone()));
+    for (server, start) in [(setup.shape(), setup.shape_start.clone()), (setup.audio(), setup.audio_start().map(Path::to_path_buf))] {
+        if !servers.iter().any(|(s, _)| s.base() == server.base()) {
+            servers.push((server, start));
+        }
     }
     for (server, start) in &servers {
         if server.reachable() {
@@ -238,7 +304,12 @@ pub fn file_stem(id: &str) -> String {
     if s.trim_matches('_').is_empty() { "item".into() } else { s }
 }
 
-fn seed_for(id: &str) -> u64 {
+/// Now, in nanoseconds since 1970 (for unique file names).
+fn now_nanos() -> u128 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0)
+}
+
+pub fn seed_for(id: &str) -> u64 {
     // FNV-1a: stable across runs, so the same id gives the same picture.
     id.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)) & 0x7fff_ffff_ffff
 }
@@ -367,6 +438,12 @@ pub enum ItemKind {
     Image,
     /// A 3D model (GLB and FBX).
     Model,
+    /// A sound effect, ambience or UI sound (WAV), on the audio server.
+    Sound,
+    /// A piece of music (WAV), on the audio server.
+    Music,
+    /// A character's spoken line (WAV), in the character's designed voice.
+    Voice,
 }
 
 /// One thing to make.
@@ -392,6 +469,47 @@ pub struct BatchItem {
     /// For a model: the most faces (default 20000).
     #[serde(default)]
     pub faces: Option<u32>,
+    /// For a sound or music: its length in seconds (keep it close to the original's; sounds
+    /// 0.5–47, music 10–240).
+    #[serde(default)]
+    pub seconds: Option<f32>,
+    /// For a sound: sfx (default), ambience or ui.
+    #[serde(default)]
+    pub sound: Option<SoundKind>,
+    /// For a voice line: whose line it is (one voice per character).
+    #[serde(default)]
+    pub character: Option<String>,
+    /// For a voice line: the character's voice in words (the same for all their lines).
+    #[serde(default)]
+    pub voice_description: Option<String>,
+    /// For a voice line: the words. Without them, the original is transcribed (`transcribe_from`).
+    #[serde(default)]
+    pub text: Option<String>,
+    /// For a voice line: the original recording, only to transcribe its words.
+    #[serde(default)]
+    pub transcribe_from: Option<PathBuf>,
+}
+
+impl BatchItem {
+    /// An item of `kind` with only an id and a description.
+    pub fn new(id: impl Into<String>, kind: ItemKind, description: impl Into<String>) -> Self {
+        BatchItem {
+            id: id.into(),
+            kind,
+            description: description.into(),
+            width: None,
+            height: None,
+            transparent: None,
+            height_m: None,
+            faces: None,
+            seconds: None,
+            sound: None,
+            character: None,
+            voice_description: None,
+            text: None,
+            transcribe_from: None,
+        }
+    }
 }
 
 /// What became of one item.
@@ -491,14 +609,86 @@ fn model_from(setup: &Setup, r: &Reference, dir: &Path, stem: &str, cancel: &Can
     Ok((vec![with(".glb"), with(".fbx"), with("_preview.png"), r.rgba.clone(), r.raw.clone(), shape], stats))
 }
 
-/// Make every item, writing into `dir`: pictures one after another on the picture server, and
-/// each model's shape on the 3D server while the next pictures are made. One item failing
-/// doesn't stop the rest. `progress` hears (done, total, what's happening).
+/// A sound or music item: made on the audio server as `<stem>.wav`.
+fn sound_item(
+    setup: &Setup,
+    item: &BatchItem,
+    style: &str,
+    dir: &Path,
+    stem: &str,
+    cancel: &CancelToken,
+    say: &dyn Fn(&str),
+) -> Result<Vec<PathBuf>, ToolError> {
+    let kind = if item.kind == ItemKind::Music { SoundKind::Music } else { item.sound.filter(|k| *k != SoundKind::Music).unwrap_or(SoundKind::Sfx) };
+    let out = dir.join(format!("{stem}.wav"));
+    audio::sound(setup, kind, &item.description, style, item.seconds, seed_for(&item.id), &out, cancel, say)?;
+    Ok(vec![out])
+}
+
+/// What one item made: its files (the main one first) and stats, or why not.
+type Made = Result<(Vec<PathBuf>, Value), ToolError>;
+
+/// Every voice item at once, in one run of the voice helper (its models load once).
+fn voice_items(
+    setup: &Setup,
+    items: &[(usize, &BatchItem, String)],
+    dir: &Path,
+    voices_dir: &Path,
+    cancel: &CancelToken,
+    say: &dyn Fn(&str),
+) -> Vec<(usize, Made)> {
+    let mut lines = Vec::new();
+    let mut out: Vec<(usize, Made)> = Vec::new();
+    for (i, item, stem) in items {
+        let character = item.character.as_deref().map(str::trim).unwrap_or_default();
+        let has_words = item.text.as_deref().is_some_and(|t| !t.trim().is_empty()) || item.transcribe_from.is_some();
+        if character.is_empty() || !has_words {
+            out.push((*i, Err(ToolError::invalid("A voice line needs its character, and its words (text) or the original to transcribe (transcribe_from)."))));
+            continue;
+        }
+        if voice::voice_of(voices_dir, character).is_none() && item.voice_description.as_deref().is_none_or(|d| d.trim().is_empty()) {
+            out.push((*i, Err(ToolError::invalid(format!("{character} has no voice yet: describe it in voice_description.")))));
+            continue;
+        }
+        lines.push((
+            *i,
+            voice::VoiceLine {
+                id: format!("{i}"),
+                character: character.to_string(),
+                voice_description: item.voice_description.clone().unwrap_or_default(),
+                text: item.text.clone(),
+                transcribe_from: item.transcribe_from.clone(),
+                out: dir.join(format!("{stem}.wav")),
+            },
+        ));
+    }
+    if lines.is_empty() {
+        return out;
+    }
+    let only: Vec<voice::VoiceLine> = lines.iter().map(|(_, l)| l.clone()).collect();
+    match voice::voice_lines(setup, voices_dir, &only, cancel, say) {
+        Ok(results) => {
+            for ((i, _), r) in lines.iter().zip(results) {
+                let stats = json!({"text": r.text, "length_seconds": r.length, "voice": r.reference, "designed_voice": r.designed_voice});
+                out.push((*i, if r.ok { Ok((vec![r.out], stats)) } else { Err(ToolError::new(ErrorCode::ProgramFailed, r.error.unwrap_or_default())) }));
+            }
+        }
+        Err(e) => out.extend(lines.iter().map(|(i, _)| (*i, Err(e.clone())))),
+    }
+    out
+}
+
+/// Make every item, writing into `dir`: pictures one after another on the picture server; each
+/// model's shape on the 3D server while the next pictures are made; sounds and music on the audio
+/// server, and voice lines (their voices kept in `voices_dir`) on the voice helper, at the same
+/// time. One item failing doesn't stop the rest. `progress` hears (done, total, what's happening).
+#[allow(clippy::too_many_arguments)]
 pub fn run_batch(
     setup: &Setup,
     items: &[BatchItem],
     style: &str,
     dir: &Path,
+    voices_dir: &Path,
     cancel: &CancelToken,
     progress: &(dyn Fn(usize, usize, &str) + Sync),
 ) -> Vec<ItemResult> {
@@ -542,14 +732,55 @@ pub fn run_batch(
                 finish(r.index, ItemKind::Model, r.started, result);
             }
         });
+        // The audio server makes the sounds and music, one after another.
+        scope.spawn(|| {
+            for (i, item) in items.iter().enumerate().filter(|(_, it)| matches!(it.kind, ItemKind::Sound | ItemKind::Music)) {
+                let started = Instant::now();
+                let stem = stems.get(i).cloned().unwrap_or_default();
+                let r = if cancel.is_cancelled() {
+                    Err(ToolError::cancelled())
+                } else {
+                    say(i, if item.kind == ItemKind::Music { "making the music" } else { "making the sound" });
+                    sound_item(setup, item, style, dir, &stem, cancel, &|w| say(i, w)).map(|f| (f, Value::Null))
+                };
+                finish(i, item.kind.clone(), started, r);
+            }
+        });
+        // The voice helper speaks every line.
+        scope.spawn(|| {
+            let voiced: Vec<(usize, &BatchItem, String)> = items
+                .iter()
+                .enumerate()
+                .filter(|(_, it)| it.kind == ItemKind::Voice)
+                .map(|(i, it)| (i, it, stems.get(i).cloned().unwrap_or_default()))
+                .collect();
+            if voiced.is_empty() {
+                return;
+            }
+            let started = Instant::now();
+            let first = voiced[0].0;
+            let results = if cancel.is_cancelled() {
+                voiced.iter().map(|(i, _, _)| (*i, Err(ToolError::cancelled()))).collect()
+            } else {
+                voice_items(setup, &voiced, dir, voices_dir, cancel, &|w| say(first, w))
+            };
+            for (i, r) in results {
+                finish(i, ItemKind::Voice, started, r);
+            }
+        });
         for (i, item) in items.iter().enumerate() {
             let stem = stems.get(i).cloned().unwrap_or_default();
             let started = Instant::now();
+            if matches!(item.kind, ItemKind::Sound | ItemKind::Music | ItemKind::Voice) {
+                continue;
+            }
             if cancel.is_cancelled() {
                 finish(i, item.kind.clone(), started, Err(ToolError::cancelled()));
                 continue;
             }
             match item.kind {
+                // Made in their own lanes.
+                ItemKind::Sound | ItemKind::Music | ItemKind::Voice => {}
                 ItemKind::Image => {
                     say(i, "making the picture");
                     let r = picture_item(setup, item, style, dir, &stem, cancel, &|w| say(i, w)).map(|f| (f, Value::Null));

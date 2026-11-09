@@ -26,6 +26,7 @@ pub fn session() -> Session {
     // Never this computer's own generation servers: nothing listens on the discard port.
     s.settings.local_gen.picture_url = "http://127.0.0.1:9".into();
     s.settings.local_gen.shape_url = "http://127.0.0.1:9".into();
+    s.settings.local_gen.audio_url = "http://127.0.0.1:9".into();
     s
 }
 

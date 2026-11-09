@@ -4054,7 +4054,7 @@ fn categories_filter_the_gallery_and_a_hud_rebuild_is_free_and_goes_to_the_build
 }
 
 #[test]
-fn tripo_is_offered_for_enemies_but_not_ready_and_never_the_default() {
+fn every_plan_is_free_and_local_ai_waits_for_its_servers() {
     use egui_kittest::kittest::NodeT;
     let d = tempfile::tempdir().unwrap();
     let ws = category_project(d.path());
@@ -4069,11 +4069,14 @@ fn tripo_is_offered_for_enemies_but_not_ready_and_never_the_default() {
     assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| matches!(p.view, Some(Ok(_))))));
     h.run_steps(2);
     h.get_by_label("Total: Free");
-    h.get_by_label("Method for Models").click();
-    h.run_steps(2);
-    let tripo = h.get_by_label("Tripo (your web credits) · Not set up yet — next step");
-    assert!(tripo.accesskit_node().is_disabled(), "Tripo can't be picked until it's set up");
-    assert!(!h.get_by_label("Blender").accesskit_node().is_disabled());
+    // The audio server isn't running here: the enemy's sound is kept for now, local AI offered but not startable.
+    assert_eq!(h.get_by_label("Method for Sounds").value().as_deref(), Some("Keep the original for now"));
+    h.get_by_label("Method for Sounds").click();
+    h.run_steps(3);
+    let local = h.get_by_label_contains("Local AI on your graphics cards (free) · Not running");
+    assert!(local.accesskit_node().is_disabled(), "local AI can't be picked until its servers can start");
+    assert!(h.query_by_label_contains("Tripo").is_none(), "no paid route");
+    assert!(h.query_by_label_contains("credits").is_none());
 }
 
 #[test]
@@ -4125,8 +4128,16 @@ fn settings_has_a_local_generation_section_that_checks_and_keeps_its_addresses()
     h.run_steps(2);
     h.get_by_label("Local generation").scroll_to_me();
     h.run_steps(2);
-    assert!(h.query_all_by_label("Not running").count() >= 2, "both servers say they aren't running");
+    assert!(h.query_all_by_label("Not running").count() >= 3, "the picture, 3D and audio servers say they aren't running");
+    for part in ["Sound and music", "Voices", "Sound decoder"] {
+        assert!(h.query_all_by_label(part).count() >= 2, "{part} has a status line and a field");
+    }
     h.get_by_label("Check");
+    h.get_by_label("Sound and music server address").focus();
+    h.run_steps(2);
+    h.get_by_label("Sound and music server address").type_text("1");
+    h.run_steps(2);
+    assert_eq!(h.state().settings.local_gen.audio_url, "http://127.0.0.1:91");
     // An address typed in is kept in the settings.
     h.get_by_label("3D server address").focus();
     h.run_steps(2);

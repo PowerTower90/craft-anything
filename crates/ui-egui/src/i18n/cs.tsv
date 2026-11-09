@@ -1597,8 +1597,6 @@ Sort the unsorted with the agent	Roztřídit neroztříděné s agentem
 The builder remakes them with free tools. It never spends money.	Sestavovatel je předělá zdarma dostupnými nástroji. Nikdy neutrácí peníze.
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Sestavovatel je roztřídí třídicími nástroji. Nic to nestojí: pokrývá to předplatné vašeho kódovacího agenta.
 Total: {total}	Celkem: {total}
-about {n} Tripo credits	asi {n} kreditů Tripo
-about {n} Tripo credits (an estimate)	asi {n} kreditů Tripo (odhad)
 {category} · {n} items	{category} · položek: {n}
 {n} assets sent to the builder.	Sestavovateli odesláno prostředků: {n}.
 {n} kept as they are this time (kept, or their method isn't set up yet).	Tentokrát zůstane beze změny: {n} (ponechané, nebo jejich metoda ještě není nastavena).
@@ -1615,17 +1613,12 @@ Built in the engine	Postaveno v enginu
 Engine materials	Materiály enginu
 Engine particles	Částice enginu
 Blender	Blender
-Tripo (your web credits)	Tripo (vaše webové kredity)
-Local generation (free)	Místní generování (zdarma)
 Keep the original for now	Zatím ponechat originál
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Widgety a vektorové tvary kreslené vlastním kódem hry, s písmem pod otevřenou licencí.
 Engine materials and procedural textures, with Blender where a shape is needed.	Materiály enginu a procedurální textury, s Blenderem tam, kde je potřeba tvar.
 The engine's own particle systems.	Vlastní částicové systémy enginu.
 Modelled in Blender from simple shapes.	Vymodelováno v Blenderu z jednoduchých tvarů.
-Generated on Tripo with the credits on your account (an estimate per model).	Vygenerováno na Tripo z kreditů vašeho účtu (odhad na model).
-Sounds generated on this computer.	Zvuky generované na tomto počítači.
 Not rebuilt this time.	Tentokrát se nepřestaví.
-Not set up yet — next step	Ještě není nastaveno — další krok
 Not set up yet	Ještě není nastaveno
 sorted by the rules	roztříděno pravidly
 sorted by the agent	roztříděno agentem
@@ -1645,7 +1638,6 @@ Local generation was already running.	Místní generování už běželo.
 Make a 3D model locally	Vytvořit 3D model místně
 Make a picture locally	Vytvořit obrázek místně
 Make many assets locally	Vytvořit mnoho prostředků místně
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Vytvářejte obrázky a 3D modely na grafických kartách tohoto počítače zdarma: server ComfyUI pro obrázky (Z-Image Turbo) a jeden pro 3D tvary (Hunyuan3D 2.1); s jednou grafickou kartou dejte oběma stejnou adresu.
 Missing model	Chybí model
 Not running	Neběží
 Not set up	Nenastaveno
@@ -1669,5 +1661,15 @@ Gritty realistic	Drsně realistický
 Cartoon cel-shaded	Kreslený cel-shading
 Match the original's mood	Ve stejné náladě jako originál
 Local AI on your graphics cards (free)	Místní AI na vašich grafických kartách (zdarma)
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Vzniká na grafických kartách tohoto počítače ve zvoleném stylu: obrázky a 3D modely dokončené v Blenderu.
 Not running and can't be started: set it up in Settings → Local generation	Neběží a nelze spustit: nastavte v Nastavení → Místní generování
+Listen to an original sound	Poslechnout si zvuk originálu
+Make a sound locally	Vytvořit zvuk místně
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	Vytvářejte obrázky, 3D modely, zvuky, hudbu a hlasy na grafických kartách tohoto počítače, zdarma: server ComfyUI pro obrázky (Z-Image Turbo), jeden pro 3D tvary (Hunyuan3D 2.1) a jeden pro zvuky a hudbu (Stable Audio 3, ACE-Step 1.5), obvykle ten pro 3D; hlasy pocházejí z Pythonu s Qwen3-TTS. S jednou grafickou kartou dejte serverům stejnou adresu.
+Sound and music	Zvuky a hudba
+Sound decoder	Dekodér zvuku
+Speak a line locally	Namluvit repliku místně
+The Python that has Qwen3-TTS and Whisper installed.	Python, ve kterém jsou nainstalované Qwen3-TTS a Whisper.
+Usually the 3D server's address: it starts with it.	Obvykle adresa 3D serveru: spouští se s ním.
+Voices	Hlasy
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, k poslechu zvuků originálu ve vlastním formátu hry.
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Vytvořeno na grafických kartách tohoto počítače ve zvoleném stylu: obrázky, 3D modely dokončené v Blenderu, zvuky, hudba a hlasy.

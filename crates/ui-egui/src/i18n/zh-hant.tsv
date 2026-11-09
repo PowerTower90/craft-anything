@@ -1597,8 +1597,6 @@ Sort the unsorted with the agent	讓智慧代理分類未分類的
 The builder remakes them with free tools. It never spends money.	建構者用免費工具重做它們，從不花錢。
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	建構者用分類工具來分類。不花錢：你的程式智慧代理方案已包含。
 Total: {total}	合計：{total}
-about {n} Tripo credits	約 {n} 個 Tripo 點數
-about {n} Tripo credits (an estimate)	約 {n} 個 Tripo 點數（估計）
 {category} · {n} items	{category} · {n} 項
 {n} assets sent to the builder.	已將 {n} 個素材傳送給建構者。
 {n} kept as they are this time (kept, or their method isn't set up yet).	這次有 {n} 個保持原樣（保留，或其方式尚未設定）。
@@ -1615,17 +1613,12 @@ Built in the engine	在引擎中建構
 Engine materials	引擎材質
 Engine particles	引擎粒子
 Blender	Blender
-Tripo (your web credits)	Tripo（你的網頁點數）
-Local generation (free)	本機生成（免費）
 Keep the original for now	暫時保留原樣
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	由遊戲自身程式碼繪製的元件和向量圖形，搭配開放授權字型。
 Engine materials and procedural textures, with Blender where a shape is needed.	引擎材質和程序化紋理，需要形狀時用 Blender。
 The engine's own particle systems.	引擎內建的粒子系統。
 Modelled in Blender from simple shapes.	在 Blender 中用簡單形狀建模。
-Generated on Tripo with the credits on your account (an estimate per model).	用你帳戶裡的點數在 Tripo 上生成（每個模型的估計）。
-Sounds generated on this computer.	在這台電腦上生成的聲音。
 Not rebuilt this time.	這次不重建。
-Not set up yet — next step	尚未設定 — 下一步
 Not set up yet	尚未設定
 sorted by the rules	由規則分類
 sorted by the agent	由智慧代理分類
@@ -1645,7 +1638,6 @@ Local generation was already running.	本機生成已經在執行。
 Make a 3D model locally	在本機製作 3D 模型
 Make a picture locally	在本機製作圖片
 Make many assets locally	在本機製作大量素材
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	在這台電腦的顯示卡上免費製作圖片和 3D 模型：一個用於圖片的 ComfyUI 伺服器（Z-Image Turbo），一個用於 3D 形狀（Hunyuan3D 2.1）；只有一張顯示卡時，兩者填同一個位址。
 Missing model	缺少模型
 Not running	未執行
 Not set up	未設定
@@ -1669,5 +1661,15 @@ Gritty realistic	粗獷寫實
 Cartoon cel-shaded	卡通賽璐璐著色
 Match the original's mood	貼合原作的氛圍
 Local AI on your graphics cards (free)	你顯示卡上的本機 AI（免費）
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	在這台電腦的顯示卡上按你選擇的風格製作：圖片，以及在 Blender 中完成的 3D 模型。
 Not running and can't be started: set it up in Settings → Local generation	未執行且無法啟動：請在設定 → 本機生成中設定
+Listen to an original sound	聽原作的一個聲音
+Make a sound locally	在本機產生聲音
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	用這台電腦的顯示卡免費產生圖片、3D 模型、聲音、音樂和語音：一台用於圖片的 ComfyUI 伺服器（Z-Image Turbo），一台用於 3D 形狀（Hunyuan3D 2.1），一台用於聲音和音樂（Stable Audio 3、ACE-Step 1.5），通常就是 3D 那台；語音來自裝有 Qwen3-TTS 的 Python。只有一張顯示卡時，給這些伺服器同一個位址。
+Sound and music	聲音和音樂
+Sound decoder	聲音解碼器
+Speak a line locally	在本機說一句台詞
+The Python that has Qwen3-TTS and Whisper installed.	裝有 Qwen3-TTS 和 Whisper 的 Python。
+Usually the 3D server's address: it starts with it.	通常是 3D 伺服器的位址：它隨之啟動。
+Voices	語音
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli，用來聽原作中遊戲專用格式的聲音。
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	用這台電腦的顯示卡依你選的風格產生：圖片、在 Blender 中完成的 3D 模型、聲音、音樂和語音。

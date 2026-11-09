@@ -124,19 +124,23 @@ fn a_plan_is_cheapest_first_and_never_starts_what_isnt_set_up() {
     assert_eq!(hud["total"], "Free");
     assert_eq!(hud["rows"][0]["method"], "engine_ui");
     call(&e, "project_inventory_category_rules", json!({"project": ws.root, "add": [{"term": "Glyphid", "category": "enemies"}]}));
-    let enemies = call(&e, "project_inventory_rebuild_plan", json!({"project": ws.root, "category": "enemies", "methods": {"model": "tripo"}}));
+    let enemies = call(&e, "project_inventory_rebuild_plan", json!({"project": ws.root, "category": "enemies", "methods": {"model": "local_ai"}}));
     let model = enemies["rows"].as_array().unwrap().iter().find(|r| r["kind"] == "model").unwrap().clone();
-    assert_eq!((model["available"].as_bool(), model["credits"].as_u64()), (Some(false), Some(40)));
-    assert_eq!(enemies["total"], "about 40 Tripo credits");
-    let tripo = model["options"].as_array().unwrap().iter().find(|o| o["id"] == "tripo").unwrap().clone();
-    assert_eq!(tripo["why"], "Not set up yet — next step");
-    let err = e
-        .call("project_inventory_rebuild_plan", json!({"project": ws.root, "category": "hud", "methods": {"texture": "tripo"}}), CallOptions::new(Caller::Mcp))
-        .unwrap_err();
-    assert_eq!(err.code, ErrorCode::BadInput, "Tripo isn't offered for the HUD");
-    // Starting (the engine's half): Tripo is skipped, the texture goes to Blender, nothing else changes.
+    assert_eq!(model["available"].as_bool(), Some(false), "the test's servers aren't running");
+    assert!(model.get("credits").is_none() && enemies.get("total_credits").is_none(), "nothing is counted in credits");
+    assert_eq!(enemies["total"], "Free");
+    let local = model["options"].as_array().unwrap().iter().find(|o| o["id"] == "local_ai").unwrap().clone();
+    assert_eq!(local["why"], crate::asset_rebuild::LOCAL_AI_NOT_READY);
+    assert!(model["options"].as_array().unwrap().iter().all(|o| o["id"] != "tripo"), "Tripo is gone");
+    for (kind, method) in [("texture", "tripo"), ("texture", "local_audio")] {
+        let err = e
+            .call("project_inventory_rebuild_plan", json!({"project": ws.root, "category": "hud", "methods": {kind: method}}), CallOptions::new(Caller::Mcp))
+            .unwrap_err();
+        assert_eq!(err.code, ErrorCode::BadInput, "{method} isn't a method");
+    }
+    // Starting (the engine's half): local AI that isn't set up is skipped, the texture goes to Blender, nothing else changes.
     let mut inv = inventory::load(&ws.root).unwrap();
-    let methods = [("model".to_string(), "tripo".to_string())].into_iter().collect();
+    let methods = [("model".to_string(), "local_ai".to_string())].into_iter().collect();
     let plan = {
         let items = crate::asset_rebuild::select(&inv, Some(crate::asset_categories::Category::Enemies), &[], |_| true).unwrap();
         crate::asset_rebuild::Plan::new(&items, Some(crate::asset_categories::Category::Enemies), &methods, Default::default()).unwrap()
@@ -144,7 +148,7 @@ fn a_plan_is_cheapest_first_and_never_starts_what_isnt_set_up() {
     let done = crate::asset_rebuild::start(&ws, &mut inv, &plan, 1_800_000_000_000).unwrap();
     let started = json!({"started": done.items, "skipped": [{"method": done.skipped[0].1}], "list": done.list.display().to_string(), "brief": done.brief});
     assert_eq!(started["started"], 1);
-    assert_eq!(started["skipped"][0]["method"], "tripo");
+    assert_eq!(started["skipped"][0]["method"], "local_ai");
     let list = std::path::PathBuf::from(started["list"].as_str().unwrap());
     let doc: Value = serde_json::from_slice(&std::fs::read(&list).unwrap()).unwrap();
     assert_eq!(doc["items"][0]["name"], "Glyphid_Grunt");

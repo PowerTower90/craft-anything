@@ -16,6 +16,8 @@ craft-anything-formats = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true }
+# Generated sounds come back as FLAC; games want WAV (pure Rust, safe).
+claxon = "0.4"
 log = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }

@@ -104,6 +104,7 @@ pub fn engine(mode: Mode, first_run_done: bool) -> Arc<Engine> {
     // Never this computer's own generation servers: nothing listens on the discard port.
     settings.local_gen.picture_url = "http://127.0.0.1:9".into();
     settings.local_gen.shape_url = "http://127.0.0.1:9".into();
+    settings.local_gen.audio_url = "http://127.0.0.1:9".into();
     let mut session = Session::new(settings);
     session.add_target(sample_target());
     for e in [strings_evidence(), functions_evidence(), percent_evidence()].into_iter().flatten() {

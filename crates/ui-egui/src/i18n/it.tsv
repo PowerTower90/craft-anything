@@ -1599,8 +1599,6 @@ Sort the unsorted with the agent	Ordina le non ordinate con l'agente
 The builder remakes them with free tools. It never spends money.	Il costruttore le rifà con strumenti gratuiti. Non spende mai denaro.
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Il costruttore le ordina con gli strumenti di ordinamento. Non costa nulla: lo copre il piano del tuo agente di codice.
 Total: {total}	Totale: {total}
-about {n} Tripo credits	circa {n} crediti Tripo
-about {n} Tripo credits (an estimate)	circa {n} crediti Tripo (una stima)
 {category} · {n} items	{category} · {n} elementi
 {n} assets sent to the builder.	{n} risorse inviate al costruttore.
 {n} kept as they are this time (kept, or their method isn't set up yet).	{n} restano come sono questa volta (tenuti, o il loro metodo non è ancora configurato).
@@ -1617,17 +1615,12 @@ Built in the engine	Costruito nel motore
 Engine materials	Materiali del motore
 Engine particles	Particelle del motore
 Blender	Blender
-Tripo (your web credits)	Tripo (i tuoi crediti web)
-Local generation (free)	Generazione locale (gratuita)
 Keep the original for now	Tieni l'originale per ora
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Widget e forme vettoriali disegnati dal codice del gioco, con un font a licenza aperta.
 Engine materials and procedural textures, with Blender where a shape is needed.	Materiali del motore e texture procedurali, con Blender dove serve una forma.
 The engine's own particle systems.	I sistemi di particelle del motore.
 Modelled in Blender from simple shapes.	Modellato in Blender da forme semplici.
-Generated on Tripo with the credits on your account (an estimate per model).	Generato su Tripo con i crediti del tuo account (una stima per modello).
-Sounds generated on this computer.	Suoni generati su questo computer.
 Not rebuilt this time.	Non ricostruito questa volta.
-Not set up yet — next step	Non ancora configurato — prossimo passo
 Not set up yet	Non ancora configurato
 sorted by the rules	ordinato dalle regole
 sorted by the agent	ordinato dall'agente
@@ -1647,7 +1640,6 @@ Local generation was already running.	La generazione locale era già in esecuzio
 Make a 3D model locally	Crea un modello 3D in locale
 Make a picture locally	Crea un'immagine in locale
 Make many assets locally	Crea molte risorse in locale
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Crea immagini e modelli 3D sulle schede grafiche di questo computer, gratis: un server ComfyUI per le immagini (Z-Image Turbo) e uno per le forme 3D (Hunyuan3D 2.1); con una sola scheda grafica, dai a entrambi lo stesso indirizzo.
 Missing model	Modello mancante
 Not running	Non in esecuzione
 Not set up	Non configurato
@@ -1671,5 +1663,15 @@ Gritty realistic	Realistico e crudo
 Cartoon cel-shaded	Cartone in cel-shading
 Match the original's mood	Riprendi l'atmosfera dell'originale
 Local AI on your graphics cards (free)	IA locale sulle tue schede grafiche (gratis)
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Fatto sulle schede grafiche di questo computer nello stile che scegli: immagini e modelli 3D rifiniti in Blender.
 Not running and can't be started: set it up in Settings → Local generation	Non è in esecuzione e non si può avviare: configuralo in Impostazioni → Generazione locale
+Listen to an original sound	Ascolta un suono dell'originale
+Make a sound locally	Crea un suono in locale
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	Crea immagini, modelli 3D, suoni, musica e voci con le schede grafiche di questo computer, gratis: un server ComfyUI per le immagini (Z-Image Turbo), uno per le forme 3D (Hunyuan3D 2.1) e uno per suoni e musica (Stable Audio 3, ACE-Step 1.5), di solito quello 3D; le voci vengono da un Python con Qwen3-TTS. Con una sola scheda grafica, dai ai server lo stesso indirizzo.
+Sound and music	Suoni e musica
+Sound decoder	Decodificatore audio
+Speak a line locally	Pronuncia una battuta in locale
+The Python that has Qwen3-TTS and Whisper installed.	Il Python in cui sono installati Qwen3-TTS e Whisper.
+Usually the 3D server's address: it starts with it.	Di solito l'indirizzo del server 3D: si avvia con lui.
+Voices	Voci
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, per ascoltare i suoni dell'originale nel formato proprio di un gioco.
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Fatto con le schede grafiche di questo computer nello stile che scegli: immagini, modelli 3D rifiniti in Blender, suoni, musica e voci.

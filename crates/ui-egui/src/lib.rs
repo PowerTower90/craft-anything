@@ -544,6 +544,8 @@ pub struct CraftApp {
     pub settings: Settings,
     /// Run once after the first frames have been drawn and shown (see [`CraftApp::after_first_frames`]).
     first_frames: Option<FirstFrames>,
+    /// Where the settings are written: the session's config.toml.
+    settings_path: PathBuf,
     /// Write settings to disk (off in tests and snapshots).
     pub persist: bool,
     /// Never open native dialogs (tests and snapshots).
@@ -678,9 +680,13 @@ impl CraftApp {
     pub fn new(engine: Arc<Engine>, hub: Arc<AiHub>) -> Self {
         // Wait for the engine if it's busy: defaults here would show Clean room and no AI, and the
         // next settings change would save them over the person's own.
-        let settings = engine.session().settings.clone();
+        let (settings, settings_path) = {
+            let s = engine.session();
+            (s.settings.clone(), s.settings_path())
+        };
         i18n::set_language(&settings.language);
         CraftApp {
+            settings_path,
             engine,
             hub,
             state: UiState::default(),
@@ -944,7 +950,7 @@ impl CraftApp {
             // by an older settings snapshot. This runs on the worker, never the UI thread.
             let session = engine.session();
             session.label("Save settings");
-            session.settings.save().map_err(|e| e.message)?;
+            session.settings.save_to(&session.settings_path()).map_err(|e| e.message)?;
             Ok(Done::Nothing)
         }));
     }
@@ -2256,16 +2262,16 @@ impl eframe::App for CraftApp {
                 // AI changes belong to the session; keep the app's other pending edits.
                 self.settings.ai = session.settings.ai.clone();
                 session.settings = self.settings.clone();
-                session.settings.save().is_ok()
+                session.settings.save_to(&self.settings_path).is_ok()
             } else {
                 false
             };
             if saved {
                 // This full save supersedes any deferred edits left by a failed recovery.
-                if let Err(e) = Settings::discard_pending(&Settings::path()) {
+                if let Err(e) = Settings::discard_pending(&self.settings_path) {
                     log::error!("Couldn't discard superseded settings on exit: {}", e.message);
                 }
-            } else if let Err(e) = self.settings.defer_save_to(&Settings::path()) {
+            } else if let Err(e) = self.settings.defer_save_to(&self.settings_path) {
                 // A tool can hold the session for hours. Keep edits separately for startup recovery;
                 // never race its eventual save by merging a disk snapshot into config.toml here.
                 log::error!("Couldn't keep pending settings on exit: {}", e.message);

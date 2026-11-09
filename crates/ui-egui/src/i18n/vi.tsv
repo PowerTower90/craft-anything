@@ -1597,8 +1597,6 @@ Sort the unsorted with the agent	Phân loại phần chưa phân loại bằng t
 The builder remakes them with free tools. It never spends money.	Trình dựng làm lại chúng bằng công cụ miễn phí. Nó không bao giờ tiêu tiền.
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Trình dựng phân loại bằng công cụ phân loại. Không tốn tiền: gói của tác tử lập trình đã bao gồm.
 Total: {total}	Tổng: {total}
-about {n} Tripo credits	khoảng {n} tín dụng Tripo
-about {n} Tripo credits (an estimate)	khoảng {n} tín dụng Tripo (ước tính)
 {category} · {n} items	{category} · {n} mục
 {n} assets sent to the builder.	Đã gửi {n} tài nguyên cho trình dựng.
 {n} kept as they are this time (kept, or their method isn't set up yet).	Lần này giữ nguyên {n} mục (được giữ, hoặc cách làm chưa được thiết lập).
@@ -1615,17 +1613,12 @@ Built in the engine	Dựng trong engine
 Engine materials	Vật liệu engine
 Engine particles	Hạt của engine
 Blender	Blender
-Tripo (your web credits)	Tripo (tín dụng web của bạn)
-Local generation (free)	Tạo cục bộ (miễn phí)
 Keep the original for now	Tạm giữ bản gốc
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Widget và hình vector do chính mã của trò chơi vẽ, với phông chữ giấy phép mở.
 Engine materials and procedural textures, with Blender where a shape is needed.	Vật liệu engine và kết cấu thủ tục, dùng Blender khi cần hình khối.
 The engine's own particle systems.	Hệ thống hạt có sẵn của engine.
 Modelled in Blender from simple shapes.	Dựng mô hình trong Blender từ các hình đơn giản.
-Generated on Tripo with the credits on your account (an estimate per model).	Tạo trên Tripo bằng tín dụng trong tài khoản của bạn (ước tính mỗi mô hình).
-Sounds generated on this computer.	Âm thanh tạo trên máy này.
 Not rebuilt this time.	Lần này không dựng lại.
-Not set up yet — next step	Chưa thiết lập — bước tiếp theo
 Not set up yet	Chưa thiết lập
 sorted by the rules	do quy tắc phân loại
 sorted by the agent	do tác tử phân loại
@@ -1645,7 +1638,6 @@ Local generation was already running.	Tạo cục bộ đã chạy sẵn.
 Make a 3D model locally	Tạo mô hình 3D cục bộ
 Make a picture locally	Tạo hình ảnh cục bộ
 Make many assets locally	Tạo nhiều tài nguyên cục bộ
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Tạo hình ảnh và mô hình 3D trên card đồ họa của máy này, miễn phí: một máy chủ ComfyUI cho hình ảnh (Z-Image Turbo) và một cho hình khối 3D (Hunyuan3D 2.1); với một card đồ họa, hãy đặt cùng một địa chỉ cho cả hai.
 Missing model	Thiếu mô hình
 Not running	Không chạy
 Not set up	Chưa thiết lập
@@ -1669,5 +1661,15 @@ Gritty realistic	Hiện thực thô ráp
 Cartoon cel-shaded	Hoạt hình cel-shaded
 Match the original's mood	Giống không khí của bản gốc
 Local AI on your graphics cards (free)	AI cục bộ trên card đồ họa của bạn (miễn phí)
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Tạo trên card đồ họa của máy này theo phong cách bạn chọn: hình ảnh, và mô hình 3D được hoàn thiện trong Blender.
 Not running and can't be started: set it up in Settings → Local generation	Không chạy và không khởi động được: hãy thiết lập trong Cài đặt → Tạo cục bộ
+Listen to an original sound	Nghe một âm thanh của bản gốc
+Make a sound locally	Tạo âm thanh trên máy
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	Tạo hình ảnh, mô hình 3D, âm thanh, nhạc và giọng nói bằng card đồ họa của máy tính này, miễn phí: một máy chủ ComfyUI cho hình ảnh (Z-Image Turbo), một cho hình khối 3D (Hunyuan3D 2.1) và một cho âm thanh và nhạc (Stable Audio 3, ACE-Step 1.5), thường là máy chủ 3D; giọng nói đến từ một Python có Qwen3-TTS. Với một card đồ họa, hãy cho các máy chủ cùng một địa chỉ.
+Sound and music	Âm thanh và nhạc
+Sound decoder	Bộ giải mã âm thanh
+Speak a line locally	Đọc một câu thoại trên máy
+The Python that has Qwen3-TTS and Whisper installed.	Python đã cài Qwen3-TTS và Whisper.
+Usually the 3D server's address: it starts with it.	Thường là địa chỉ của máy chủ 3D: nó khởi động cùng máy chủ đó.
+Voices	Giọng nói
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, để nghe âm thanh của bản gốc ở định dạng riêng của trò chơi.
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Tạo trên card đồ họa của máy tính này theo phong cách bạn chọn: hình ảnh, mô hình 3D hoàn thiện trong Blender, âm thanh, nhạc và giọng nói.

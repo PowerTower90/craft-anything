@@ -74,11 +74,14 @@ fn fake_comfy(jobs: Vec<Job>, models: Value) -> (String, Arc<Mutex<Fake>>) {
                     };
                     let graph: Value = s.queued.get(n).and_then(|q| serde_json::from_str(q).ok()).unwrap_or(Value::Null);
                     let shape = graph["prompt"][comfy::SHAPE_OUTPUT_NODE]["class_type"] == "SaveGLB";
+                    let sound = graph["prompt"][audio::AUDIO_OUTPUT_NODE]["class_type"] == "SaveAudio";
                     let v = match job {
                         Job::Stuck => json!({}),
                         _ if polls < 2 => json!({}),
                         Job::Fails => json!({id: {"status": {"status_str": "error", "completed": false,
                             "messages": [["execution_error", {"exception_message": "CUDA out of memory", "node_type": "KSampler"}]]}, "outputs": {}}}),
+                        Job::Done if sound => json!({id: {"status": {"status_str": "success", "completed": true},
+                            "outputs": {"20": {"audio": [{"filename": format!("{id}.flac"), "subfolder": "craft", "type": "output"}]}}}}),
                         Job::Done if shape => json!({id: {"status": {"status_str": "success", "completed": true},
                             "outputs": {"10": {"3d": [{"filename": format!("{id}.glb"), "subfolder": "craft", "type": "output"}]}}}}),
                         Job::Done => json!({id: {"status": {"status_str": "success", "completed": true},
@@ -88,8 +91,14 @@ fn fake_comfy(jobs: Vec<Job>, models: Value) -> (String, Arc<Mutex<Fake>>) {
                 } else if path == "/queue" {
                     (200, "application/json", json!({"queue_running": [], "queue_pending": []}).to_string().into_bytes())
                 } else if path.starts_with("/view?") {
-                    let glb = path.contains(".glb");
-                    (200, "application/octet-stream", if glb { b"glTF-fake-shape".to_vec() } else { b"\x89PNG-fake-picture".to_vec() })
+                    let bytes = if path.contains(".glb") {
+                        b"glTF-fake-shape".to_vec()
+                    } else if path.contains(".flac") {
+                        include_bytes!("testdata/tiny.flac").to_vec()
+                    } else {
+                        b"\x89PNG-fake-picture".to_vec()
+                    };
+                    (200, "application/octet-stream", bytes)
                 } else {
                     (404, "text/plain", b"no".to_vec())
                 }
@@ -109,10 +118,18 @@ fn models() -> Value {
     })
 }
 
+fn audio_models() -> Value {
+    json!({
+        "checkpoints": [audio::SOUND_CHECKPOINT], "diffusion_models": [audio::MUSIC_UNET], "vae": [audio::MUSIC_VAE],
+        "text_encoders": [audio::SOUND_TEXT_ENCODER, audio::MUSIC_TEXT_ENCODER_SMALL, audio::MUSIC_TEXT_ENCODER_LARGE],
+    })
+}
+
 fn setup(base: &str, dir: &Path) -> Setup {
     Setup {
         picture_url: base.into(),
         shape_url: base.into(),
+        audio_url: base.into(),
         scripts_dir: dir.join("scripts"),
         limits: Limits { job: Duration::from_secs(20), stall: Duration::from_millis(600), poll: Duration::from_millis(20) },
         ..Setup::default()
@@ -208,42 +225,19 @@ fn a_batch_makes_pictures_and_models_and_carries_on_past_a_failure() {
     let (base, seen) = fake_comfy(vec![Job::Fails, Job::Done, Job::Done, Job::Done], models());
     let mut s = setup(&base, d.path());
     s.blender = Some(fake_blender(d.path()));
-    let items = vec![
-        BatchItem {
-            id: "icon/broken".into(),
-            kind: ItemKind::Image,
-            description: "a shield".into(),
-            width: None,
-            height: None,
-            transparent: Some(false),
-            height_m: None,
-            faces: None,
-        },
-        BatchItem {
-            id: "crate".into(),
-            kind: ItemKind::Model,
-            description: "a wooden crate".into(),
-            width: None,
-            height: None,
-            transparent: None,
-            height_m: Some(0.8),
-            faces: Some(4000),
-        },
-        BatchItem {
-            id: "gem".into(),
-            kind: ItemKind::Image,
-            description: "a red gem".into(),
-            width: Some(512),
-            height: Some(512),
-            transparent: Some(false),
-            height_m: None,
-            faces: None,
-        },
-    ];
+    let mut broken = BatchItem::new("icon/broken", ItemKind::Image, "a shield");
+    broken.transparent = Some(false);
+    let mut crate_ = BatchItem::new("crate", ItemKind::Model, "a wooden crate");
+    crate_.height_m = Some(0.8);
+    crate_.faces = Some(4000);
+    let mut gem = BatchItem::new("gem", ItemKind::Image, "a red gem");
+    (gem.width, gem.height, gem.transparent) = (Some(512), Some(512), Some(false));
+    let items = vec![broken, crate_, gem];
     let out = d.path().join("generated/hud-1");
     let steps = Mutex::new(Vec::<String>::new());
-    let results =
-        run_batch(&s, &items, "Pixel art", &out, &CancelToken::default(), &|n, total, what| steps.lock().unwrap().push(format!("{n}/{total} {what}")));
+    let results = run_batch(&s, &items, "Pixel art", &out, &d.path().join("voices"), &CancelToken::default(), &|n, total, what| {
+        steps.lock().unwrap().push(format!("{n}/{total} {what}"))
+    });
     assert_eq!(results.iter().map(|r| (r.id.as_str(), r.ok)).collect::<Vec<_>>(), [("icon/broken", false), ("crate", true), ("gem", true)]);
     assert!(results[0].error.as_deref().unwrap_or_default().contains("out of memory"));
     assert!(out.join("crate.glb").is_file() && out.join("crate.fbx").is_file() && out.join("crate_shape.glb").is_file());
@@ -273,4 +267,198 @@ fn prompts_names_and_seeds() {
     assert_eq!(file_stem("///"), "item");
     assert_eq!(seed_for("a"), seed_for("a"));
     assert_ne!(seed_for("a"), seed_for("b"));
+}
+
+#[test]
+fn sounds_and_music_are_made_on_the_audio_server_as_wav() {
+    let d = tempfile::tempdir().unwrap();
+    let (base, seen) = fake_comfy(vec![Job::Done, Job::Done], audio_models());
+    let s = setup(&base, d.path());
+    let st = status(&s);
+    assert!(st.audio.ready, "{:?}", st.audio);
+    assert!(st.sounds_possible());
+    let out = d.path().join("out/door.wav");
+    let n = audio::sound(&s, SoundKind::Sfx, "a door creaks open", "Dark fantasy", Some(0.3), 1, &out, &CancelToken::default(), &|_| {}).unwrap();
+    let wav = std::fs::read(&out).unwrap();
+    assert_eq!(n, wav.len() as u64);
+    assert_eq!(audio::wav_info(&wav).unwrap().sample_rate, 22050, "the server's FLAC came back as WAV");
+    let music = d.path().join("out/theme.wav");
+    audio::sound(&s, SoundKind::Music, "slow cave theme with low strings", "Dark fantasy", Some(500.0), 2, &music, &CancelToken::default(), &|_| {}).unwrap();
+    let fake = seen.lock().unwrap();
+    let sfx: Value = serde_json::from_str(&fake.queued[0]).unwrap();
+    assert_eq!(sfx["prompt"]["8"]["inputs"]["duration"], 0.5, "clamped to half a second at least");
+    assert!(sfx["prompt"]["3"]["inputs"]["text"].as_str().unwrap().contains("a door creaks open. Dark fantasy."));
+    let theme: Value = serde_json::from_str(&fake.queued[1]).unwrap();
+    assert_eq!(theme["prompt"]["6"]["inputs"]["seconds"], 240.0, "music is at most four minutes");
+    assert_eq!(theme["prompt"]["4"]["inputs"]["lyrics"], "", "instrumental");
+    assert!(theme["prompt"]["4"]["inputs"]["tags"].as_str().unwrap().contains("Dark fantasy"), "the style is in the music's tags");
+}
+
+#[test]
+fn a_stuck_or_failing_audio_server_says_so() {
+    let d = tempfile::tempdir().unwrap();
+    let (base, _) = fake_comfy(vec![Job::Stuck, Job::Fails], audio_models());
+    let s = setup(&base, d.path());
+    let t0 = Instant::now();
+    let e = audio::sound(&s, SoundKind::Ui, "a click", "", None, 1, &d.path().join("a.wav"), &CancelToken::default(), &|_| {}).unwrap_err();
+    assert_eq!(e.code, ErrorCode::TimedOut);
+    assert!(t0.elapsed() < Duration::from_secs(10));
+    let e = audio::sound(&s, SoundKind::Ambience, "wind", "", None, 1, &d.path().join("b.wav"), &CancelToken::default(), &|_| {}).unwrap_err();
+    assert!(e.message.contains("CUDA out of memory"), "{}", e.message);
+    assert!(!d.path().join("b.wav").exists());
+    // Without the models it isn't ready.
+    let (base, _) = fake_comfy(vec![], models());
+    let st = status(&setup(&base, d.path()));
+    assert_eq!(st.audio.state, "missing_model");
+    assert!(st.audio.detail.contains(audio::SOUND_CHECKPOINT), "{}", st.audio.detail);
+}
+
+/// A stand-in for the voice Python: a script that does what voice_line.py does with its job
+/// (writes the files, prints the JSON line) and logs each job's op. Lines whose text has "FAIL"
+/// fail.
+fn fake_voice_python(dir: &Path) -> Option<PathBuf> {
+    let log = dir.join("voice_ops.txt");
+    if cfg!(windows) {
+        let ps1 = dir.join("voice.ps1");
+        std::fs::write(
+            &ps1,
+            format!(
+                r#"$j = Get-Content -Raw -Encoding utf8 $args[0] | ConvertFrom-Json
+Add-Content -Path '{log}' -Value $j.op
+if ($j.op -eq 'transcribe') {{ Write-Output '{{"ok": true, "text": "words heard in the original"}}'; exit 0 }}
+if ($j.op -eq 'design') {{
+  Set-Content -Path $j.out -Value 'RIFF-designed'
+  $o = @{{ok = $true; out = $j.out; seconds = 3.5; sample_text = $j.sample_text}}
+  Write-Output ($o | ConvertTo-Json -Compress); exit 0
+}}
+$made = @(); $failed = @()
+foreach ($l in $j.lines) {{
+  if ($l.text -like '*FAIL*') {{ $failed += @{{out = $l.out; error = 'could not say it'}} }}
+  else {{ Set-Content -Path $l.out -Value $l.text; $made += @{{out = $l.out; seconds = 1.25}} }}
+}}
+$o = @{{ok = $true; made = $made; failed = $failed}}
+Write-Output ($o | ConvertTo-Json -Compress -Depth 4)
+"#,
+                log = log.display()
+            ),
+        )
+        .unwrap();
+        let p = dir.join("python.cmd");
+        std::fs::write(&p, "@powershell -NoProfile -ExecutionPolicy Bypass -File \"%~dp0voice.ps1\" %3\r\n").unwrap();
+        Some(p)
+    } else {
+        let py = craft_anything_platform::which::which("python3")?;
+        let script = dir.join("voice_fake.py");
+        std::fs::write(
+            &script,
+            format!(
+                r#"import json, sys
+j = json.load(open(sys.argv[1], encoding="utf-8"))
+open({log:?}, "a").write(j["op"] + "\n")
+if j["op"] == "transcribe":
+    print(json.dumps({{"ok": True, "text": "words heard in the original"}})); sys.exit(0)
+if j["op"] == "design":
+    open(j["out"], "w").write("RIFF-designed")
+    print(json.dumps({{"ok": True, "out": j["out"], "seconds": 3.5, "sample_text": j["sample_text"]}})); sys.exit(0)
+made, failed = [], []
+for l in j["lines"]:
+    if "FAIL" in l["text"]:
+        failed.append({{"out": l["out"], "error": "could not say it"}})
+    else:
+        open(l["out"], "w").write(l["text"]); made.append({{"out": l["out"], "seconds": 1.25}})
+print(json.dumps({{"ok": True, "made": made, "failed": failed}}))
+"#,
+                log = log.display().to_string()
+            ),
+        )
+        .unwrap();
+        let p = dir.join("python.sh");
+        std::fs::write(&p, format!("#!/bin/sh\nexec {} {:?} \"$3\"\n", py.display(), script.display().to_string())).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        Some(p)
+    }
+}
+
+#[test]
+fn each_character_gets_one_designed_voice_and_all_their_lines() {
+    let d = tempfile::tempdir().unwrap();
+    let Some(python) = fake_voice_python(d.path()) else { return };
+    let mut s = setup("http://127.0.0.1:9", d.path());
+    s.voice_python = Some(python);
+    let voices = d.path().join("voices");
+    let original = d.path().join("hello_01.wav");
+    std::fs::write(&original, b"RIFF-original").unwrap();
+    let line = |id: &str, who: &str, text: Option<&str>| voice::VoiceLine {
+        id: id.into(),
+        character: who.into(),
+        voice_description: format!("{who}: deep, slow, a little hoarse"),
+        text: text.map(str::to_string),
+        transcribe_from: text.is_none().then(|| original.clone()),
+        out: d.path().join(format!("lines/{id}.wav")),
+    };
+    let lines = [line("a", "Dwarf Miner", Some("We dig at dawn.")), line("b", "Dwarf Miner", None), line("c", "Elf", Some("FAIL this one"))];
+    let r = voice::voice_lines(&s, &voices, &lines, &CancelToken::default(), &|_| {}).unwrap();
+    assert!(r[0].ok && r[1].ok, "{r:?}");
+    assert_eq!(r[1].text.as_deref(), Some("words heard in the original"), "the words came from the original");
+    assert_eq!(std::fs::read_to_string(&lines[0].out).unwrap().trim(), "We dig at dawn.");
+    assert!(!r[2].ok && r[2].error.as_deref() == Some("could not say it"), "{:?}", r[2]);
+    assert!(r[0].designed_voice);
+    let card = voice::voice_of(&voices, "Dwarf Miner").unwrap();
+    assert_eq!(card.reference_text, voice::REFERENCE_TEXT);
+    assert!(card.description.contains("deep, slow"));
+    // One transcription, a design per character, one speaking run per character.
+    let ops = std::fs::read_to_string(d.path().join("voice_ops.txt")).unwrap();
+    let ops: Vec<&str> = ops.lines().map(str::trim).collect();
+    assert_eq!(ops, ["transcribe", "design", "speak", "design", "speak"]);
+    // The next line of a character with a voice reuses it: no new design.
+    let again = voice::voice_lines(&s, &voices, &[line("d", "Dwarf Miner", Some("Back to work."))], &CancelToken::default(), &|_| {}).unwrap();
+    assert!(again[0].ok && !again[0].designed_voice);
+    assert_eq!(std::fs::read_to_string(d.path().join("voice_ops.txt")).unwrap().lines().count(), 6, "one more speak, no design");
+    // Without the voice Python it says so.
+    s.voice_python = None;
+    let e = voice::voice_lines(&s, &voices, &lines, &CancelToken::default(), &|_| {}).unwrap_err();
+    assert_eq!(e.code, ErrorCode::EngineMissing);
+}
+
+#[test]
+fn a_mixed_batch_uses_every_lane_at_once() {
+    let d = tempfile::tempdir().unwrap();
+    let (pictures, _) = fake_comfy(vec![Job::Done], models());
+    let (sounds, heard) = fake_comfy(vec![Job::Done, Job::Fails], audio_models());
+    let mut s = setup(&pictures, d.path());
+    s.audio_url = sounds;
+    s.voice_python = fake_voice_python(d.path());
+    let mut hit = BatchItem::new("sfx/hit", ItemKind::Sound, "a sword hits a wooden shield");
+    hit.seconds = Some(1.2);
+    let mut wind = BatchItem::new("amb/wind", ItemKind::Sound, "wind in a cave");
+    wind.sound = Some(SoundKind::Ambience);
+    let mut hello = BatchItem::new("vo/hello", ItemKind::Voice, "a greeting");
+    hello.character = Some("Guard".into());
+    hello.voice_description = Some("a young guard, bright and quick".into());
+    hello.text = Some("Halt! Who goes there?".into());
+    let mut nobody = BatchItem::new("vo/nobody", ItemKind::Voice, "no words");
+    nobody.character = Some("Guard".into());
+    let items = vec![BatchItem::new("icon", ItemKind::Image, "a gem"), hit, wind, hello, nobody];
+    let out = d.path().join("generated/mix");
+    let r = run_batch(&s, &items, "Sci-fi", &out, &d.path().join("generated/voices"), &CancelToken::default(), &|_, _, _| {});
+    let got: Vec<(&str, bool)> = r.iter().map(|r| (r.id.as_str(), r.ok)).collect();
+    let voiced = s.voice_python.is_some();
+    assert_eq!(got, [("icon", true), ("sfx/hit", true), ("amb/wind", false), ("vo/hello", voiced), ("vo/nobody", false)], "{r:?}");
+    assert!(out.join("sfx_hit.wav").is_file());
+    assert!(r[2].error.as_deref().unwrap_or_default().contains("out of memory"));
+    assert!(r[4].error.as_deref().unwrap_or_default().contains("words"), "{:?}", r[4].error);
+    if voiced {
+        assert!(out.join("vo_hello.wav").is_file());
+        assert_eq!(r[3].stats["text"], "Halt! Who goes there?");
+        assert!(d.path().join("generated/voices/Guard.wav").is_file());
+    }
+    let fake = heard.lock().unwrap();
+    assert_eq!(fake.queued.len(), 2, "the sounds went to the audio server");
+    assert!(fake.queued.iter().all(|q| q.contains("Sci-fi")), "the style is in the sound prompts");
+    let m = manifest("mix", "Sci-fi", d.path(), &items, &r);
+    assert_eq!(m["items"][1]["kind"], "sound");
 }

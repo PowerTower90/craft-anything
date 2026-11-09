@@ -1027,8 +1027,6 @@ Sort the unsorted with the agent	未分類のものをエージェントで仕�
 The builder remakes them with free tools. It never spends money.	ビルダーは無料のツールで作り直します。お金は一切使いません。
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	ビルダーが仕分けツールで仕分けます。お金はかかりません。コーディングエージェントのプランの範囲内です。
 Total: {total}	合計: {total}
-about {n} Tripo credits	Tripo クレジット約 {n}
-about {n} Tripo credits (an estimate)	Tripo クレジット約 {n}（見積もり）
 {category} · {n} items	{category} · {n} 件
 {n} assets sent to the builder.	{n} 個のアセットをビルダーに送りました。
 {n} kept as they are this time (kept, or their method isn't set up yet).	今回は {n} 件をそのままにします（そのまま、または方法がまだ準備できていません）。
@@ -1045,17 +1043,12 @@ Built in the engine	エンジン内で作る
 Engine materials	エンジンのマテリアル
 Engine particles	エンジンのパーティクル
 Blender	Blender
-Tripo (your web credits)	Tripo（あなたのウェブクレジット）
-Local generation (free)	ローカル生成（無料）
 Keep the original for now	今は元のままにする
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	ゲーム自身のコードが描くウィジェットとベクター図形、オープンライセンスのフォントで。
 Engine materials and procedural textures, with Blender where a shape is needed.	エンジンのマテリアルとプロシージャルテクスチャ。形が必要なところは Blender で。
 The engine's own particle systems.	エンジン自身のパーティクルシステム。
 Modelled in Blender from simple shapes.	Blender で単純な形からモデリング。
-Generated on Tripo with the credits on your account (an estimate per model).	あなたのアカウントのクレジットで Tripo 上で生成（モデルごとの見積もり）。
-Sounds generated on this computer.	このコンピューターで生成するサウンド。
 Not rebuilt this time.	今回は作り直しません。
-Not set up yet — next step	まだ準備できていません — 次のステップ
 Not set up yet	まだ準備できていません
 sorted by the rules	規則で仕分け
 sorted by the agent	エージェントが仕分け
@@ -1075,7 +1068,6 @@ Local generation was already running.	ローカル生成はすでに動いてい
 Make a 3D model locally	3D モデルをローカルで作る
 Make a picture locally	画像をローカルで作る
 Make many assets locally	多くのアセットをローカルで作る
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	このコンピューターのグラフィックカードで画像と 3D モデルを無料で作ります。画像用の ComfyUI サーバー（Z-Image Turbo）と 3D 形状用のサーバー（Hunyuan3D 2.1）。グラフィックカードが 1 枚なら、両方に同じアドレスを入れてください。
 Missing model	モデルがありません
 Not running	動いていません
 Not set up	未設定
@@ -1099,5 +1091,15 @@ Gritty realistic	荒々しいリアル
 Cartoon cel-shaded	トゥーンのセルシェーディング
 Match the original's mood	元の版の雰囲気に合わせる
 Local AI on your graphics cards (free)	グラフィックカード上のローカル AI（無料）
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	このコンピューターのグラフィックカードで、選んだスタイルで作ります。画像と、Blender で仕上げる 3D モデル。
 Not running and can't be started: set it up in Settings → Local generation	動いておらず起動もできません。設定 → ローカル生成で設定してください
+Listen to an original sound	原作の音を聴く
+Make a sound locally	ローカルで音を作る
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	このコンピューターのグラフィックカードで、画像、3D モデル、効果音、音楽、音声を無料で作ります。画像用の ComfyUI サーバー（Z-Image Turbo）、3D 形状用のサーバー（Hunyuan3D 2.1）、効果音と音楽用のサーバー（Stable Audio 3、ACE-Step 1.5、通常は 3D 用と同じ）を使い、音声は Qwen3-TTS を入れた Python で作ります。グラフィックカードが 1 枚なら、すべてのサーバーに同じアドレスを指定してください。
+Sound and music	効果音と音楽
+Sound decoder	サウンドデコーダー
+Speak a line locally	ローカルでセリフを話す
+The Python that has Qwen3-TTS and Whisper installed.	Qwen3-TTS と Whisper をインストールした Python。
+Usually the 3D server's address: it starts with it.	通常は 3D サーバーのアドレスです。3D サーバーと一緒に起動します。
+Voices	音声
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli。ゲーム独自の形式になっている原作の音を聴くためのものです。
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	このコンピューターのグラフィックカードで、選んだスタイルで作ります：画像、Blender で仕上げた 3D モデル、効果音、音楽、音声。

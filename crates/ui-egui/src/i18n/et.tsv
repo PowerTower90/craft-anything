@@ -1597,8 +1597,6 @@ Sort the unsorted with the agent	Sordi sortimata agendiga
 The builder remakes them with free tools. It never spends money.	Koostaja teeb need tasuta tööriistadega uuesti. Ta ei kuluta kunagi raha.
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	Koostaja sordib need sortimistööriistadega. See ei maksa raha: sinu koodiagendi pakett katab selle.
 Total: {total}	Kokku: {total}
-about {n} Tripo credits	umbes {n} Tripo krediiti
-about {n} Tripo credits (an estimate)	umbes {n} Tripo krediiti (hinnang)
 {category} · {n} items	{category} · {n} üksust
 {n} assets sent to the builder.	{n} vara saadeti koostajale.
 {n} kept as they are this time (kept, or their method isn't set up yet).	{n} jäävad seekord nii, nagu on (alles jäetud või nende meetod pole veel seadistatud).
@@ -1615,17 +1613,12 @@ Built in the engine	Ehitatud mootoris
 Engine materials	Mootori materjalid
 Engine particles	Mootori osakesed
 Blender	Blender
-Tripo (your web credits)	Tripo (sinu veebikrediidid)
-Local generation (free)	Kohalik genereerimine (tasuta)
 Keep the original for now	Jäta praegu originaal alles
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	Vidinad ja vektorkujundid, mille joonistab mängu enda kood, avatud litsentsiga fondiga.
 Engine materials and procedural textures, with Blender where a shape is needed.	Mootori materjalid ja protseduursed tekstuurid, Blenderiga seal, kus on vaja kuju.
 The engine's own particle systems.	Mootori enda osakeste süsteemid.
 Modelled in Blender from simple shapes.	Modelleeritud Blenderis lihtsatest kujunditest.
-Generated on Tripo with the credits on your account (an estimate per model).	Genereeritud Tripos sinu konto krediitidega (hinnang mudeli kohta).
-Sounds generated on this computer.	Selles arvutis genereeritud helid.
 Not rebuilt this time.	Seekord uuesti ei ehitata.
-Not set up yet — next step	Pole veel seadistatud — järgmine samm
 Not set up yet	Pole veel seadistatud
 sorted by the rules	reeglite järgi sorditud
 sorted by the agent	agendi poolt sorditud
@@ -1645,7 +1638,6 @@ Local generation was already running.	Kohalik genereerimine juba töötas.
 Make a 3D model locally	Tee 3D-mudel kohapeal
 Make a picture locally	Tee pilt kohapeal
 Make many assets locally	Tee palju varasid kohapeal
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	Tee pilte ja 3D-mudeleid selle arvuti graafikakaartidel tasuta: ComfyUI server piltide jaoks (Z-Image Turbo) ja teine 3D-kujude jaoks (Hunyuan3D 2.1); ühe graafikakaardiga anna mõlemale sama aadress.
 Missing model	Mudel puudub
 Not running	Ei tööta
 Not set up	Seadistamata
@@ -1669,5 +1661,15 @@ Gritty realistic	Karm realistlik
 Cartoon cel-shaded	Koomiksilik cel-shading
 Match the original's mood	Originaali meeleolu järgi
 Local AI on your graphics cards (free)	Kohalik tehisaru sinu graafikakaartidel (tasuta)
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	Tehakse selle arvuti graafikakaartidel sinu valitud stiilis: pildid ja Blenderis viimistletud 3D-mudelid.
 Not running and can't be started: set it up in Settings → Local generation	Ei tööta ega käivitu: seadista see jaotises Seaded → Kohalik genereerimine
+Listen to an original sound	Kuula originaali heli
+Make a sound locally	Loo heli kohapeal
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	Loo pilte, 3D-mudeleid, helisid, muusikat ja hääli selle arvuti graafikakaartidel, tasuta: ComfyUI server piltide jaoks (Z-Image Turbo), üks 3D-kujude jaoks (Hunyuan3D 2.1) ning üks helide ja muusika jaoks (Stable Audio 3, ACE-Step 1.5), tavaliselt 3D-server; hääled tulevad Pythonist, kus on Qwen3-TTS. Ühe graafikakaardiga anna serveritele sama aadress.
+Sound and music	Heli ja muusika
+Sound decoder	Helidekooder
+Speak a line locally	Ütle repliik kohapeal
+The Python that has Qwen3-TTS and Whisper installed.	Python, kuhu on paigaldatud Qwen3-TTS ja Whisper.
+Usually the 3D server's address: it starts with it.	Tavaliselt 3D-serveri aadress: see käivitub koos sellega.
+Voices	Hääled
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, et kuulata originaali helisid mängu enda vormingus.
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Tehtud selle arvuti graafikakaartidel sinu valitud stiilis: pildid, Blenderis viimistletud 3D-mudelid, helid, muusika ja hääled.

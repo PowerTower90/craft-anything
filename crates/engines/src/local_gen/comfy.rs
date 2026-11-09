@@ -279,7 +279,7 @@ impl Comfy {
 /// The first file of a node's output (`images`, or `3d` for a shape).
 pub fn first_output(outputs: &Value, node: &str) -> Option<OutputFile> {
     let out = outputs.get(node)?;
-    ["images", "3d", "meshes", "gifs"].iter().filter_map(|k| out.get(*k).and_then(Value::as_array)).flatten().find_map(|f| {
+    ["images", "3d", "meshes", "gifs", "audio"].iter().filter_map(|k| out.get(*k).and_then(Value::as_array)).flatten().find_map(|f| {
         Some(OutputFile {
             filename: f.get("filename")?.as_str()?.to_string(),
             subfolder: f.get("subfolder").and_then(Value::as_str).unwrap_or_default().to_string(),

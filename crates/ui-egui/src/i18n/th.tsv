@@ -1597,8 +1597,6 @@ Sort the unsorted with the agent	ให้เอเจนต์จัดหม�
 The builder remakes them with free tools. It never spends money.	ตัวสร้างทำใหม่ด้วยเครื่องมือฟรี และไม่ใช้เงินเลย
 The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it.	ตัวสร้างจัดหมวดด้วยเครื่องมือจัดหมวด ไม่เสียเงิน: แพ็กเกจของเอเจนต์เขียนโค้ดครอบคลุมแล้ว
 Total: {total}	รวม: {total}
-about {n} Tripo credits	ประมาณ {n} เครดิต Tripo
-about {n} Tripo credits (an estimate)	ประมาณ {n} เครดิต Tripo (ประมาณการ)
 {category} · {n} items	{category} · {n} รายการ
 {n} assets sent to the builder.	ส่งแอสเซท {n} รายการให้ตัวสร้างแล้ว
 {n} kept as they are this time (kept, or their method isn't set up yet).	ครั้งนี้ {n} รายการคงไว้ตามเดิม (เก็บไว้ หรือยังไม่ได้ตั้งค่าวิธี)
@@ -1615,17 +1613,12 @@ Built in the engine	สร้างในเอนจิน
 Engine materials	วัสดุของเอนจิน
 Engine particles	อนุภาคของเอนจิน
 Blender	Blender
-Tripo (your web credits)	Tripo (เครดิตเว็บของคุณ)
-Local generation (free)	สร้างบนเครื่อง (ฟรี)
 Keep the original for now	เก็บต้นฉบับไว้ก่อน
 Widgets and vector shapes drawn by the game's own code, with an open-licence font.	วิดเจ็ตและรูปทรงเวกเตอร์ที่โค้ดของเกมวาดเอง พร้อมฟอนต์สัญญาอนุญาตเปิด
 Engine materials and procedural textures, with Blender where a shape is needed.	วัสดุของเอนจินและเท็กซ์เจอร์แบบโพรซีเดอรัล ใช้ Blender เมื่อต้องการรูปทรง
 The engine's own particle systems.	ระบบอนุภาคของเอนจินเอง
 Modelled in Blender from simple shapes.	ขึ้นโมเดลใน Blender จากรูปทรงง่าย ๆ
-Generated on Tripo with the credits on your account (an estimate per model).	สร้างบน Tripo ด้วยเครดิตในบัญชีของคุณ (ประมาณการต่อโมเดล)
-Sounds generated on this computer.	เสียงที่สร้างบนคอมพิวเตอร์นี้
 Not rebuilt this time.	ครั้งนี้ไม่สร้างใหม่
-Not set up yet — next step	ยังไม่ได้ตั้งค่า — ขั้นต่อไป
 Not set up yet	ยังไม่ได้ตั้งค่า
 sorted by the rules	จัดโดยกฎ
 sorted by the agent	จัดโดยเอเจนต์
@@ -1645,7 +1638,6 @@ Local generation was already running.	การสร้างบนเครื
 Make a 3D model locally	สร้างโมเดล 3D บนเครื่อง
 Make a picture locally	สร้างรูปภาพบนเครื่อง
 Make many assets locally	สร้างแอสเซทจำนวนมากบนเครื่อง
-Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.	สร้างรูปภาพและโมเดล 3D บนการ์ดจอของคอมพิวเตอร์นี้ฟรี: เซิร์ฟเวอร์ ComfyUI สำหรับรูปภาพ (Z-Image Turbo) และอีกเครื่องสำหรับรูปทรง 3D (Hunyuan3D 2.1); ถ้ามีการ์ดจอเดียว ให้ใส่ที่อยู่เดียวกันทั้งสอง
 Missing model	ไม่มีโมเดล
 Not running	ไม่ได้ทำงาน
 Not set up	ยังไม่ได้ตั้งค่า
@@ -1669,5 +1661,15 @@ Gritty realistic	สมจริงแบบดิบ
 Cartoon cel-shaded	การ์ตูนเซลเชด
 Match the original's mood	ให้เข้ากับอารมณ์ของต้นฉบับ
 Local AI on your graphics cards (free)	AI บนการ์ดจอของคุณ (ฟรี)
-Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.	สร้างบนการ์ดจอของคอมพิวเตอร์นี้ตามสไตล์ที่เลือก: รูปภาพ และโมเดล 3D ที่เก็บงานใน Blender
 Not running and can't be started: set it up in Settings → Local generation	ไม่ได้ทำงานและเริ่มไม่ได้: ตั้งค่าใน การตั้งค่า → การสร้างบนเครื่อง
+Listen to an original sound	ฟังเสียงของต้นฉบับ
+Make a sound locally	สร้างเสียงในเครื่อง
+Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.	สร้างภาพ โมเดล 3 มิติ เสียง เพลง และเสียงพูดด้วยการ์ดจอของคอมพิวเตอร์เครื่องนี้ได้ฟรี: เซิร์ฟเวอร์ ComfyUI สำหรับภาพ (Z-Image Turbo) หนึ่งเครื่องสำหรับรูปทรง 3 มิติ (Hunyuan3D 2.1) และหนึ่งเครื่องสำหรับเสียงและเพลง (Stable Audio 3, ACE-Step 1.5) ซึ่งมักเป็นเครื่องเดียวกับ 3 มิติ ส่วนเสียงพูดมาจาก Python ที่มี Qwen3-TTS ถ้ามีการ์ดจอใบเดียว ให้ใส่ที่อยู่เดียวกันให้ทุกเซิร์ฟเวอร์
+Sound and music	เสียงและเพลง
+Sound decoder	ตัวถอดรหัสเสียง
+Speak a line locally	พูดบทในเครื่อง
+The Python that has Qwen3-TTS and Whisper installed.	Python ที่ติดตั้ง Qwen3-TTS และ Whisper ไว้
+Usually the 3D server's address: it starts with it.	มักเป็นที่อยู่ของเซิร์ฟเวอร์ 3 มิติ: เริ่มทำงานไปพร้อมกัน
+Voices	เสียงพูด
+vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli สำหรับฟังเสียงของต้นฉบับในรูปแบบเฉพาะของเกม
+Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	สร้างด้วยการ์ดจอของคอมพิวเตอร์เครื่องนี้ในสไตล์ที่คุณเลือก: ภาพ โมเดล 3 มิติที่เก็บงานใน Blender เสียง เพลง และเสียงพูด

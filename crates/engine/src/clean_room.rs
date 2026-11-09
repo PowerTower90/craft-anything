@@ -82,6 +82,8 @@ pub const TOOLS: &[&str] = &[
     "local_generation_start",
     "asset_generate_image",
     "asset_generate_model",
+    "asset_generate_sound",
+    "asset_generate_voice",
     "asset_generate_batch",
     "rebuild_start",
     "rebuild_status",

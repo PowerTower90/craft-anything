@@ -1,5 +1,6 @@
-//! Settings → Engines → Local generation: where the picture and 3D servers are, how to start
-//! them, background removal and Blender, with a status line for each and Check / Start. The
+//! Settings → Engines → Local generation: where the picture, 3D and audio servers are, how to
+//! start them, background removal, Blender, voices and the sound decoder, with a status line for
+//! each and Check / Start. The
 //! checking and starting are the engine's tools (`local_generation_status`,
 //! `local_generation_start`), run on workers.
 
@@ -96,7 +97,7 @@ pub fn section(app: &mut CraftApp, ui: &mut Ui, path_field: fn(&mut Ui, &mut Opt
     ui.add(
         egui::Label::new(
             RichText::new(tr(
-                "Make pictures and 3D models on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo) and one for 3D shapes (Hunyuan3D 2.1); with one graphics card, give both the same address.",
+                "Make pictures, 3D models, sounds, music and voices on this computer's graphics cards, for free: a ComfyUI server for pictures (Z-Image Turbo), one for 3D shapes (Hunyuan3D 2.1) and one for sounds and music (Stable Audio 3, ACE-Step 1.5), usually the 3D one; voices come from a Python with Qwen3-TTS. With one graphics card, give the servers the same address.",
             ))
             .color(t.text_faint)
             .size(theme::CAPTION),
@@ -109,7 +110,15 @@ pub fn section(app: &mut CraftApp, ui: &mut Ui, path_field: fn(&mut Ui, &mut Opt
     }
     match app.local_gen.status.clone() {
         Some(st) => {
-            for (key, name) in [("pictures", "Picture server"), ("shapes", "3D server"), ("background_removal", "Background removal"), ("blender", "Blender")] {
+            for (key, name) in [
+                ("pictures", "Picture server"),
+                ("shapes", "3D server"),
+                ("background_removal", "Background removal"),
+                ("blender", "Blender"),
+                ("audio", "Sound and music"),
+                ("voices", "Voices"),
+                ("sound_decoder", "Sound decoder"),
+            ] {
                 part_line(ui, name, &st[key]);
             }
         }
@@ -127,7 +136,7 @@ pub fn section(app: &mut CraftApp, ui: &mut Ui, path_field: fn(&mut Ui, &mut Opt
             .local_gen
             .status
             .as_ref()
-            .is_some_and(|s| ["pictures", "shapes"].iter().any(|k| s[*k]["state"] == "not_running" && s[*k]["startable"].as_bool() == Some(true)));
+            .is_some_and(|s| ["pictures", "shapes", "audio"].iter().any(|k| s[*k]["state"] == "not_running" && s[*k]["startable"].as_bool() == Some(true)));
         if startable && widgets::secondary(ui, Some("play"), "Start").clicked() && !app.local_gen.starting {
             app.start_local_generation();
         }
@@ -156,6 +165,16 @@ pub fn section(app: &mut CraftApp, ui: &mut Ui, path_field: fn(&mut Ui, &mut Opt
         ui.end_row();
         ui.label(RichText::new(tr("Blender")).size(theme::CAPTION));
         changed |= path_field(ui, &mut lg.blender, "Blender", "found automatically");
+        ui.end_row();
+        ui.label(RichText::new(tr("Sound and music")).size(theme::CAPTION)).on_hover_text(tr("Usually the 3D server's address: it starts with it."));
+        changed |= text_field(ui, &mut lg.audio_url, "Sound and music server address");
+        ui.end_row();
+        ui.label(RichText::new(tr("Voices")).size(theme::CAPTION)).on_hover_text(tr("The Python that has Qwen3-TTS and Whisper installed."));
+        changed |= path_field(ui, &mut lg.voice_python, "Voices", "python with Qwen3-TTS");
+        ui.end_row();
+        ui.label(RichText::new(tr("Sound decoder")).size(theme::CAPTION))
+            .on_hover_text(tr("vgmstream-cli, to listen to the original's sounds in a game's own format."));
+        changed |= path_field(ui, &mut lg.sound_decoder, "Sound decoder", "found automatically");
         ui.end_row();
     });
     if changed {

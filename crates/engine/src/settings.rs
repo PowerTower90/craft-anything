@@ -151,6 +151,14 @@ pub struct LocalGenSettings {
     pub bg_python: Option<PathBuf>,
     /// Blender; none: found on the search path or where it's usually installed.
     pub blender: Option<PathBuf>,
+    /// The ComfyUI server that makes sounds and music (Stable Audio 3, ACE-Step 1.5); usually the
+    /// 3D server, and started with it.
+    pub audio_url: String,
+    /// The Python that has Qwen3-TTS and Whisper, for voice lines; none: no voices.
+    pub voice_python: Option<PathBuf>,
+    /// vgmstream's vgmstream-cli, to listen to an original's sounds in a game's own format; none:
+    /// found on the search path.
+    pub sound_decoder: Option<PathBuf>,
 }
 
 impl Default for LocalGenSettings {
@@ -162,6 +170,9 @@ impl Default for LocalGenSettings {
             shape_start: None,
             bg_python: None,
             blender: None,
+            audio_url: "http://127.0.0.1:8189".into(),
+            voice_python: None,
+            sound_decoder: None,
         }
     }
 }
@@ -209,17 +220,11 @@ pub struct AssetSettings {
     /// The picture model, by its id in the asset table (`nano-banana-pro`, `flux-dev`…); `None` = the
     /// table's default.
     pub image_model: Option<String>,
-    /// Tripo web credits one 3D model takes, for the estimates a rebuild plan shows.
-    pub tripo_credits_per_model: u32,
 }
 
 impl Default for AssetSettings {
     fn default() -> Self {
-        AssetSettings {
-            budget_usd: crate::workspace::ASSET_BUDGET_USD,
-            image_model: None,
-            tripo_credits_per_model: crate::asset_rebuild::TRIPO_CREDITS_PER_MODEL,
-        }
+        AssetSettings { budget_usd: crate::workspace::ASSET_BUDGET_USD, image_model: None }
     }
 }
 
@@ -312,6 +317,37 @@ pub fn config_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("CRAFT_ANYTHING_CONFIG_DIR") {
         return PathBuf::from(dir);
     }
+    default_config_dir()
+}
+
+/// Other copies of the settings folder that some programs see instead of this one: on Windows, a
+/// packaged app (an MSIX app such as a desktop AI app) keeps its own copy of the AppData folders,
+/// and every program it starts reads and writes that copy, while Craft Anything started from the
+/// Start menu or Explorer uses the real one. Settings changed in one then don't show in the other.
+/// Lists the copies of `dir` (the real AppData path) found under `%LOCALAPPDATA%\Packages`.
+pub fn packaged_copies(dir: &Path) -> Vec<PathBuf> {
+    let (Some(roaming), Some(local)) = (std::env::var_os("APPDATA").map(PathBuf::from), std::env::var_os("LOCALAPPDATA").map(PathBuf::from)) else {
+        return Vec::new();
+    };
+    copies_under(dir, &roaming, &local)
+}
+
+/// [`packaged_copies`] with the AppData folders given.
+fn copies_under(dir: &Path, roaming: &Path, local: &Path) -> Vec<PathBuf> {
+    let Ok(rel) = dir.strip_prefix(roaming) else { return Vec::new() };
+    let mut found: Vec<PathBuf> = std::fs::read_dir(local.join("Packages"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|p| p.path().join("LocalCache").join("Roaming").join(rel))
+        .filter(|p| p.join("config.toml").is_file())
+        .collect();
+    found.sort();
+    found
+}
+
+/// The settings folder without `CRAFT_ANYTHING_CONFIG_DIR`.
+fn default_config_dir() -> PathBuf {
     if let Some(exe_dir) = std::env::current_exe().ok().and_then(|p| p.parent().map(Path::to_path_buf))
         && exe_dir.join("portable.txt").exists()
     {
@@ -397,7 +433,12 @@ impl Settings {
 
     /// Load startup settings, first recovering app edits deferred by a busy shutdown.
     pub fn load() -> Settings {
-        let path = Settings::path();
+        Settings::load_in(&config_dir())
+    }
+
+    /// [`Settings::load`] from the config.toml in `dir`.
+    pub fn load_in(dir: &Path) -> Settings {
+        let path = dir.join("config.toml");
         if let Err(e) = Self::recover_pending(&path) {
             log::warn!("Couldn't recover pending settings: {}", e.message);
         }
@@ -507,6 +548,20 @@ impl Settings {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn copies_kept_by_packaged_apps_are_found() {
+        let d = tempfile::tempdir().unwrap();
+        let (roaming, local) = (d.path().join("Roaming"), d.path().join("Local"));
+        let dir = roaming.join("craft-anything");
+        assert!(super::copies_under(&dir, &roaming, &local).is_empty());
+        let copy = local.join("Packages").join("Some.App_123").join("LocalCache").join("Roaming").join("craft-anything");
+        std::fs::create_dir_all(&copy).unwrap();
+        assert!(super::copies_under(&dir, &roaming, &local).is_empty(), "a folder without settings isn't a copy");
+        std::fs::write(copy.join("config.toml"), "version = 3\n").unwrap();
+        assert_eq!(super::copies_under(&dir, &roaming, &local), [copy]);
+        assert!(super::copies_under(&d.path().join("elsewhere"), &roaming, &local).is_empty(), "only AppData is copied");
+    }
+
     #[test]
     fn build_settings_have_safe_widths_and_old_configs_get_defaults() {
         let b = BuildSettings { web_widths: vec![10, 1280, 99_999, 375, 200], ..BuildSettings::default() };

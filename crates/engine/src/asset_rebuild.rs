@@ -4,8 +4,7 @@
 //! `<project>/rebuild/<category>-<time>.json`, the items are marked, and the builder gets a plain
 //! brief ([`brief`]).
 //!
-//! Free methods come first everywhere. Nothing here ever spends money: a method that would use
-//! someone's paid credits is offered only once it's set up, and shows what it would use.
+//! Every method is free: nothing here ever spends money.
 
 use crate::asset_categories::Category;
 use crate::inventory::{self, Inventory, Item, Kind, RebuildMark, Status};
@@ -18,24 +17,12 @@ use std::path::PathBuf;
 
 /// The folder rebuild lists go in, in the project folder.
 pub const REBUILD_DIR: &str = "rebuild";
-/// Tripo credits one 3D model takes, when the setting doesn't say (an estimate).
-pub const TRIPO_CREDITS_PER_MODEL: u32 = 40;
-
-/// What a method costs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Cost {
-    Free,
-    /// The person's Tripo web credits, per model.
-    TripoCredits,
-}
-
 /// One way to remake an asset.
 #[derive(Debug, Clone, Copy)]
 pub struct Method {
     pub id: &'static str,
     pub title: &'static str,
     pub detail: &'static str,
-    pub cost: Cost,
     /// Why it can't be used yet; None when it can.
     pub not_ready: Option<&'static str>,
 }
@@ -46,41 +33,27 @@ pub const METHODS: &[Method] = &[
         id: "engine_ui",
         title: "Built in the engine",
         detail: "Widgets and vector shapes drawn by the game's own code, with an open-licence font.",
-        cost: Cost::Free,
+
         not_ready: None,
     },
     Method {
         id: "engine_materials",
         title: "Engine materials",
         detail: "Engine materials and procedural textures, with Blender where a shape is needed.",
-        cost: Cost::Free,
+
         not_ready: None,
     },
-    Method { id: "engine_particles", title: "Engine particles", detail: "The engine's own particle systems.", cost: Cost::Free, not_ready: None },
-    Method { id: "blender", title: "Blender", detail: "Modelled in Blender from simple shapes.", cost: Cost::Free, not_ready: None },
+    Method { id: "engine_particles", title: "Engine particles", detail: "The engine's own particle systems.", not_ready: None },
+    Method { id: "blender", title: "Blender", detail: "Modelled in Blender from simple shapes.", not_ready: None },
     Method {
         id: LOCAL_AI,
         title: "Local AI on your graphics cards (free)",
-        detail: "Made on this computer's graphics cards in the style you choose: pictures, and 3D models finished in Blender.",
-        cost: Cost::Free,
+        detail: "Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.",
+
         // Ready or not depends on this computer: see `Ready`.
         not_ready: None,
     },
-    Method {
-        id: "tripo",
-        title: "Tripo (your web credits)",
-        detail: "Generated on Tripo with the credits on your account (an estimate per model).",
-        cost: Cost::TripoCredits,
-        not_ready: Some("Not set up yet — next step"),
-    },
-    Method {
-        id: "local_audio",
-        title: "Local generation (free)",
-        detail: "Sounds generated on this computer.",
-        cost: Cost::Free,
-        not_ready: Some("Not set up yet"),
-    },
-    Method { id: "keep", title: "Keep the original for now", detail: "Not rebuilt this time.", cost: Cost::Free, not_ready: None },
+    Method { id: "keep", title: "Keep the original for now", detail: "Not rebuilt this time.", not_ready: None },
 ];
 
 pub fn method(id: &str) -> Option<&'static Method> {
@@ -109,13 +82,19 @@ pub const LOCAL_AI_NOT_READY: &str = "Not running and can't be started: set it u
 pub struct Ready {
     pub pictures: bool,
     pub models: bool,
+    /// Sounds and music (the audio server).
+    pub sounds: bool,
 }
 
 impl Ready {
     /// Why `id` can't be used for `kind`, if it can't.
     pub fn why_not(self, id: &str, kind: Kind) -> Option<&'static str> {
         if id == LOCAL_AI {
-            let ok = if kind == Kind::Model { self.models } else { self.pictures };
+            let ok = match kind {
+                Kind::Model => self.models,
+                Kind::Sound | Kind::Music => self.sounds,
+                _ => self.pictures,
+            };
             return (!ok).then_some(LOCAL_AI_NOT_READY);
         }
         method(id).and_then(|m| m.not_ready)
@@ -123,18 +102,21 @@ impl Ready {
 }
 
 /// The methods offered for one kind of asset in one category, the first being the default:
-/// [`base_options`], with local AI offered for pictures and models, first where it suits best
-/// (the HUD's pictures; the models of characters, enemies, weapons, items and machines) when it's
-/// ready.
+/// [`base_options`], with local AI offered for pictures, models, sounds and music, first where it
+/// suits best (the HUD's pictures; the models of characters, enemies, weapons, items and machines;
+/// every sound and piece of music) when it's ready.
 pub fn options(category: Category, kind: Kind, ready: Ready) -> Vec<&'static str> {
     use Category as C;
     let mut v: Vec<&'static str> = base_options(category, kind).to_vec();
     let picture = matches!(kind, Kind::Texture | Kind::Sprite);
     let model = kind == Kind::Model;
-    if !(picture || model) {
+    let audio = matches!(kind, Kind::Sound | Kind::Music);
+    if !(picture || model || audio) {
         return v;
     }
-    let first = if picture {
+    let first = if audio {
+        ready.sounds
+    } else if picture {
         category == C::Hud && ready.pictures
     } else {
         matches!(category, C::Characters | C::Enemies | C::Weapons | C::Items | C::Machines) && ready.models
@@ -148,18 +130,17 @@ pub fn base_options(category: Category, kind: Kind) -> &'static [&'static str] {
     use Category as C;
     use Kind as K;
     match (category, kind) {
-        (_, K::Sound | K::Music) => &["keep", "local_audio"],
+        (_, K::Sound | K::Music) => &["keep"],
         (_, K::Font) => &["engine_ui", "keep"],
         (C::Hud, K::Model) => &["blender", "engine_ui", "keep"],
         (C::Hud, _) => &["engine_ui", "keep"],
         (C::Environment, K::Model) => &["blender", "engine_materials", "keep"],
         (C::Environment, _) => &["engine_materials", "blender", "keep"],
         (C::Effects, _) => &["engine_particles", "keep"],
-        (C::Characters | C::Enemies, K::Model) => &["blender", "tripo", "keep"],
         (C::Characters | C::Enemies, _) => &["blender", "keep"],
         (C::Items | C::Machines | C::Weapons, K::Texture | K::Sprite | K::Material) => &["engine_materials", "blender", "keep"],
         (C::Items | C::Machines | C::Weapons, _) => &["blender", "keep"],
-        (C::Music, _) => &["keep", "local_audio"],
+        (C::Music, _) => &["keep"],
         (C::Unsorted, K::Model) => &["blender", "keep"],
         (C::Unsorted, K::Video) => &["engine_ui", "keep"],
         (C::Unsorted, _) => &["engine_materials", "blender", "keep"],
@@ -178,14 +159,6 @@ pub struct Row {
 }
 
 impl Row {
-    /// Tripo credits this row would use (0 for free methods).
-    pub fn credits(&self, per_model: u32) -> u64 {
-        match method(self.method).map(|m| m.cost) {
-            Some(Cost::TripoCredits) => self.count as u64 * u64::from(per_model),
-            _ => 0,
-        }
-    }
-
     pub fn ready(&self) -> bool {
         self.not_ready.is_none()
     }
@@ -235,20 +208,8 @@ impl Plan {
         self.rows.iter().any(|r| r.method == LOCAL_AI)
     }
 
-    pub fn credits(&self, per_model: u32) -> u64 {
-        self.rows.iter().map(|r| r.credits(per_model)).sum()
-    }
-
-    /// "Free", or "about N Tripo credits" (an estimate).
-    pub fn total_words(&self, per_model: u32) -> String {
-        match self.credits(per_model) {
-            0 => "Free".to_string(),
-            n => format!("about {n} Tripo credits"),
-        }
-    }
-
     /// The plan as the tools return it.
-    pub fn to_json(&self, per_model: u32) -> Value {
+    pub fn to_json(&self) -> Value {
         let rows: Vec<Value> = self
             .rows
             .iter()
@@ -260,22 +221,18 @@ impl Plan {
                     .map(|m| {
                         json!({
                             "id": m.id, "title": m.title, "detail": m.detail,
-                            "free": m.cost == Cost::Free,
-                            "credits": if m.cost == Cost::TripoCredits { r.count as u64 * u64::from(per_model) } else { 0 },
                             "available": self.ready.why_not(m.id, r.kind).is_none(), "why": self.ready.why_not(m.id, r.kind),
                         })
                     })
                     .collect();
-                json!({"kind": r.kind, "count": r.count, "method": r.method, "available": r.ready(), "credits": r.credits(per_model), "options": options})
+                json!({"kind": r.kind, "count": r.count, "method": r.method, "available": r.ready(), "options": options})
             })
             .collect();
         json!({
             "category": self.category,
             "items": self.ids.len(),
             "rows": rows,
-            "total_credits": self.credits(per_model),
-            "total": self.total_words(per_model),
-            "credits_are_estimates": true,
+            "total": "Free",
             "uses_local_ai": self.uses_local_ai(),
             "style": self.style,
         })
@@ -385,6 +342,18 @@ pub fn brief(category: Option<Category>, count: usize, methods: &BTreeMap<Kind, 
              Then put the generated files into the game (import them, replace the references, keep sizes and aspect ratios; HUD icons keep their \
              transparent background) and rebuild."
         ));
+        let audio = methods.iter().any(|(k, m)| *m == LOCAL_AI && matches!(k, Kind::Sound | Kind::Music));
+        if audio {
+            text.push_str(
+                " For sounds, music and voices: listen to/inspect the original only to understand what it is (what makes the sound, how long, the mood; \
+                 for speech, transcribe the words). Describe it in your own words; for voices, write one voice description per character and reuse it \
+                 for all their lines. Never feed the original audio into a generator. Keep lengths close to the originals, then wire the new files into \
+                 the game. In the same asset_generate_batch: kind sound with seconds (the original's duration_secs) and sound sfx, ambience or ui; \
+                 kind music with seconds; kind voice for a character's spoken line, with character, voice_description and text (or transcribe_from, \
+                 the original's file, transcribed locally for its words only). Decide per item whether it's speech (voice) or a sound. \
+                 asset_decode_sound turns a sound in the game's own format (an .fsb bank) into a WAV to listen to and measure.",
+            );
+        }
     }
     text.push_str(" Mark each item Replaced with project_inventory_mark (status replaced, its id) when its replacement is in the build.");
     text
@@ -404,44 +373,54 @@ mod tests {
 
     #[test]
     fn local_ai_is_the_default_where_it_suits_when_ready_and_never_starts_when_not() {
-        let ready = Ready { pictures: true, models: true };
+        let ready = Ready { pictures: true, models: true, sounds: false };
         assert_eq!(options(Category::Hud, Kind::Texture, ready), ["local_ai", "engine_ui", "keep"]);
         assert_eq!(options(Category::Hud, Kind::Texture, Ready::default()), ["engine_ui", "local_ai", "keep"]);
         assert_eq!(options(Category::Enemies, Kind::Model, ready)[0], "local_ai");
         assert_eq!(options(Category::Environment, Kind::Texture, ready)[0], "engine_materials", "offered, not the default");
-        assert_eq!(options(Category::Hud, Kind::Sound, ready), ["keep", "local_audio"], "sounds stay as they are");
+        assert_eq!(options(Category::Hud, Kind::Sound, ready), ["keep", "local_ai"], "sounds wait for the audio server");
+        let all = Ready { pictures: true, models: true, sounds: true };
+        assert_eq!(options(Category::Characters, Kind::Sound, all), ["local_ai", "keep"], "local AI makes sounds when it can");
+        assert_eq!(options(Category::Music, Kind::Music, all), ["local_ai", "keep"]);
         let hud = [item("a", Kind::Texture, Category::Hud), item("m", Kind::Model, Category::Enemies)];
         let refs: Vec<&Item> = hud.iter().collect();
         let mut chosen = BTreeMap::new();
         chosen.insert("model".to_string(), "local_ai".to_string());
-        let plan = Plan::new(&refs, None, &chosen, Ready { pictures: true, models: false }).unwrap();
+        let plan = Plan::new(&refs, None, &chosen, Ready { pictures: true, models: false, sounds: false }).unwrap();
         assert_eq!(plan.rows[1].not_ready, Some(LOCAL_AI_NOT_READY), "models need the 3D server and Blender");
         assert!(plan.uses_local_ai());
-        assert_eq!(plan.total_words(40), "Free");
+        assert_eq!(plan.to_json()["total"], "Free");
         let methods = [(Kind::Texture, LOCAL_AI)].into_iter().collect();
         let text = brief(Some(Category::Hud), 3, &methods, "rebuild/hud-1.json", "hud-1", Some("Pixel art"));
         assert!(text.contains("asset_generate_batch") && text.contains("style \"Pixel art\"") && text.contains("Never feed the original file"), "{text}");
         assert!(text.contains("never use paid services"));
+        assert!(!text.contains("voice description"), "no audio rows, no audio words");
+        let methods = [(Kind::Sound, LOCAL_AI), (Kind::Texture, "keep")].into_iter().collect();
+        let text = brief(Some(Category::Characters), 4, &methods, "rebuild/c.json", "c", Some("Dark fantasy"));
+        for words in [
+            "only to understand what it is",
+            "one voice description per character",
+            "Never feed the original audio into a generator",
+            "Keep lengths close to the originals",
+            "kind voice",
+            "asset_decode_sound",
+        ] {
+            assert!(text.contains(words), "{words}: {text}");
+        }
     }
 
     #[test]
-    fn the_hud_is_free_and_tripo_is_offered_but_not_ready() {
-        let hud = [item("a", Kind::Texture, Category::Hud), item("b", Kind::Font, Category::Hud), item("c", Kind::Sound, Category::Hud)];
-        let refs: Vec<&Item> = hud.iter().collect();
-        let plan = Plan::new(&refs, Some(Category::Hud), &BTreeMap::new(), Ready::default()).unwrap();
-        assert_eq!(
-            plan.rows.iter().map(|r| (r.kind, r.method)).collect::<Vec<_>>(),
-            [(Kind::Texture, "engine_ui"), (Kind::Sound, "keep"), (Kind::Font, "engine_ui")]
-        );
-        assert_eq!(plan.total_words(40), "Free");
+    fn every_plan_is_free_and_there_is_no_paid_method() {
+        assert!(METHODS.iter().all(|m| m.id != "tripo"), "no paid route");
         let enemies = [item("e", Kind::Model, Category::Enemies), item("f", Kind::Model, Category::Enemies)];
         let refs: Vec<&Item> = enemies.iter().collect();
+        let plan = Plan::new(&refs, None, &BTreeMap::new(), Ready::default()).unwrap();
+        assert_eq!(plan.category, Some(Category::Enemies));
+        assert_eq!(plan.rows[0].method, "blender");
+        assert_eq!(plan.to_json()["total"], "Free");
         let mut chosen = BTreeMap::new();
         chosen.insert("model".to_string(), "tripo".to_string());
-        let plan = Plan::new(&refs, None, &chosen, Ready::default()).unwrap();
-        assert_eq!(plan.category, Some(Category::Enemies));
-        assert_eq!(plan.total_words(40), "about 80 Tripo credits");
-        assert!(!plan.rows[0].ready(), "Tripo isn't set up");
+        assert!(Plan::new(&refs, None, &chosen, Ready::default()).is_err(), "Tripo isn't a method any more");
         chosen.insert("model".to_string(), "engine_ui".to_string());
         assert!(Plan::new(&refs, None, &chosen, Ready::default()).is_err(), "not offered for an enemy model");
     }
