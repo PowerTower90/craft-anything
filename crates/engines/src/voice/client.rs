@@ -139,6 +139,14 @@ pub enum VoiceCommand {
     Status,
     /// End the service.
     Shutdown,
+    /// Tests only: feed a WAV in as if spoken into the microphone (`ptt`: hold push-to-talk around
+    /// it; none: the service decides). Refused unless the service was started with
+    /// [`super::VoiceSetup::allow_inject`]; answered with [`VoiceEvent::Injected`].
+    InjectWav {
+        path: PathBuf,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ptt: Option<bool>,
+    },
 }
 
 impl VoiceCommand {
@@ -173,12 +181,15 @@ pub enum VoiceEvent {
     Partial {
         text: String,
     },
-    /// A finished utterance; `speaker_ok` says it's the enrolled person's voice.
+    /// A finished utterance; `speaker_ok` says it's the enrolled person's voice. `verified` says the
+    /// check was made against an enrolled voice: before enrolment every voice is `speaker_ok`, and
+    /// `verified` is false (a service that doesn't say counts as verified).
     Utterance {
         text: String,
         speaker_ok: bool,
         speaker_score: f32,
         duration_s: f32,
+        verified: bool,
     },
     /// The person spoke while the service was speaking: playback stopped, queue cleared.
     BargeIn,
@@ -210,6 +221,10 @@ pub enum VoiceEvent {
     /// The answer to [`VoiceCommand::Status`]: the event's other fields.
     Status {
         state: Value,
+    },
+    /// Tests only: a WAV given with [`VoiceCommand::InjectWav`] has been fed in.
+    Injected {
+        seconds: f32,
     },
     /// The service is gone (ended, or unreachable for [`RECONNECT_WINDOW`]); sent once, last.
     Disconnected,
@@ -243,9 +258,13 @@ impl VoiceEvent {
             }
             "wake" => VoiceEvent::Wake { word: s("word"), score: f("score") },
             "partial" => VoiceEvent::Partial { text: s("text") },
-            "utterance" => {
-                VoiceEvent::Utterance { text: s("text"), speaker_ok: b("speaker_ok"), speaker_score: f("speaker_score"), duration_s: f("duration_s") }
-            }
+            "utterance" => VoiceEvent::Utterance {
+                text: s("text"),
+                speaker_ok: b("speaker_ok"),
+                speaker_score: f("speaker_score"),
+                duration_s: f("duration_s"),
+                verified: v.get("verified").and_then(Value::as_bool).unwrap_or(true),
+            },
             "barge_in" => VoiceEvent::BargeIn,
             "spoken" => VoiceEvent::Spoken { id: s("id"), interrupted: b("interrupted") },
             "enroll_progress" => VoiceEvent::EnrollProgress { seconds: f("seconds"), needed: f("needed") },
@@ -254,6 +273,7 @@ impl VoiceEvent {
             "devices" => VoiceEvent::Devices { inputs: names("inputs"), outputs: names("outputs") },
             "error" => VoiceEvent::Error { message: s("message"), fatal: b("fatal") },
             "config_ok" => VoiceEvent::ConfigOk,
+            "injected" => VoiceEvent::Injected { seconds: f("seconds") },
             "status" => {
                 let mut state = v.clone();
                 if let Some(o) = state.as_object_mut() {

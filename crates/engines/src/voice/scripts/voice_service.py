@@ -1067,8 +1067,11 @@ class Capture:
 
 
 class VoiceService:
-    def __init__(self, models_dir, device="cuda:0", audio=None, stub_models=False):
+    def __init__(self, models_dir, device="cuda:0", audio=None, stub_models=False, allow_inject=False):
         self.models_dir = os.path.abspath(models_dir)
+        # tests only: a WAV may be fed in as if spoken into the microphone (--allow-inject)
+        self.allow_inject = allow_inject
+        self.injecting = False
         os.makedirs(self.models_dir, exist_ok=True)
         self.device = device
         self.stub = stub_models
@@ -1398,9 +1401,64 @@ class VoiceService:
         self.push_state()
 
     # ----- audio thread ----------------------------------------------------------------------------
-    def _on_block(self, block):
+    def _on_block(self, block, injected=False):
+        if self.injecting and not injected:
+            return                      # the microphone is muted while a test WAV is fed in
         self.in_q.append(block)
         self.in_evt.set()
+
+    def inject_wav(self, path, ptt=None, rid=None):
+        """Tests only (--allow-inject): feed a WAV in real time as if it came from the microphone.
+
+        The real microphone is muted meanwhile. `ptt` holds push-to-talk down around it (default:
+        in push-to-talk mode, unless enrolling). Ends with {"type":"injected","seconds":...}."""
+        if not self.allow_inject:
+            self.error("inject_wav is refused: the service wasn't started with --allow-inject", id=rid)
+            return
+        if self.injecting:
+            self.error("a WAV is already being injected", id=rid)
+            return
+        try:
+            audio, sr = load_wav(path)
+            audio = resample(np.asarray(audio, dtype=np.float32), sr, SR_IN)
+        except Exception as e:
+            self.error(f"inject_wav couldn't read {path}: {e}", id=rid)
+            return
+        if ptt is None:
+            ptt = self.cfg["listen_mode"] == "push_to_talk" and not self.enrolling
+        self.injecting = True
+
+        def run():
+            try:
+                tail = np.zeros(int(SR_IN * 0.4), dtype=np.float32)
+                x = np.concatenate([audio, tail])
+                if ptt:
+                    self.set_ptt(True)
+                nxt = time.perf_counter()
+                for i in range(0, x.size, BLOCK):
+                    b = x[i:i + BLOCK]
+                    if b.size < BLOCK:
+                        b = np.pad(b, (0, BLOCK - b.size))
+                    self._on_block(b, injected=True)
+                    nxt += BLOCK_S
+                    d = nxt - time.perf_counter()
+                    if d > 0:
+                        time.sleep(d)
+                if ptt:
+                    self.set_ptt(False)
+                else:
+                    # let the VAD hear the silence that ends the utterance
+                    for _ in range(int(self.cfg["vad_silence_ms"] / 1000.0 / BLOCK_S) + 4):
+                        self._on_block(np.zeros(BLOCK, dtype=np.float32), injected=True)
+                        time.sleep(BLOCK_S)
+            finally:
+                self.injecting = False
+            ev = {"type": "injected", "path": path, "seconds": round(audio.size / SR_IN, 2)}
+            if rid is not None:
+                ev["id"] = rid
+            self.emit(ev)
+
+        threading.Thread(target=run, name="inject", daemon=True).start()
 
     def _audio_loop(self):
         while not self.stopping.is_set():
@@ -1910,6 +1968,8 @@ class Server:
                 self.reply({"type": "devices", "inputs": ins, "outputs": outs}, rid)
             elif cmd == "status":
                 self.reply(svc.status(), rid)
+            elif cmd == "inject_wav":
+                svc.inject_wav(str(msg.get("path") or ""), msg.get("ptt"), rid)
             elif cmd == "shutdown":
                 log.info("shutdown requested")
                 self.done.set()
@@ -1980,6 +2040,8 @@ def main(argv=None):
     ap.add_argument("--check-models", action="store_true", help="print which models are present as JSON and exit")
     ap.add_argument("--stub-models", action="store_true", help=argparse.SUPPRESS)   # tests: no GPU models
     ap.add_argument("--fake-audio", action="store_true", help=argparse.SUPPRESS)    # tests: no microphone
+    ap.add_argument("--allow-inject", action="store_true",
+                    help="tests only: accept {\"cmd\":\"inject_wav\",\"path\":...} to feed a WAV as if spoken into the microphone")
     args = ap.parse_args(argv)
 
     # stdout carries exactly one line (READY); everything else, including library prints, goes to stderr
@@ -2022,7 +2084,9 @@ def main(argv=None):
         except Exception as e:
             log.error("audio I/O unavailable (%s); using a silent virtual device", e)
             audio = FakeAudioIO(inputs=(), outputs=())
-    svc = VoiceService(args.models_dir, device, audio, stub_models=args.stub_models)
+    svc = VoiceService(args.models_dir, device, audio, stub_models=args.stub_models, allow_inject=args.allow_inject)
+    if args.allow_inject:
+        log.warning("--allow-inject: test audio may be fed in place of the microphone")
     server = Server(svc, args.host, args.port)
 
     def on_ready(port):

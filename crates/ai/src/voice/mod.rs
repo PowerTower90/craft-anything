@@ -7,7 +7,9 @@
 //! - **The local model only converses.** [`Converser`] requests are plain messages with no tools
 //!   ([`local::request_body`] writes only [`local::BODY_FIELDS`]).
 //! - **Only the person's voice.** An utterance whose speaker check failed is shown greyed and
-//!   otherwise ignored: no model call, no job.
+//!   otherwise ignored: no model call, no job. Before the person has enrolled their voice
+//!   (`verified` false: nothing to check against) the assistant may chat, but nothing they say is
+//!   sent to Opus or answers anything: it asks them to enrol first ([`ENROL_FIRST`]).
 //! - **Risky actions are confirmed by voice.** Claude Code's permission requests come through
 //!   Craft Anything's approval tool into the voice project's inbox, which always asks about
 //!   outward actions ([`approvals::ALWAYS_ASKED`]); each is read out and answered by a clear
@@ -21,6 +23,7 @@ pub mod approvals;
 pub mod brain;
 pub mod executor;
 pub mod intent;
+pub mod link;
 pub mod local;
 #[cfg(test)]
 mod tests;
@@ -29,6 +32,7 @@ pub use approvals::PromptKind;
 pub use brain::{Brain, BrainConfig};
 pub use executor::{ExecEvent, Executor, JobControl, JobRequest, OpusExecutor, OpusSetup, VOICE_OPUS_MODEL};
 pub use intent::Intent;
+pub use link::{LinkEvent, VoiceLink};
 pub use local::{ChatMessage, ChatRequest, ChatRole, Converser, LocalModel, Purpose};
 
 use crate::config::AiConfig;
@@ -47,14 +51,30 @@ pub struct Utterance {
     pub speaker_ok: bool,
     pub speaker_score: f32,
     pub duration_s: f32,
+    /// The check was made against an enrolled voice. Before enrolment every voice passes, so
+    /// nothing said then may be an instruction.
+    #[serde(default = "yes")]
+    pub verified: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Utterance {
     /// A verified utterance (tests and typed input).
     pub fn verified(text: impl Into<String>) -> Self {
-        Utterance { text: text.into(), speaker_ok: true, speaker_score: 1.0, duration_s: 1.0 }
+        Utterance { text: text.into(), speaker_ok: true, speaker_score: 1.0, duration_s: 1.0, verified: true }
+    }
+
+    /// One heard before the person enrolled their voice (`verified` false).
+    pub fn unverified(text: impl Into<String>) -> Self {
+        Utterance { verified: false, speaker_score: 0.0, ..Utterance::verified(text) }
     }
 }
+
+/// What the assistant says when someone gives an instruction before the person has enrolled.
+pub const ENROL_FIRST: &str = "Please enrol your voice first (Settings → Voice) so only you can give instructions.";
 
 /// What the UI and the voice service tell the brain.
 #[derive(Debug, Clone, PartialEq)]
@@ -160,6 +180,8 @@ pub enum BrainEvent {
         approved: bool,
         how: Resolution,
     },
+    /// Something needed the person's enrolled voice: offer the enrolment (Settings → Voice).
+    EnrolmentNeeded,
     /// The brain has ended.
     Stopped,
 }

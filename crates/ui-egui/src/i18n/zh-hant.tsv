@@ -1864,3 +1864,11 @@ Your voice	你的聲音
 Your voice is enrolled: only you can give commands.	你的聲音已錄入：只有你能下指令。
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	你的聲音尚未錄入，因此任何聲音都可能下指令。請在「設定 → 語音」中錄入。
 {done} of {needed} seconds	{done} / {needed} 秒
+Claude Code with Opus 5.5 does what you ask	由 Claude Code（Opus 5.5）完成你的要求
+Downloaded the first time voice starts	首次啟動語音時下載
+Not enrolled yet: nothing you say goes to Opus until you are	尚未錄入：錄入前你說的任何話都不會傳給 Opus
+Not used in this listen mode	此聆聽模式下不使用
+Running on this computer	正在這台電腦上執行
+The voice service stopped as soon as it started.	語音服務一啟動就停止了。
+Voice isn't running. Start it with the microphone in the title bar.	語音未開啟。請用標題列中的麥克風啟動。
+Your voice is enrolled	你的聲音已錄入

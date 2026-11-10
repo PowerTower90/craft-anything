@@ -10,7 +10,7 @@
 
 use craft_anything_engine::evidence::ToolError;
 use craft_anything_engine::inbox::{Request, RequestKind};
-use craft_anything_engine::workspace::{ActionKind, Approval, TargetRef, Workspace};
+use craft_anything_engine::workspace::{ActionKind, Approval, Questions, TargetRef, Workspace};
 use serde_json::Value;
 use std::path::Path;
 
@@ -28,6 +28,9 @@ pub fn prepare_workspace(dir: &Path) -> Result<Workspace, ToolError> {
         for kind in ALWAYS_ASKED {
             m.approvals.insert(*kind, Approval::Ask);
         }
+        // Opus's questions (`core_person_ask`) reach the person too, whatever Auto mode says:
+        // the voice reads them out (a live run showed Auto mode's "decide yourself" answering them).
+        m.questions = Some(Questions::Ask);
     })?;
     std::fs::create_dir_all(ws.inbox_dir()).map_err(|e| ToolError::io(ws.inbox_dir().display(), e))?;
     Ok(ws)
@@ -135,6 +138,11 @@ pub fn describe(req: &Request, plain: Option<&str>) -> Described {
     let what =
         plain.map(|p| super::intent::spoken(p.trim().trim_end_matches('.'), 1, 160)).filter(|p| !p.is_empty()).unwrap_or_else(|| plain_title(&req.title));
     let what = what.trim_end_matches(['.', '…']).to_string();
+    // The model often starts its words the way the sentence does ("Opus wants to send…").
+    let what = ["opus wants to ", "opus would like to ", "it wants to ", "wants to "]
+        .iter()
+        .find_map(|p| what.get(..p.len()).filter(|h| h.eq_ignore_ascii_case(p)).map(|_| what[p.len()..].to_string()))
+        .unwrap_or(what);
     let mut spoken = format!("Opus wants to {}.", lower_first(&what));
     if outward {
         let input: Value = serde_json::from_str(&req.detail).unwrap_or(Value::Null);
@@ -406,6 +414,26 @@ mod tests {
         .unwrap();
         let ws = prepare_workspace(&dir).unwrap();
         assert_eq!(ws.manifest.approvals.get(&ActionKind::Publish), Some(&Approval::Ask), "set again on every start");
+        assert_eq!(ws.manifest.questions, Some(Questions::Ask), "Opus's questions are read out, even in Auto mode");
         assert!(ws.inbox_dir().is_dir());
+    }
+
+    /// The model's words often start like the sentence they go into: said once.
+    #[test]
+    fn the_spoken_request_says_opus_wants_to_once() {
+        let req = Request {
+            id: "r".into(),
+            kind: RequestKind::Approval,
+            title: "Run a command: `curl -X POST --data hi https://httpbin.org/post`".into(),
+            detail: serde_json::json!({"command": "curl -X POST --data hi https://httpbin.org/post"}).to_string(),
+            choices: vec![],
+            allow_text: false,
+            action: Some("publish".into()),
+            created_ms: 0,
+        };
+        let d = describe(&req, Some("Opus wants to send \"hi\" to httpbin.org"));
+        assert!(d.spoken.starts_with("Opus wants to send \"hi\""), "{}", d.spoken);
+        assert_eq!(d.spoken.matches("wants to").count(), 1, "{}", d.spoken);
+        assert!(d.outward);
     }
 }

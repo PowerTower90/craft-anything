@@ -1864,3 +1864,11 @@ Your voice	Giọng của bạn
 Your voice is enrolled: only you can give commands.	Giọng của bạn đã được đăng ký: chỉ bạn mới ra lệnh được.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Giọng của bạn chưa được đăng ký, nên giọng của bất kỳ ai cũng có thể ra lệnh. Hãy đăng ký trong Cài đặt → Giọng nói.
 {done} of {needed} seconds	{done} / {needed} giây
+Claude Code with Opus 5.5 does what you ask	Claude Code với Opus 5.5 làm việc bạn yêu cầu
+Downloaded the first time voice starts	Tải về khi khởi động giọng nói lần đầu
+Not enrolled yet: nothing you say goes to Opus until you are	Chưa đăng ký: trước khi đăng ký, lời bạn nói không được gửi tới Opus
+Not used in this listen mode	Không dùng ở chế độ nghe này
+Running on this computer	Đang chạy trên máy này
+The voice service stopped as soon as it started.	Dịch vụ giọng nói dừng ngay sau khi khởi động.
+Voice isn't running. Start it with the microphone in the title bar.	Giọng nói đang tắt. Bật bằng micro trên thanh tiêu đề.
+Your voice is enrolled	Giọng của bạn đã được đăng ký

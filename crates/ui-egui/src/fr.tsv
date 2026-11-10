@@ -1852,3 +1852,11 @@ Your voice	Votre voix
 Your voice is enrolled: only you can give commands.	Votre voix est enregistrée : vous seul pouvez donner des ordres.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Votre voix n'est pas encore enregistrée, donc n'importe quelle voix pourrait donner des ordres. Enregistrez-la dans Réglages → Voix.
 {done} of {needed} seconds	{done} sur {needed} secondes
+Claude Code with Opus 5.5 does what you ask	Claude Code avec Opus 5.5 fait ce que vous demandez
+Downloaded the first time voice starts	Téléchargé au premier démarrage de la voix
+Not enrolled yet: nothing you say goes to Opus until you are	Pas encore enregistrée : rien de ce que vous dites ne va à Opus avant
+Not used in this listen mode	Inutilisé dans ce mode d'écoute
+Running on this computer	En marche sur cet ordinateur
+The voice service stopped as soon as it started.	Le service vocal s'est arrêté dès son démarrage.
+Voice isn't running. Start it with the microphone in the title bar.	La voix n'est pas lancée. Démarrez-la avec le micro dans la barre de titre.
+Your voice is enrolled	Votre voix est enregistrée

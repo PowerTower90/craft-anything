@@ -71,6 +71,10 @@ pub enum Command {
         /// `core_action_approve`); the Craft Anything app answers them.
         #[arg(long)]
         inbox: Option<PathBuf>,
+        /// The folder the agent whose approvals this server answers works in, so a relative path
+        /// in its commands is read from there (default: this server's own folder).
+        #[arg(long)]
+        agent_cwd: Option<PathBuf>,
         /// Target metadata from the desktop (JSON); repeat for each target, active target last.
         #[arg(long = "target")]
         targets: Vec<String>,
@@ -262,7 +266,7 @@ fn run(cli: Cli) -> u8 {
             }
             0
         }
-        Command::Mcp { all_tools, restricted, allow_web, allow_capture, inbox, targets } => {
+        Command::Mcp { all_tools, restricted, allow_web, allow_capture, inbox, agent_cwd, targets } => {
             let engine = match make_engine(cli.project.as_deref(), cli.deep_for_run()) {
                 Ok(e) => e,
                 Err(e) => {
@@ -272,6 +276,10 @@ fn run(cli: Cli) -> u8 {
             };
             if let Some(dir) = inbox {
                 engine.session().ext.insert(Arc::new(craft_anything_engine::inbox::InboxDir(dir.clone())));
+                // The agent starts this server in its own folder; a given one is clearer still.
+                if let Some(cwd) = agent_cwd.clone().or_else(|| std::env::current_dir().ok()) {
+                    engine.session().ext.insert(Arc::new(craft_anything_engine::inbox::AgentCwd(cwd)));
+                }
                 // A builder can generate game assets with the person's keys (one per asset
                 // provider), read here from the keychain so none appears on a command line or in
                 // a log.

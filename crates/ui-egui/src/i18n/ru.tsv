@@ -1864,3 +1864,11 @@ Your voice	Ваш голос
 Your voice is enrolled: only you can give commands.	Ваш голос записан: команды можете давать только вы.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Ваш голос ещё не записан, поэтому команды может давать любой голос. Запишите его в Настройки → Голос.
 {done} of {needed} seconds	{done} из {needed} секунд
+Claude Code with Opus 5.5 does what you ask	Claude Code с Opus 5.5 выполняет ваши просьбы
+Downloaded the first time voice starts	Загружается при первом запуске голоса
+Not enrolled yet: nothing you say goes to Opus until you are	Голос ещё не записан: до этого ничего из сказанного не уходит в Opus
+Not used in this listen mode	Не используется в этом режиме прослушивания
+Running on this computer	Работает на этом компьютере
+The voice service stopped as soon as it started.	Голосовая служба остановилась сразу после запуска.
+Voice isn't running. Start it with the microphone in the title bar.	Голос выключен. Запустите его микрофоном в заголовке окна.
+Your voice is enrolled	Ваш голос записан

@@ -1,5 +1,5 @@
 //! Talking with Craft Anything by voice: `voice_status`, `voice_start`, `voice_stop`,
-//! `voice_speak` and `voice_config`. The service and the link to it are the engines layer's
+//! `voice_speak`, `voice_config`, `voice_enroll` and `voice_design`. The service and the link to it are the engines layer's
 //! ([`craft_anything_engines::voice`]); the running service lives in the session
 //! ([`VoiceSlot`], in `Session::ext`), so the app, the conversation and these tools share one.
 //! Starting waits for the service after the session is released, so other calls carry on.
@@ -68,6 +68,28 @@ pub fn specs() -> Vec<ToolSpec> {
             requires: Requires::Nothing,
             input_schema: schema_of::<SpeakParams>,
             run: voice_speak,
+        },
+        ToolSpec {
+            id: "voice_enroll",
+            title: "Enrol my voice",
+            summary: "Record the person's voice for the speaker check, so only they can give instructions by voice: `action` start begins recording (they read a few sentences aloud, about 20 seconds in all), stop ends it and saves the profile when there was enough (returns enrolled true or false with the seconds heard). Needs voice_start first. Until a voice is enrolled, nothing said is sent to Opus.",
+            beginner: "Teaches Craft Anything your voice, so only you can give it instructions.",
+            toolset: Toolset::Setup,
+            effects: Effects::ACCESSES_NETWORK.union(Effects::WRITES_FILESYSTEM),
+            requires: Requires::Nothing,
+            input_schema: schema_of::<EnrollParams>,
+            run: voice_enroll,
+        },
+        ToolSpec {
+            id: "voice_design",
+            title: "Design the assistant's voice",
+            summary: "Design a new voice for the assistant from a `description` (\"a calm, warm female voice, mid-thirties\") with Qwen3-TTS on this computer, saying `sample_text` (default: a short greeting); returns the reference clip and its text once made (up to `timeout_s`, default 300). Keep it with voice_config assistant_voice_ref_audio and assistant_voice_ref_text. Needs voice_start first.",
+            beginner: "Makes a new voice for the assistant from a description.",
+            toolset: Toolset::Setup,
+            effects: Effects::ACCESSES_NETWORK.union(Effects::WRITES_FILESYSTEM),
+            requires: Requires::Nothing,
+            input_schema: schema_of::<DesignParams>,
+            run: voice_design,
         },
         ToolSpec {
             id: "voice_config",
@@ -160,6 +182,7 @@ pub fn setup_of(session: &Session) -> VoiceSetup {
         device: v.device.clone(),
         scripts_dir: dir,
         ready_timeout: voice::DEFAULT_READY_TIMEOUT,
+        allow_inject: false,
     }
 }
 
@@ -286,6 +309,92 @@ fn voice_speak(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
     };
     let timeout = Duration::from_secs(p.timeout_s.unwrap_or(120).clamp(1, 600));
     ctx.after_unlocking(move |cancel| wait_spoken(&events, &id, timeout, &cancel));
+    Ok(ToolOutput::Value(Value::Null))
+}
+
+/// Start or stop recording the person's voice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EnrollAction {
+    Start,
+    Stop,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EnrollParams {
+    pub action: EnrollAction,
+}
+
+fn voice_enroll(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    let p: EnrollParams = parse_params(params)?;
+    let client = running(ctx.session).ok_or_else(not_running)?;
+    if p.action == EnrollAction::Start {
+        client.enroll_start()?;
+        return Ok(ToolOutput::Value(json!({"recording": true, "needed_seconds": 20})));
+    }
+    let events = client.events();
+    client.enroll_stop()?;
+    ctx.after_unlocking(move |cancel| {
+        let t0 = Instant::now();
+        let mut seconds = 0.0f32;
+        while t0.elapsed() < Duration::from_secs(60) {
+            cancel.check()?;
+            match events.recv_timeout(Duration::from_millis(100)) {
+                Ok(VoiceEvent::EnrollProgress { seconds: s, .. }) => seconds = s,
+                Ok(VoiceEvent::Enrolled { ok }) => return Ok(ToolOutput::Value(json!({"enrolled": ok, "seconds": seconds}))),
+                Ok(VoiceEvent::Disconnected) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                _ => {}
+            }
+        }
+        Err(ToolError::new(ErrorCode::TimedOut, "The voice service didn't say whether the voice was enrolled."))
+    });
+    Ok(ToolOutput::Value(Value::Null))
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DesignParams {
+    /// The voice in words: age, tone, pace, accent.
+    pub description: String,
+    /// What the new voice says in its reference clip.
+    #[serde(default)]
+    pub sample_text: Option<String>,
+    /// How long to wait for it (10-900 s, default 300).
+    #[serde(default)]
+    pub timeout_s: Option<u64>,
+}
+
+fn voice_design(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    let p: DesignParams = parse_params(params)?;
+    let description = p.description.trim().to_string();
+    if description.is_empty() || description.chars().count() > 1000 {
+        return Err(ToolError::invalid("Describe the voice (1 to 1000 characters)."));
+    }
+    let sample = p.sample_text.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).unwrap_or_else(|| "Hello! I'm here when you need me.".into());
+    let client = running(ctx.session).ok_or_else(not_running)?;
+    let events = client.events();
+    client.design_voice(&description, &sample)?;
+    let timeout = Duration::from_secs(p.timeout_s.unwrap_or(300).clamp(10, 900));
+    ctx.after_unlocking(move |cancel| {
+        let t0 = Instant::now();
+        while t0.elapsed() < timeout {
+            cancel.check()?;
+            match events.recv_timeout(Duration::from_millis(100)) {
+                Ok(VoiceEvent::VoiceDesigned { ref_audio, ref_text }) => {
+                    return Ok(ToolOutput::Value(json!({"ref_audio": ref_audio.display().to_string(), "ref_text": ref_text})));
+                }
+                Ok(VoiceEvent::Error { message, .. }) if message.to_ascii_lowercase().contains("design") => {
+                    return Err(ToolError::new(ErrorCode::ProgramFailed, message));
+                }
+                Ok(VoiceEvent::Disconnected) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(ToolError::new(ErrorCode::EngineMissing, "The voice service went away while designing the voice."));
+                }
+                _ => {}
+            }
+        }
+        Err(ToolError::new(ErrorCode::TimedOut, format!("The voice wasn't designed within {} s.", timeout.as_secs())))
+    });
     Ok(ToolOutput::Value(Value::Null))
 }
 

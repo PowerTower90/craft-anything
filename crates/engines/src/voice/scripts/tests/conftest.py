@@ -99,9 +99,9 @@ class Client:
 class InProcess:
     """The real service (VoiceService + Server) in this process, with a fake microphone/speaker."""
 
-    def __init__(self, models_dir, stub=True, device="cpu"):
+    def __init__(self, models_dir, stub=True, device="cpu", allow_inject=False):
         self.audio = vs.FakeAudioIO()
-        self.svc = vs.VoiceService(models_dir, device, self.audio, stub_models=stub)
+        self.svc = vs.VoiceService(models_dir, device, self.audio, stub_models=stub, allow_inject=allow_inject)
         self.server = vs.Server(self.svc, "127.0.0.1", 0)
         self.port = None
         ready = threading.Event()
@@ -147,3 +147,16 @@ def tmp_models(tmp_path):
     d = tmp_path / "models"
     d.mkdir()
     return str(d)
+
+
+def write_wav(path, audio, sr=16000):
+    """A 16-bit mono WAV of `audio` (floats in -1..1)."""
+    import wave
+    import numpy as np
+    pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(pcm)
+    return str(path)

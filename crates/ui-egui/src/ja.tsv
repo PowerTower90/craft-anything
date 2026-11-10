@@ -1291,3 +1291,11 @@ Your voice	あなたの声
 Your voice is enrolled: only you can give commands.	あなたの声は登録済みです：命令できるのはあなただけです。
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	あなたの声はまだ登録されていないため、誰の声でも命令できてしまいます。設定 → 音声で登録してください。
 {done} of {needed} seconds	{done} / {needed} 秒
+Claude Code with Opus 5.5 does what you ask	Claude Code（Opus 5.5）が依頼を実行します
+Downloaded the first time voice starts	音声を初めて起動したときにダウンロードされます
+Not enrolled yet: nothing you say goes to Opus until you are	未登録：登録するまで話した内容は Opus に送られません
+Not used in this listen mode	この聞き取りモードでは使いません
+Running on this computer	このコンピューターで実行中
+The voice service stopped as soon as it started.	音声サービスは起動直後に停止しました。
+Voice isn't running. Start it with the microphone in the title bar.	音声はオフです。タイトルバーのマイクで開始してください。
+Your voice is enrolled	あなたの声は登録済みです

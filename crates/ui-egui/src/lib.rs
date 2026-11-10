@@ -48,6 +48,7 @@ pub mod things_ui;
 pub mod titlebar;
 pub mod usage;
 pub mod voice_demo;
+pub mod voice_live;
 pub mod voice_ui;
 pub mod wb_project;
 pub mod widgets;
@@ -709,6 +710,7 @@ impl CraftApp {
             (s.settings.clone(), s.settings_path())
         };
         i18n::set_language(&settings.language);
+        let voice = voice_ui::Voice::new(Box::new(voice_live::LiveVoice::new(engine.clone())));
         CraftApp {
             settings_path,
             engine,
@@ -784,7 +786,7 @@ impl CraftApp {
             assets: Default::default(),
             follow: Default::default(),
             local_gen: Default::default(),
-            voice: voice_ui::Voice::new(Box::new(voice_demo::DemoVoice::unconnected())),
+            voice,
             pending_consent: Default::default(),
             next_consent: 1,
             attention: false,

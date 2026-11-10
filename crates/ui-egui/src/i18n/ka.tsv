@@ -1864,3 +1864,11 @@ Your voice	თქვენი ხმა
 Your voice is enrolled: only you can give commands.	თქვენი ხმა ჩაწერილია: ბრძანებების გაცემა მხოლოდ თქვენ შეგიძლიათ.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	თქვენი ხმა ჯერ ჩაწერილი არ არის, ამიტომ ბრძანებების გაცემა ნებისმიერ ხმას შეუძლია. ჩაწერეთ აქ: პარამეტრები → ხმა.
 {done} of {needed} seconds	{done} / {needed} წამი
+Claude Code with Opus 5.5 does what you ask	Claude Code (Opus 5.5) აკეთებს იმას, რასაც ითხოვ
+Downloaded the first time voice starts	ჩამოიტვირთება ხმის პირველი გაშვებისას
+Not enrolled yet: nothing you say goes to Opus until you are	ჯერ არ არის დარეგისტრირებული: მანამდე არაფერი, რასაც ამბობ, Opus-ს არ გადაეცემა
+Not used in this listen mode	ამ მოსმენის რეჟიმში არ გამოიყენება
+Running on this computer	მუშაობს ამ კომპიუტერზე
+The voice service stopped as soon as it started.	ხმის სერვისი გაშვებისთანავე გაჩერდა.
+Voice isn't running. Start it with the microphone in the title bar.	ხმა გამორთულია. ჩართე სათაურის ზოლის მიკროფონით.
+Your voice is enrolled	შენი ხმა დარეგისტრირებულია

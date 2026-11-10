@@ -1864,3 +1864,11 @@ Your voice	내 목소리
 Your voice is enrolled: only you can give commands.	목소리가 등록되었습니다: 나만 명령할 수 있습니다.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	아직 목소리를 등록하지 않아 누구의 목소리든 명령할 수 있습니다. 설정 → 음성에서 등록하세요.
 {done} of {needed} seconds	{done} / {needed}초
+Claude Code with Opus 5.5 does what you ask	Opus 5.5를 쓰는 Claude Code가 요청한 일을 합니다
+Downloaded the first time voice starts	음성을 처음 시작할 때 내려받습니다
+Not enrolled yet: nothing you say goes to Opus until you are	아직 등록 안 됨: 등록하기 전에는 말한 내용이 Opus로 가지 않습니다
+Not used in this listen mode	이 듣기 모드에서는 쓰지 않음
+Running on this computer	이 컴퓨터에서 실행 중
+The voice service stopped as soon as it started.	음성 서비스가 시작하자마자 멈췄습니다.
+Voice isn't running. Start it with the microphone in the title bar.	음성이 꺼져 있습니다. 제목 표시줄의 마이크로 시작하세요.
+Your voice is enrolled	목소리가 등록되었습니다

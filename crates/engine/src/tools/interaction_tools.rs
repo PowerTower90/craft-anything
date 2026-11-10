@@ -409,19 +409,23 @@ pub fn decide(ws: Option<&Workspace>, tool: &str, input: &Value) -> Decision {
 pub(crate) fn approve(ctx: &mut Ctx<'_>, tool: &str, input: &Value) -> Result<Result<(), String>, ToolError> {
     let inbox = inbox(ctx);
     let (auto_mode, clean_room) = (ctx.session.settings.auto_mode, ctx.session.clean_room());
+    let cwd = ctx.session.ext.get::<crate::inbox::AgentCwd>().map(|c| c.0.clone());
     let cancel = ctx.cancel.clone();
     let mut waiting = || ctx.report(None, "Waiting for your OK…");
-    approve_with(inbox, auto_mode, clean_room, tool, input, &|| cancel.is_cancelled(), &mut waiting)
+    approve_with(inbox, auto_mode, clean_room, cwd.as_deref(), tool, input, &|| cancel.is_cancelled(), &mut waiting)
 }
 
 /// [`approve`] for callers outside a tool call (a client answering an agent's permission request
 /// for one project): the project's inbox, whether Auto mode is on, whether Clean room is (it
-/// refuses anything that reaches the original, whatever else allows it), how to tell a stop, and
-/// what to do while the person is being asked.
+/// refuses anything that reaches the original, whatever else allows it), the folder the agent
+/// works in (`cwd`: where its relative paths lead; none: the project folder), how to tell a stop,
+/// and what to do while the person is being asked.
+#[allow(clippy::too_many_arguments)]
 pub fn approve_with(
     inbox: Option<Inbox>,
     auto_mode: bool,
     clean_room: bool,
+    cwd: Option<&Path>,
     tool: &str,
     input: &Value,
     cancelled: &dyn Fn() -> bool,
@@ -431,7 +435,7 @@ pub fn approve_with(
     if clean_room && let Some(why) = off_limits(ws.as_ref(), tool, input) {
         return Ok(Err(why));
     }
-    match outcome(ws.as_ref(), auto_mode, tool, input) {
+    match outcome(ws.as_ref(), auto_mode, cwd, tool, input) {
         Outcome::Allow => Ok(Ok(())),
         Outcome::Refuse(why) => Ok(Err(why)),
         Outcome::Ask { title, remember } => {
@@ -466,7 +470,7 @@ enum Outcome {
 
 /// The policy ([`decide`]), then what the person always allowed, then the project's choice for
 /// the action's kind, or Auto mode's default for it.
-fn outcome(ws: Option<&Workspace>, auto_mode: bool, tool: &str, input: &Value) -> Outcome {
+fn outcome(ws: Option<&Workspace>, auto_mode: bool, cwd: Option<&Path>, tool: &str, input: &Value) -> Outcome {
     let (title, action) = match decide(ws, tool, input) {
         Decision::Allow => return Outcome::Allow,
         Decision::Deny(m) => return Outcome::Refuse(m),
@@ -478,7 +482,7 @@ fn outcome(ws: Option<&Workspace>, auto_mode: bool, tool: &str, input: &Value) -
         let chosen = ws.and_then(|w| w.manifest.approvals.get(&kind).copied());
         (kind, chosen, chosen.unwrap_or_else(|| kind.default_in(auto_mode)))
     };
-    let kinds = kinds_of(ws, tool, input);
+    let kinds = kinds_of_at(ws, cwd, tool, input);
     let Some((kind, chosen, approval)) = kinds.iter().map(|k| gets(*k)).fold(None, |best: Option<(ActionKind, Option<Approval>, Approval)>, next| match best {
         Some(b) if b.2.strictness() >= next.2.strictness() => Some(b),
         _ => Some(next),
@@ -586,28 +590,69 @@ pub fn kind_of(ws: Option<&Workspace>, tool: &str, input: &Value) -> ActionKind 
         }
         "Bash" | "PowerShell" => kinds_of(ws, tool, input).first().copied().unwrap_or(ActionKind::Commands),
         "WebFetch" | "WebSearch" => ActionKind::Web,
+        t if browser_submits(t, input) => ActionKind::Publish,
         _ => ActionKind::OtherTools,
     }
+}
+
+/// A browser-driving tool (Claude in Chrome, Chrome DevTools, Playwright, Puppeteer…).
+fn browser_tool(tool: &str) -> bool {
+    let t = tool.to_ascii_lowercase();
+    ["chrome", "browser", "playwright", "puppeteer", "devtools"].iter().any(|w| t.contains(w))
+}
+
+/// Whether a browser tool's action sends something out: submitting a form, pressing Enter (which
+/// submits what was typed), typing a line that ends in Enter, or clicking something named like
+/// send, post, publish, buy or pay. A page on this computer (localhost) is left to the other rules.
+/// What a click lands on often can't be told from the request, so voice jobs ask about every
+/// browser action anyway (tools without a rule).
+fn browser_submits(tool: &str, input: &Value) -> bool {
+    if !browser_tool(tool) {
+        return false;
+    }
+    let text = input.to_string().to_ascii_lowercase();
+    if ["localhost", "127.0.0.1", "[::1]"].iter().any(|h| text.contains(h)) && !text.contains("http") {
+        return false;
+    }
+    let s = |k: &str| input.get(k).and_then(Value::as_str).unwrap_or_default().to_ascii_lowercase();
+    let t = tool.to_ascii_lowercase();
+    let enter = |v: &str| matches!(v.trim(), "enter" | "return" | "kp_enter" | "numpadenter") || v.split([' ', '+']).any(|k| matches!(k, "enter" | "return"));
+    let submit_words = ["submit", "send", "post", "publish", "tweet", "share", "buy", "purchase", "checkout", "order", "pay", "confirm", "reply"];
+    t.contains("submit")
+        || (t.contains("form") && (input.get("submit").and_then(Value::as_bool) == Some(true) || text.contains("\"submit\"")))
+        || enter(&s("key"))
+        || (enter(&s("text")) && (s("action") == "key" || t.contains("press_key") || t.contains("key")))
+        || (t.ends_with("press_key") && enter(&s("key")))
+        || ((s("action") == "type" || t.contains("type") || t.contains("fill"))
+            && (s("text").ends_with('\n') || s("text").ends_with('\r') || input.get("submit").and_then(Value::as_bool) == Some(true)))
+        || ((t.contains("click") || s("action").contains("click"))
+            && ["element", "description", "selector", "uid", "ref", "label", "name", "text"].iter().any(|k| submit_words.iter().any(|w| s(k).contains(w))))
 }
 
 /// Every kind an action is: one for most, but a shell command can be several at once (a push and
 /// a system change, `git push && craft-anything-cli …`), and each of their choices applies. The
 /// first is [`kind_of`]'s.
 pub fn kinds_of(ws: Option<&Workspace>, tool: &str, input: &Value) -> Vec<ActionKind> {
+    kinds_of_at(ws, None, tool, input)
+}
+
+/// [`kinds_of`] for an agent working in `cwd` (none: the project folder): a delete with a
+/// relative path is read from there.
+pub fn kinds_of_at(ws: Option<&Workspace>, cwd: Option<&Path>, tool: &str, input: &Value) -> Vec<ActionKind> {
     if !matches!(tool, "Bash" | "PowerShell") {
         return vec![kind_of(ws, tool, input)];
     }
     let command = input.get("command").and_then(Value::as_str).unwrap_or_default();
     let c = command.to_ascii_lowercase();
     let mut kinds = Vec::new();
-    if publishes(&c) {
+    if publishes(&c) || sends_outward(command) {
         kinds.push(ActionKind::Publish);
     }
     if SYSTEM_COMMANDS.iter().any(|k| c.contains(k)) || names_records(&c, ws) {
         kinds.push(ActionKind::System);
     }
     // Paths keep their case: on a Mac or Linux `/Users/x` isn't `/users/x`.
-    if DELETES.iter().any(|k| c.contains(k)) && deletes_outside(command, ws) {
+    if DELETES.iter().any(|k| c.contains(k)) && (deletes_outside(command, ws) || deletes_relative_outside(command, ws, cwd)) {
         kinds.push(ActionKind::DeleteOutside);
     }
     if kinds.is_empty() {
@@ -806,6 +851,152 @@ fn deletes_outside(command: &str, ws: Option<&Workspace>) -> bool {
     })
 }
 
+/// Whether a deleting command's relative paths, read from the folder the agent works in (`cwd`,
+/// and from where each `cd` in the command leads), reach outside the project folder and the temp
+/// folder. Without a known folder, relative paths are the project's (see [`deletes_outside`]).
+fn deletes_relative_outside(command: &str, ws: Option<&Workspace>, cwd: Option<&Path>) -> bool {
+    let Some(start) = cwd.map(Path::to_path_buf) else { return false };
+    let temp = std::env::temp_dir();
+    let roots: Vec<PathBuf> = ws.map(|w| w.root.clone()).into_iter().chain([temp, PathBuf::from("/tmp"), PathBuf::from("c:/tmp")]).collect();
+    let mut base = Some(start);
+    for part in command.split(['&', ';', '|', '\n']).map(str::trim).filter(|p| !p.is_empty()) {
+        let words = shell_words(part);
+        let Some(first) = words.first() else { continue };
+        let program = program_name(first).to_ascii_lowercase();
+        if matches!(program.as_str(), "cd" | "chdir" | "pushd" | "set-location" | "sl") {
+            // Where the next commands run; a folder that can't be told makes their paths unknown.
+            let to = words.iter().skip(1).find(|w| !w.starts_with('-'));
+            base = match (&base, to) {
+                (Some(b), Some(t)) if !t.starts_with('~') && !t.contains('$') && !t.contains('%') => resolve(b, t),
+                _ => None,
+            };
+            continue;
+        }
+        if !matches!(program.as_str(), "rm" | "rmdir" | "rd" | "del" | "erase" | "remove-item" | "ri" | "unlink" | "rimraf" | "shred") {
+            continue;
+        }
+        for w in words.iter().skip(1) {
+            let flag = w.starts_with('-') || (w.starts_with('/') && w.len() <= 3);
+            let absolute = Path::new(w).is_absolute() || w.starts_with('/') || w.get(1..3).is_some_and(|d| d == ":/" || d == ":\\");
+            if flag || absolute || w.is_empty() {
+                continue;
+            }
+            // A value after `-Path:` or `=`.
+            let w = w.rsplit_once([':', '=']).filter(|(k, _)| k.starts_with('-')).map_or(w.as_str(), |(_, v)| v);
+            match &base {
+                Some(b) => match resolve(b, w) {
+                    Some(p) if roots.iter().any(|r| inside(r, &p)) => {}
+                    _ => return true,
+                },
+                // After a `cd` that can't be followed: asked.
+                None => return true,
+            }
+        }
+    }
+    false
+}
+
+/// Whether a command sends something to another computer: `curl` or `wget` with a method other
+/// than GET or with data, a form or a file to upload; PowerShell's `Invoke-WebRequest` and
+/// `Invoke-RestMethod` (and their `iwr`, `irm` and `curl` aliases) with such a method, a body or a
+/// file; a Python or JavaScript one-liner that posts (`requests.post`, `fetch(…, {method: "POST"})`);
+/// and `scp`, `rsync`, `sftp` or `ftp` to a remote place, or `ssh` fed from this computer. Read with
+/// its case, as `curl -X` (a method) isn't `curl -x` (a proxy).
+fn sends_outward(command: &str) -> bool {
+    let parts: Vec<&str> = command.split([';', '&', '|', '\n', '(', ')', '`', '{', '}']).collect();
+    if parts.iter().any(|p| part_sends(p)) || script_sends(command) {
+        return true;
+    }
+    // `… | ssh host 'cat > x'` and `ssh host … < file` send this computer's data.
+    let lower = command.to_ascii_lowercase();
+    let ssh_at = |s: &str| s.split_whitespace().any(|w| program_name(w) == "ssh");
+    lower.split('|').skip(1).any(ssh_at) || (ssh_at(&lower) && lower.contains('<'))
+}
+
+fn part_sends(part: &str) -> bool {
+    let words: Vec<String> = shell_words(part.trim());
+    let Some(i) = words.iter().position(|w| {
+        let p = program_name(w).to_ascii_lowercase();
+        !matches!(p.as_str(), "sudo" | "env" | "time" | "nohup" | "&" | "start" | "cmd" | "/c")
+    }) else {
+        return false;
+    };
+    let program = program_name(&words[i]).to_ascii_lowercase();
+    let rest = &words[i + 1..];
+    let method_sends = |m: &str| matches!(m.to_ascii_uppercase().as_str(), "POST" | "PUT" | "DELETE" | "PATCH");
+    let lower: Vec<String> = rest.iter().map(|w| w.to_ascii_lowercase()).collect();
+    match program.as_str() {
+        "curl" => rest.iter().enumerate().any(|(j, w)| {
+            let next = rest.get(j + 1).map(String::as_str).unwrap_or_default();
+            ((w == "-X" || w == "--request") && method_sends(next))
+                || w.strip_prefix("-X").is_some_and(method_sends)
+                || w.strip_prefix("--request=").is_some_and(method_sends)
+                || ["-d", "-F", "-T", "--json", "--form", "--form-string", "--upload-file"].contains(&w.as_str())
+                || ["--data", "--json=", "--form=", "--upload-file="].iter().any(|p| w.starts_with(p))
+                || ((w.starts_with("-d") || w.starts_with("-F") || w.starts_with("-T")) && w.len() > 2 && !w.starts_with("--"))
+        }),
+        "wget" => {
+            lower.iter().any(|w| {
+                ["--post-data", "--post-file", "--body-data", "--body-file"].iter().any(|p| w.starts_with(p))
+                    || w.strip_prefix("--method=").is_some_and(method_sends)
+            }) || lower.windows(2).any(|p| p[0] == "--method" && method_sends(&p[1]))
+        }
+        "invoke-webrequest" | "invoke-restmethod" | "iwr" | "irm" => lower.iter().enumerate().any(|(j, w)| {
+            let next = lower.get(j + 1).map(String::as_str).unwrap_or_default();
+            (w == "-method" && method_sends(next))
+                || w.strip_prefix("-method:").is_some_and(method_sends)
+                || ["-body", "-infile", "-form"].iter().any(|p| w == p || w.starts_with(&format!("{p}:")))
+        }),
+        "scp" | "rsync" | "sftp" | "ftp" | "pscp" => rest.iter().rfind(|w| !w.starts_with('-')).is_some_and(|dest| remote_place(dest)) || program == "ftp",
+        _ => false,
+    }
+}
+
+/// A Python or JavaScript one-liner (`python -c`, `node -e`…) that posts, puts, patches or
+/// deletes over the network, or sends mail. Read across the whole command, as its code has `;` and
+/// brackets of its own.
+fn script_sends(command: &str) -> bool {
+    let runs_script = shell_words(command)
+        .iter()
+        .any(|w| matches!(program_name(w).to_ascii_lowercase().as_str(), "python" | "python3" | "py" | "pythonw" | "node" | "deno" | "bun"));
+    if !runs_script {
+        return false;
+    }
+    let code = command.to_ascii_lowercase().replace([' ', '\t'], "");
+    const CALLS: &[&str] = &[
+        "requests.post(",
+        "requests.put(",
+        "requests.patch(",
+        "requests.delete(",
+        "httpx.post(",
+        "httpx.put(",
+        "httpx.patch(",
+        "httpx.delete(",
+        "axios.post(",
+        "axios.put(",
+        "axios.patch(",
+        "axios.delete(",
+        "smtplib",
+        "sendmail(",
+    ];
+    CALLS.iter().any(|p| code.contains(p))
+        || ["post", "put", "patch", "delete"]
+            .iter()
+            .any(|m| ["method:'", "method:\"", "method='", "method=\"", "method:`"].iter().any(|k| code.contains(&format!("{k}{m}"))))
+        || (code.contains("urlopen(") && code.contains("data="))
+}
+
+/// `host:path`, `user@host:path` or `rsync://…`: a place on another computer (not `C:\x`).
+fn remote_place(arg: &str) -> bool {
+    if arg.starts_with("rsync://") || arg.starts_with("sftp://") || arg.starts_with("ftp://") {
+        return true;
+    }
+    match arg.split_once(':') {
+        Some((host, _)) => host.len() > 1 && !host.contains(['/', '\\']),
+        None => false,
+    }
+}
+
 /// A command's arguments the way a shell reads them: quoted text (`"a b"`, `'a b'`) and an escaped
 /// space (`a\ b`) stay in one argument, so a path with spaces is checked whole. A backslash before
 /// anything else is kept as it is (Windows paths).
@@ -925,12 +1116,12 @@ mod tests {
         let inbox = || Some(Inbox::new(w.inbox_dir()));
         let inside = json!({"file_path": w.app_dir().join("main.rs").display().to_string()});
         let mut asked = false;
-        assert_eq!(approve_with(inbox(), false, false, "Write", &inside, &|| false, &mut || asked = true).unwrap(), Ok(()));
+        assert_eq!(approve_with(inbox(), false, false, None, "Write", &inside, &|| false, &mut || asked = true).unwrap(), Ok(()));
         assert!(!asked, "allowed by the policy without asking");
         // Outside the project in Auto mode: allowed without asking; with nobody to ask: refused.
         let outside = json!({"file_path": "/elsewhere/notes.txt"});
-        assert_eq!(approve_with(inbox(), true, false, "Write", &outside, &|| false, &mut || {}).unwrap(), Ok(()));
-        assert!(approve_with(None, false, false, "Write", &outside, &|| false, &mut || {}).unwrap().is_err());
+        assert_eq!(approve_with(inbox(), true, false, None, "Write", &outside, &|| false, &mut || {}).unwrap(), Ok(()));
+        assert!(approve_with(None, false, false, None, "Write", &outside, &|| false, &mut || {}).unwrap().is_err());
     }
 
     #[test]
@@ -941,7 +1132,7 @@ mod tests {
         let w = Workspace::create(&dir.path().join("projects"), "g", "Recreate this game", TargetRef::Local { path: game.clone() }).unwrap();
         let inbox = || Some(Inbox::new(w.inbox_dir()));
         let file = |p: &std::path::Path| json!({"file_path": p.join("data.ini").display().to_string()});
-        let refused = |tool: &str, input: &Value| approve_with(inbox(), true, true, tool, input, &|| false, &mut || {}).unwrap().is_err();
+        let refused = |tool: &str, input: &Value| approve_with(inbox(), true, true, None, tool, input, &|| false, &mut || {}).unwrap().is_err();
         assert!(refused("Read", &file(&game)), "its files are off limits, even in Auto mode");
         assert!(refused("Glob", &json!({"path": game.display().to_string(), "pattern": "**/*"})));
         assert!(refused("Grep", &json!({"pattern": "speed", "path": game.display().to_string()})));
@@ -949,7 +1140,7 @@ mod tests {
         assert!(refused("Bash", &json!({"command": format!("strings \"{shown}/Game.exe\" | head")})));
         assert!(refused("Bash", &json!({"command": format!("cat {}", shown.replace('\\', "/").to_uppercase())})), "any spelling of its folder");
         assert!(!refused("Read", &file(&w.app_dir())), "the project stays open");
-        assert_eq!(approve_with(inbox(), true, false, "Read", &file(&game), &|| false, &mut || {}).unwrap(), Ok(()), "Deep mode may read it");
+        assert_eq!(approve_with(inbox(), true, false, None, "Read", &file(&game), &|| false, &mut || {}).unwrap(), Ok(()), "Deep mode may read it");
 
         let site =
             Workspace::create(&dir.path().join("projects"), "s", "Recreate this website", TargetRef::Website { url: "https://www.Example.com/pricing".into() })
@@ -1168,8 +1359,8 @@ mod tests {
     fn web_reads_and_notes_go_ahead_the_inbox_never_does() {
         let (_d, w) = ws();
         for auto_mode in [true, false] {
-            assert_eq!(outcome(Some(&w), auto_mode, "WebFetch", &json!({"url": "https://docs.godotengine.org"})), Outcome::Allow);
-            assert_eq!(outcome(Some(&w), auto_mode, "WebSearch", &json!({"query": "unity batchmode build"})), Outcome::Allow);
+            assert_eq!(outcome(Some(&w), auto_mode, None, "WebFetch", &json!({"url": "https://docs.godotengine.org"})), Outcome::Allow);
+            assert_eq!(outcome(Some(&w), auto_mode, None, "WebSearch", &json!({"query": "unity batchmode build"})), Outcome::Allow);
         }
         let note = w.checks_dir().join("round-1/notes.md");
         assert_eq!(decide(Some(&w), "Write", &json!({"file_path": note.display().to_string()})), Decision::Allow);
@@ -1182,15 +1373,15 @@ mod tests {
     fn remembered_kinds_and_reads() {
         let (_d, mut w) = ws();
         let cmd = json!({"command": "lsblk"});
-        assert!(matches!(outcome(Some(&w), false, "Bash", &cmd), Outcome::Ask { remember: Remember::Action(_), .. }));
+        assert!(matches!(outcome(Some(&w), false, None, "Bash", &cmd), Outcome::Ask { remember: Remember::Action(_), .. }));
         w.manifest.allowed_actions.push("bash:lsblk".into());
-        assert_eq!(outcome(Some(&w), false, "Bash", &cmd), Outcome::Allow, "\"always for this project\" is remembered");
-        assert_eq!(outcome(None, false, "Read", &json!({})), Outcome::Allow);
+        assert_eq!(outcome(Some(&w), false, None, "Bash", &cmd), Outcome::Allow, "\"always for this project\" is remembered");
+        assert_eq!(outcome(None, false, None, "Read", &json!({})), Outcome::Allow);
         // A kind the person refuses later wins over what they always allowed before; asking keeps it.
         w.manifest.approvals.insert(ActionKind::Commands, Approval::Refuse);
-        assert!(matches!(outcome(Some(&w), true, "Bash", &cmd), Outcome::Refuse(_)));
+        assert!(matches!(outcome(Some(&w), true, None, "Bash", &cmd), Outcome::Refuse(_)));
         w.manifest.approvals.insert(ActionKind::Commands, Approval::Ask);
-        assert_eq!(outcome(Some(&w), true, "Bash", &cmd), Outcome::Allow);
+        assert_eq!(outcome(Some(&w), true, None, "Bash", &cmd), Outcome::Allow);
     }
 
     #[test]
@@ -1209,7 +1400,7 @@ mod tests {
             "unset CRAFT_ANYTHING_AGENT; cat craft.\"json\"",
         ] {
             assert_eq!(kind_of(Some(&w), "Bash", &json!({"command": cmd})), ActionKind::System, "{cmd}");
-            assert!(matches!(outcome(Some(&w), true, "Bash", &json!({"command": cmd})), Outcome::Refuse(_)), "{cmd}");
+            assert!(matches!(outcome(Some(&w), true, None, "Bash", &json!({"command": cmd})), Outcome::Refuse(_)), "{cmd}");
         }
         assert_eq!(kind_of(Some(&w), "Bash", &json!({"command": "cat package.json"})), ActionKind::Commands);
     }
@@ -1222,22 +1413,22 @@ mod tests {
         // Pushing allowed, system changes refused: refused, and the message names the refused kind.
         w.manifest.approvals.insert(ActionKind::Publish, Approval::Allow);
         w.manifest.approvals.insert(ActionKind::System, Approval::Refuse);
-        let Outcome::Refuse(why) = outcome(Some(&w), true, "Bash", &mixed) else { panic!("refused") };
+        let Outcome::Refuse(why) = outcome(Some(&w), true, None, "Bash", &mixed) else { panic!("refused") };
         assert!(why.contains("\"system\""), "{why}");
         // The other way round: refused for pushing.
         w.manifest.approvals.insert(ActionKind::Publish, Approval::Refuse);
         w.manifest.approvals.insert(ActionKind::System, Approval::Allow);
-        let Outcome::Refuse(why) = outcome(Some(&w), true, "Bash", &mixed) else { panic!("refused") };
+        let Outcome::Refuse(why) = outcome(Some(&w), true, None, "Bash", &mixed) else { panic!("refused") };
         assert!(why.contains("\"publish\""), "{why}");
         // Asked about when one asks and the other allows; allowed only when both allow.
         w.manifest.approvals.insert(ActionKind::Publish, Approval::Ask);
-        assert!(matches!(outcome(Some(&w), true, "Bash", &mixed), Outcome::Ask { remember: Remember::Kind(ActionKind::Publish), .. }));
+        assert!(matches!(outcome(Some(&w), true, None, "Bash", &mixed), Outcome::Ask { remember: Remember::Kind(ActionKind::Publish), .. }));
         w.manifest.approvals.insert(ActionKind::Publish, Approval::Allow);
-        assert_eq!(outcome(Some(&w), true, "Bash", &mixed), Outcome::Allow);
+        assert_eq!(outcome(Some(&w), true, None, "Bash", &mixed), Outcome::Allow);
         // An earlier "always" on the command's first word lets none of it through.
         w.manifest.approvals.clear();
         w.manifest.allowed_actions.push("bash:git".into());
-        assert!(matches!(outcome(Some(&w), true, "Bash", &mixed), Outcome::Refuse(_)));
+        assert!(matches!(outcome(Some(&w), true, None, "Bash", &mixed), Outcome::Refuse(_)));
     }
 
     #[test]
@@ -1262,7 +1453,7 @@ mod tests {
             "Set-Content -Path:..\\inbox\\1.answer.json -Value yes",
         ] {
             assert_eq!(kind_of(Some(&w), "Bash", &json!({"command": cmd})), ActionKind::System, "{cmd}");
-            assert!(matches!(outcome(Some(&w), true, "Bash", &json!({"command": cmd})), Outcome::Refuse(_)), "{cmd}");
+            assert!(matches!(outcome(Some(&w), true, None, "Bash", &json!({"command": cmd})), Outcome::Refuse(_)), "{cmd}");
         }
         // An app's own inbox folder is the builder's work.
         for cmd in ["mkdir -p src/inbox", "cat app/src/inbox/view.rs"] {
@@ -1278,7 +1469,7 @@ mod tests {
         for record in ["craft.json", "inbox/1.answer.json", "./craft.json"] {
             assert!(matches!(decide(Some(&w), "Write", &write(record)), Decision::Ask { .. }), "{record}");
             assert_eq!(kind_of(Some(&w), "Write", &write(record)), ActionKind::System, "{record}");
-            assert!(matches!(outcome(Some(&w), true, "Write", &write(record)), Outcome::Refuse(_)), "{record}");
+            assert!(matches!(outcome(Some(&w), true, None, "Write", &write(record)), Outcome::Refuse(_)), "{record}");
         }
         // Inside app/ from either folder, or written in full, it's the builder's own work.
         assert_eq!(decide(Some(&w), "Write", &write("app/src/main.rs")), Decision::Allow);
@@ -1296,9 +1487,9 @@ mod tests {
         let (_d, mut w) = ws();
         w.manifest.allowed_actions.push("bash:cd".into());
         let push = json!({"command": "cd app && git push origin main"});
-        assert!(matches!(outcome(Some(&w), true, "Bash", &push), Outcome::Refuse(_)), "Auto mode still refuses it");
-        assert!(matches!(outcome(Some(&w), false, "Bash", &push), Outcome::Ask { remember: Remember::Kind(ActionKind::Publish), .. }));
-        assert_eq!(outcome(Some(&w), true, "Bash", &json!({"command": "cd app && lsblk"})), Outcome::Allow);
+        assert!(matches!(outcome(Some(&w), true, None, "Bash", &push), Outcome::Refuse(_)), "Auto mode still refuses it");
+        assert!(matches!(outcome(Some(&w), false, None, "Bash", &push), Outcome::Ask { remember: Remember::Kind(ActionKind::Publish), .. }));
+        assert_eq!(outcome(Some(&w), true, None, "Bash", &json!({"command": "cd app && lsblk"})), Outcome::Allow);
     }
 
     #[test]
@@ -1307,26 +1498,26 @@ mod tests {
         let push = json!({"command": "git push origin main"});
         let fetch = json!({"url": "https://example.com/"});
         // Nothing chosen: Auto mode refuses a push and asks nobody; without it, the person is asked.
-        let Outcome::Refuse(why) = outcome(Some(&w), true, "Bash", &push) else { panic!("refused") };
+        let Outcome::Refuse(why) = outcome(Some(&w), true, None, "Bash", &push) else { panic!("refused") };
         assert!(why.contains("Auto mode never") && why.contains("\"publish\""), "{why}");
-        assert!(matches!(outcome(Some(&w), false, "Bash", &push), Outcome::Ask { .. }));
+        assert!(matches!(outcome(Some(&w), false, None, "Bash", &push), Outcome::Ask { .. }));
         // Pushes asked about, even in Auto mode: the card it was missing.
         w.manifest.approvals.insert(ActionKind::Publish, Approval::Ask);
-        let Outcome::Ask { title, remember } = outcome(Some(&w), true, "Bash", &push) else { panic!("asked") };
+        let Outcome::Ask { title, remember } = outcome(Some(&w), true, None, "Bash", &push) else { panic!("asked") };
         assert!(title.contains("git push"));
         assert_eq!(remember, Remember::Kind(ActionKind::Publish));
         // Allowed for this project: no card.
         w.manifest.approvals.insert(ActionKind::Publish, Approval::Allow);
-        assert_eq!(outcome(Some(&w), true, "Bash", &push), Outcome::Allow);
+        assert_eq!(outcome(Some(&w), true, None, "Bash", &push), Outcome::Allow);
         // Each kind on its own: the web can be refused while pushing is allowed.
         w.manifest.approvals.insert(ActionKind::Web, Approval::Refuse);
-        let Outcome::Refuse(why) = outcome(Some(&w), true, "WebFetch", &fetch) else { panic!("refused") };
+        let Outcome::Refuse(why) = outcome(Some(&w), true, None, "WebFetch", &fetch) else { panic!("refused") };
         assert!(why.contains("This project refuses reading the web"), "{why}");
-        assert_eq!(outcome(Some(&w), true, "Bash", &push), Outcome::Allow);
+        assert_eq!(outcome(Some(&w), true, None, "Bash", &push), Outcome::Allow);
         // Commands the build list allows aren't asked about, whatever "commands" gets.
         w.manifest.approvals.insert(ActionKind::Commands, Approval::Refuse);
-        assert_eq!(outcome(Some(&w), true, "Bash", &json!({"command": "npm run build"})), Outcome::Allow);
-        assert!(matches!(outcome(Some(&w), true, "Bash", &json!({"command": "lsblk"})), Outcome::Refuse(_)));
+        assert_eq!(outcome(Some(&w), true, None, "Bash", &json!({"command": "npm run build"})), Outcome::Allow);
+        assert!(matches!(outcome(Some(&w), true, None, "Bash", &json!({"command": "lsblk"})), Outcome::Refuse(_)));
     }
 
     #[test]
@@ -1626,5 +1817,120 @@ mod tests {
         for own in ["craft.json", "inbox/a.json", "feed.json"] {
             assert!(matches!(decide(Some(&w), "Write", &file(own)), Decision::Ask { .. }), "{own}");
         }
+    }
+
+    /// A delete with a relative path is read from where the agent works (a voice job's task
+    /// folder, say), not from the project the approvals belong to: outside the project and temp,
+    /// it's a delete outside, asked even in Auto mode.
+    #[test]
+    fn a_relative_delete_is_read_from_the_agents_folder() {
+        let (_d, mut w) = ws();
+        let (root, home) = if cfg!(windows) { ("D:/Voice/tasks", "D:/Users/Me") } else { ("/srv/voice/tasks", "/home/me") };
+        w.root = PathBuf::from(root);
+        let kinds = |cwd: Option<&str>, cmd: &str| kinds_of_at(Some(&w), cwd.map(Path::new), "Bash", &json!({"command": cmd}));
+        let outside = |cwd: Option<&str>, cmd: &str| kinds(cwd, cmd).contains(&ActionKind::DeleteOutside);
+        // From the home folder: outside.
+        for cmd in ["rm hello.txt", "del hello.txt", "Remove-Item -Path hello.txt", "rm -rf ./build", "erase notes\\a.txt", "unlink x"] {
+            assert!(outside(Some(home), cmd), "{cmd}");
+        }
+        // From the project folder, or the temp folder: inside, as before.
+        let temp = std::env::temp_dir().join("voice-task");
+        let temp = temp.to_string_lossy().into_owned();
+        for (cwd, cmd) in [(root, "rm -rf build"), (temp.as_str(), "rm hello.txt"), (root, "cd app && rm -rf dist")] {
+            assert!(!outside(Some(cwd), cmd), "{cwd}: {cmd}");
+        }
+        // A `cd` is followed: out of the project, or somewhere it can't be told.
+        assert!(outside(Some(root), "cd .. && rm hello.txt"));
+        assert!(outside(Some(root), "cd $SOMEWHERE && rm hello.txt"));
+        assert!(outside(Some(&temp), &format!("cd {home} && rm hello.txt")));
+        // Without the agent's folder, relative paths are the project's (the old reading).
+        assert!(!outside(None, "rm hello.txt"));
+        // Commands that don't delete stay commands.
+        assert_eq!(kinds(Some(home), "echo hi > hello.txt"), [ActionKind::Commands]);
+        // Auto mode never lets it through: refused unasked by default, asked where the project asks.
+        let rm = json!({"command": "rm hello.txt"});
+        assert!(matches!(outcome(Some(&w), true, Some(Path::new(home)), "Bash", &rm), Outcome::Refuse(_)));
+        w.manifest.approvals.insert(ActionKind::DeleteOutside, Approval::Ask);
+        assert!(matches!(
+            outcome(Some(&w), true, Some(Path::new(home)), "Bash", &rm),
+            Outcome::Ask { remember: Remember::Kind(ActionKind::DeleteOutside), .. }
+        ));
+    }
+
+    /// Sending something to another computer is publishing: always asked (voice) or never done
+    /// unasked (Auto mode), while fetching stays a command.
+    #[test]
+    fn outward_network_sends_are_publishing() {
+        let (_d, w) = ws();
+        let kind = |cmd: &str| kinds_of(Some(&w), "Bash", &json!({"command": cmd}));
+        let sends = [
+            "curl -X POST https://httpbin.org/post -d 'hello world'",
+            "curl -XPUT https://api.example.com/x",
+            "curl --request DELETE https://api.example.com/x/1",
+            "curl -d hello https://httpbin.org/post",
+            "curl --data-binary @report.pdf https://example.com/up",
+            "curl -F file=@a.png https://example.com/upload",
+            "curl --json '{\"a\":1}' https://example.com",
+            "curl -T a.zip ftp://example.com/",
+            "curl.exe --upload-file a.zip https://example.com/a.zip",
+            "wget --post-data='a=1' https://example.com",
+            "wget --method=PATCH https://example.com/x",
+            "Invoke-WebRequest -Uri https://example.com -Method Post -Body $b",
+            "Invoke-RestMethod https://example.com -Method:Put",
+            "irm https://example.com -Body '{}'",
+            "iwr https://example.com/up -InFile a.zip",
+            "python -c \"import requests; requests.post('https://x.y', data='hi')\"",
+            "python3 -c 'import urllib.request as u; u.urlopen(\"https://x.y\", data=b\"hi\")'",
+            "node -e \"fetch('https://x.y', {method: 'POST', body: 'hi'})\"",
+            "gh api -X POST repos/o/r/issues -f title=x",
+            "scp report.pdf me@host.example.com:/srv/",
+            "rsync -av site/ deploy@web:/var/www/",
+            "cat notes.txt | ssh host 'cat > notes.txt'",
+            "ssh host 'cat > x' < secrets.txt",
+            "cd out && curl -F f=@a.png https://example.com",
+        ];
+        for cmd in sends {
+            assert!(kind(cmd).contains(&ActionKind::Publish), "{cmd}");
+        }
+        let reads = [
+            "curl https://example.com",
+            "curl -x proxy:8080 https://example.com",
+            "curl -fsSL https://example.com/install.sh -o install.sh",
+            "curl -X GET https://example.com",
+            "wget https://example.com/a.zip",
+            "Invoke-WebRequest https://example.com -OutFile a.html",
+            "iwr https://example.com -Method Get",
+            "python -c \"import requests; print(requests.get('https://x.y').text)\"",
+            "scp host:/srv/a.txt ./a.txt",
+            "rsync -av C:/a/ D:/b/",
+            "gh api repos/o/r",
+            "ssh host uptime",
+        ];
+        for cmd in reads {
+            assert!(!kind(cmd).contains(&ActionKind::Publish), "{cmd}");
+        }
+        // In Auto mode a send isn't done unasked.
+        assert!(never_unasked(Some(&w), "Bash", &json!({"command": sends[0]})).is_some());
+    }
+
+    /// A browser tool that submits or posts is publishing; other browser actions are tools
+    /// without a rule (asked of a voice job anyway).
+    #[test]
+    fn browser_submits_are_publishing() {
+        let k = |tool: &str, input: Value| kind_of(None, tool, &input);
+        assert_eq!(k("mcp__claude-in-chrome__computer", json!({"action": "key", "text": "Enter", "tabId": 1})), ActionKind::Publish);
+        assert_eq!(k("mcp__claude-in-chrome__computer", json!({"action": "type", "text": "hello world\n"})), ActionKind::Publish);
+        assert_eq!(k("mcp__chrome-devtools__press_key", json!({"key": "Enter"})), ActionKind::Publish);
+        assert_eq!(k("mcp__chrome-devtools__fill_form", json!({"elements": [], "submit": true})), ActionKind::Publish);
+        assert_eq!(k("mcp__chrome-devtools__click", json!({"uid": "1_7", "element": "Post button"})), ActionKind::Publish);
+        assert_eq!(k("mcp__claude-in-chrome__computer", json!({"action": "left_click", "description": "Submit order"})), ActionKind::Publish);
+        assert_eq!(k("mcp__playwright__browser_submit_form", json!({"selector": "#f"})), ActionKind::Publish);
+        // Looking and moving around aren't.
+        assert_eq!(k("mcp__claude-in-chrome__computer", json!({"action": "screenshot"})), ActionKind::OtherTools);
+        assert_eq!(k("mcp__chrome-devtools__click", json!({"uid": "1_2", "element": "Next page"})), ActionKind::OtherTools);
+        assert_eq!(k("mcp__claude-in-chrome__computer", json!({"action": "type", "text": "hello"})), ActionKind::OtherTools);
+        assert_eq!(k("mcp__claude-in-chrome__navigate", json!({"url": "https://example.com"})), ActionKind::OtherTools);
+        // Not a browser tool at all.
+        assert_eq!(k("mcp__other__submit_thing", json!({})), ActionKind::OtherTools);
     }
 }

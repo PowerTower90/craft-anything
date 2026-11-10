@@ -27,8 +27,8 @@ use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// The voice service (Python). Until the real service lands this is a placeholder with the same
-/// command line and protocol that hears and says nothing ([`service_is_placeholder`]).
+/// The voice service (Python): `scripts/voice_service.py`, its packages in
+/// `scripts/voice_requirements.txt`.
 pub const VOICE_SERVICE_PY: &str = include_str!("scripts/voice_service.py");
 /// Its file name in [`VoiceSetup::scripts_dir`].
 pub const SCRIPT_NAME: &str = "voice_service.py";
@@ -56,6 +56,9 @@ pub struct VoiceSetup {
     pub scripts_dir: PathBuf,
     /// How long it has to say `READY` (added to the contract; [`DEFAULT_READY_TIMEOUT`]).
     pub ready_timeout: Duration,
+    /// Tests only: start it with `--allow-inject`, so [`VoiceCommand::InjectWav`] can feed a WAV
+    /// in place of the microphone. Never set from the settings.
+    pub allow_inject: bool,
 }
 
 impl Default for VoiceSetup {
@@ -67,6 +70,7 @@ impl Default for VoiceSetup {
             device: "cuda:0".into(),
             scripts_dir: PathBuf::new(),
             ready_timeout: DEFAULT_READY_TIMEOUT,
+            allow_inject: false,
         }
     }
 }
@@ -108,6 +112,9 @@ impl VoiceSetup {
         args.extend(["--host".into(), "127.0.0.1".into(), "--port".into(), self.port.to_string().into()]);
         args.extend(["--models-dir".into(), self.models_dir.clone().into_os_string(), "--device".into(), device.into()]);
         args.extend(["--parent-pid".into(), std::process::id().to_string().into()]);
+        if self.allow_inject {
+            args.push("--allow-inject".into());
+        }
         Ok(ServiceCommand {
             program: python.into_os_string(),
             args,

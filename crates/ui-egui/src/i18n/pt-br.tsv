@@ -1864,3 +1864,11 @@ Your voice	Sua voz
 Your voice is enrolled: only you can give commands.	Sua voz está cadastrada: só você pode dar comandos.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Sua voz ainda não está cadastrada, então qualquer voz poderia dar comandos. Cadastre-a em Configurações → Voz.
 {done} of {needed} seconds	{done} de {needed} segundos
+Claude Code with Opus 5.5 does what you ask	O Claude Code com Opus 5.5 faz o que você pede
+Downloaded the first time voice starts	Baixado na primeira vez que a voz inicia
+Not enrolled yet: nothing you say goes to Opus until you are	Ainda não cadastrada: nada do que você disser vai para o Opus até lá
+Not used in this listen mode	Não usado neste modo de escuta
+Running on this computer	Rodando neste computador
+The voice service stopped as soon as it started.	O serviço de voz parou assim que iniciou.
+Voice isn't running. Start it with the microphone in the title bar.	A voz não está ligada. Inicie com o microfone na barra de título.
+Your voice is enrolled	Sua voz está cadastrada

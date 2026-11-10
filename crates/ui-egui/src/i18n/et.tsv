@@ -1864,3 +1864,11 @@ Your voice	Sinu hääl
 Your voice is enrolled: only you can give commands.	Sinu hääl on salvestatud: käske saad anda ainult sina.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Sinu hääl pole veel salvestatud, seega võiks käske anda iga hääl. Salvesta see jaotises Seaded → Hääl.
 {done} of {needed} seconds	{done} / {needed} sekundit
+Claude Code with Opus 5.5 does what you ask	Claude Code koos Opus 5.5-ga teeb, mida palud
+Downloaded the first time voice starts	Laaditakse alla hääle esimesel käivitamisel
+Not enrolled yet: nothing you say goes to Opus until you are	Veel registreerimata: seni ei lähe midagi, mida ütled, Opusele
+Not used in this listen mode	Selles kuulamisrežiimis ei kasutata
+Running on this computer	Töötab selles arvutis
+The voice service stopped as soon as it started.	Hääleteenus peatus kohe pärast käivitamist.
+Voice isn't running. Start it with the microphone in the title bar.	Hääl ei tööta. Käivita see tiitliriba mikrofoniga.
+Your voice is enrolled	Sinu hääl on registreeritud

@@ -121,14 +121,14 @@ const ACTIONS: &[Action] = &[
     a("Engine › Open",       "open Unity Hub or the Epic Games Launcher",      Tool(&["engines_app_open"])),
     a("Download pages",      "open an engine's or fal.ai's download page",     UiOnly("a link; engines_install returns the page for vendor installs")),
 
-    // ---- Voice (the voice tools come with the voice engine, feat/voice-engine) ------------------
-    a("Voice › Start and stop", "start or stop the voice service",             Pending { tool: None, why: "the voice engine's tools (voice_tools.rs) land with feat/voice-engine; integration names them here" }),
+    // ---- Voice --------------------------------------------------------------------------------
+    a("Voice › Start and stop", "start or stop the voice service",             Tool(&["voice_start", "voice_stop", "voice_status"])),
     a("Voice › Push to talk", "talk while F9 or the microphone is held",       UiOnly("talking needs the person's microphone; headless callers type their request (chat, rebuild)")),
-    a("Voice › Answer Opus's question", "say yes or no to what Opus asks",     Pending { tool: None, why: "voice approvals land with feat/voice-brain on the existing approval tool path" }),
-    a("Voice › Stop an Opus job", "stop a task Opus is doing for the voice",   Pending { tool: None, why: "the Opus executor lands with feat/voice-brain" }),
-    a("Voice › Enrol my voice", "record the person's voice so only they give commands", Pending { tool: None, why: "the voice engine's tools land with feat/voice-engine" }),
-    a("Voice › Design the assistant's voice", "describe and preview the voice it speaks with", Pending { tool: None, why: "the voice engine's tools land with feat/voice-engine" }),
-    a("Settings › Voice",    "listen mode, key, wake word, devices, threshold, task folder", Pending { tool: None, why: "settings_set reaches [voice] once feat/voice-engine adds it to Settings" }),
+    a("Voice › Answer Opus's question", "say yes or no to what Opus asks",     Tool(&["project_inbox_answer"])),
+    a("Voice › Stop an Opus job", "stop a task Opus is doing for the voice",   UiOnly("a voice job belongs to the app's voice conversation; a headless caller runs its own Claude Code and stops that")),
+    a("Voice › Enrol my voice", "record the person's voice so only they give commands", Tool(&["voice_enroll"])),
+    a("Voice › Design the assistant's voice", "describe and preview the voice it speaks with", Tool(&["voice_design", "voice_config"])),
+    a("Settings › Voice",    "listen mode, key, wake word, devices, threshold, task folder", Tool(&["voice_config"])),
 
     // ---- Settings ----------------------------------------------------------------------------
     a("set_mode",            "Beginner or Experienced",                        Tool(&["settings_set"])),

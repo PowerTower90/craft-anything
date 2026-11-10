@@ -9,7 +9,7 @@ import urllib.request
 import numpy as np
 import pytest
 
-from conftest import SERVICE_PY, Client, InProcess, silence, tone, vs
+from conftest import SERVICE_PY, Client, InProcess, silence, tone, vs, write_wav
 
 
 # ----- pure helpers ------------------------------------------------------------------------------
@@ -286,3 +286,44 @@ def test_design_voice(svc, tmp_models):
     c.wait("config_ok", lambda e: e["id"] == "cv")
     assert not [e for e in c.of("error") if "tts_voice" in e["message"]]
     c.close()
+
+
+# ----- test-only audio injection (--allow-inject) -------------------------------------------------
+
+def test_inject_is_refused_without_the_flag(svc, tmp_path):
+    c = Client(svc.port)
+    c.wait("state")
+    wav = write_wav(tmp_path / "hi.wav", tone(200, 1.0))
+    c.send(cmd="inject_wav", id="i1", path=wav)
+    e = c.wait("error", lambda e: e.get("id") == "i1", timeout=5)
+    assert "--allow-inject" in e["message"]
+    time.sleep(1.5)
+    assert not c.of("utterance") and not c.of("injected")
+    c.close()
+
+
+def test_inject_feeds_a_wav_as_a_push_to_talk_utterance(tmp_models, tmp_path):
+    s = InProcess(tmp_models, stub=True, allow_inject=True)
+    try:
+        s.wait_ready(30)
+        c = Client(s.port)
+        c.send(cmd="config", listen_mode="push_to_talk", input_device="Fake Microphone")
+        c.wait("config_ok")
+        wav = write_wav(tmp_path / "hi.wav", tone(200, 1.5))
+        t = c.send(cmd="inject_wav", id="i2", path=wav)
+        u = c.wait("utterance", after=t, timeout=15)
+        assert u["text"].startswith("stub speech") and u["duration_s"] >= 1.4, u
+        done = c.wait("injected", lambda e: e.get("id") == "i2", timeout=10)
+        assert done["seconds"] == 1.5
+        assert c.wait("state", lambda e: not e["capturing"], after=t, timeout=5)
+        c.close()
+    finally:
+        s.close()
+
+
+def test_command_line_accepts_allow_inject(tmp_models):
+    p, info = start_proc(tmp_models, "--allow-inject")
+    try:
+        assert info["port"] > 0
+    finally:
+        p.kill()

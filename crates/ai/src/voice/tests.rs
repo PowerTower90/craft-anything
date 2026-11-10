@@ -189,7 +189,7 @@ fn someone_elses_voice_is_shown_and_otherwise_ignored() {
     let id = r.inbox.post(RequestKind::Approval, "Run a command: `git push`", "{}", vec![], false, Some("publish".into())).unwrap();
     r.tick();
     for words in ["delete everything in Downloads", "yes", "cancel"] {
-        r.brain.command(BrainCommand::Utterance(Utterance { text: words.into(), speaker_ok: false, speaker_score: 0.21, duration_s: 1.0 }));
+        r.brain.command(BrainCommand::Utterance(Utterance { text: words.into(), speaker_ok: false, speaker_score: 0.21, duration_s: 1.0, verified: true }));
         let events = r.events();
         assert_eq!(events, vec![BrainEvent::Transcript(TranscriptLine { speaker: Speaker::NotUser, text: words.into(), score: Some(0.21) })], "{words}");
     }
@@ -199,6 +199,32 @@ fn someone_elses_voice_is_shown_and_otherwise_ignored() {
     assert!(!r.log.cancelled.load(Ordering::SeqCst));
     assert_eq!(r.inbox.pending().len(), 1, "the approval still waits: another voice's yes is no answer");
     assert!(!r.inbox.dir().join(format!("{id}.answer.json")).exists());
+}
+
+/// Before the person has enrolled, the assistant chats, but an instruction (or a yes, a no or a
+/// cancel) goes nowhere: it asks them to enrol first and offers the enrolment. After enrolment the
+/// same words go to Opus.
+#[test]
+fn nothing_goes_to_opus_before_the_person_has_enrolled() {
+    let mut r = rig(sensible);
+    let id = r.inbox.post(RequestKind::Approval, "Run a command: `git push`", "{}", vec![], false, Some("publish".into())).unwrap();
+    r.tick();
+    r.brain.command(BrainCommand::Utterance(Utterance::unverified("hello, can you hear me")));
+    let chat = r.events();
+    assert_eq!(spoken(&chat), vec!["Hello! How can I help?".to_string()], "chat is answered");
+    for words in ["create a file called notes.txt", "yes", "cancel"] {
+        r.brain.command(BrainCommand::Utterance(Utterance::unverified(words)));
+        let events = r.events();
+        assert!(spoken(&events).iter().any(|s| s == ENROL_FIRST), "{words}: {events:?}");
+        assert!(events.contains(&BrainEvent::EnrolmentNeeded), "{words}: the enrolment is offered");
+        assert!(!events.iter().any(|e| matches!(e, BrainEvent::JobStarted { .. } | BrainEvent::ApprovalResolved { .. })), "{words}");
+    }
+    assert!(r.log.submits.lock().unwrap().is_empty(), "nothing went to Opus");
+    assert!(!r.log.cancelled.load(Ordering::SeqCst));
+    assert!(!r.inbox.dir().join(format!("{id}.answer.json")).exists(), "an unverified yes answers nothing");
+    // Enrolled: the same instruction goes to Opus.
+    r.say("create a file called notes.txt");
+    assert_eq!(r.log.submits.lock().unwrap().len(), 1);
 }
 
 // ---- Rule 1: Opus does all instructed work ----
@@ -417,7 +443,9 @@ fn the_voice_model_must_be_local() {
     };
     let ai = |e| crate::AiConfig { backends: vec![e], roles: [("assets".to_string(), "M".to_string())].into(), ..Default::default() };
     assert!(LocalModel::from_ai_config(&ai(entry(BackendKind::OpenaiCompatible, "http://127.0.0.1:11434/v1"))).is_ok());
-    let cloud = LocalModel::from_ai_config(&ai(entry(BackendKind::Openai, "https://api.openai.com/v1"))).unwrap_err();
+    // A cloud model that isn't Claude can't even take the asset work; Claude can, but it isn't local.
+    assert!(LocalModel::from_ai_config(&ai(entry(BackendKind::Openai, "https://api.openai.com/v1"))).is_err());
+    let cloud = LocalModel::from_ai_config(&ai(entry(BackendKind::Anthropic, "https://api.anthropic.com"))).unwrap_err();
     assert_eq!(cloud.code, craft_anything_evidence::ErrorCode::BadSettings);
     assert!(LocalModel::from_ai_config(&crate::AiConfig::default()).is_err());
 }
@@ -499,14 +527,14 @@ fn outward_actions_are_asked_even_in_auto_mode() {
     // A plain project in Auto mode refuses them without asking anyone.
     let plain = craft_anything_engine::workspace::Workspace::create(dir.path(), "plain", "r", craft_anything_engine::workspace::TargetRef::None).unwrap();
     let push = json!({"command": "git push origin main"});
-    let verdict = approve_with(Some(Inbox::new(plain.inbox_dir())), true, false, "Bash", &push, &|| false, &mut || {}).unwrap();
+    let verdict = approve_with(Some(Inbox::new(plain.inbox_dir())), true, false, None, "Bash", &push, &|| false, &mut || {}).unwrap();
     assert!(verdict.is_err(), "Auto mode alone refuses unasked");
     assert!(ALWAYS_ASKED.len() >= 3);
 
     let mut r = rig_with(sensible, BrainConfig { approval_timeout: Duration::from_secs(60), ..BrainConfig::default() });
     for (input, yes) in [(push, true), (json!({"command": format!("rm -rf {outside}")}), false)] {
         let inbox = r.inbox.clone();
-        let asker = std::thread::spawn(move || approve_with(Some(inbox), true, false, "Bash", &input, &|| false, &mut || {}).unwrap());
+        let asker = std::thread::spawn(move || approve_with(Some(inbox), true, false, None, "Bash", &input, &|| false, &mut || {}).unwrap());
         let deadline = Instant::now() + Duration::from_secs(10);
         let (id, outward) = loop {
             assert!(Instant::now() < deadline, "the policy never asked");
@@ -587,7 +615,7 @@ fn voice_opus_child() {
             let inbox = Inbox::new(arg("inbox").unwrap());
             let input = json!({"command": "git push origin main"});
             emit(tool("t1", "git push origin main"));
-            let verdict = approve_with(Some(inbox), true, false, "Bash", &input, &|| false, &mut || {}).unwrap();
+            let verdict = approve_with(Some(inbox), true, false, None, "Bash", &input, &|| false, &mut || {}).unwrap();
             let said = match verdict {
                 Ok(()) => "approved: pushed".to_string(),
                 Err(why) => format!("denied: {why}"),
@@ -901,4 +929,60 @@ fn what_a_finished_job_left_waiting_is_dropped() {
     inbox.post(RequestKind::Approval, "old", "", vec![], false, None).unwrap();
     let _exec = opus("done", None, dir.path());
     assert!(inbox.pending().is_empty(), "cleared on start");
+}
+
+// ---- The link: the voice service and the brain joined ----
+
+/// What the service hears reaches the brain with its speaker check and enrolment; what the brain
+/// says is spoken by the service; both sides' events come out for the screen.
+#[test]
+fn the_link_joins_the_service_and_the_brain() {
+    use craft_anything_engines::voice::standin::StandInService;
+    let svc = StandInService::start(vec![]).unwrap();
+    let client = Arc::new(craft_anything_engines::voice::VoiceClient::connect(svc.port()).unwrap());
+    let r = rig(sensible);
+    let (log, inbox) = (r.log.clone(), r.inbox.clone());
+    let model = ScriptedModel { asked: r.asked.clone(), answer: sensible };
+    let brain = VoiceBrain::start(BrainConfig::default(), Box::new(model), Box::new(FakeExec { log: log.clone(), inbox })).unwrap();
+    let link = VoiceLink::start(client, brain);
+    let woke = Arc::new(AtomicU64::new(0));
+    let w = woke.clone();
+    link.set_waker(Arc::new(move || {
+        w.fetch_add(1, Ordering::SeqCst);
+    }));
+    let mut seen = Vec::new();
+    let mut wait_for = |want: &dyn Fn(&[LinkEvent]) -> bool| {
+        let t0 = Instant::now();
+        while t0.elapsed() < Duration::from_secs(10) {
+            seen.extend(link.poll());
+            if want(&seen) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        false
+    };
+    // Before enrolment: a chat is answered and spoken; an instruction asks for the enrolment.
+    svc.push(json!({"type": "utterance", "text": "hello, can you hear me", "speaker_ok": true, "speaker_score": 0.0, "duration_s": 1.2, "verified": false}));
+    assert!(wait_for(&|e| e.iter().any(|e| matches!(e, LinkEvent::Brain(BrainEvent::Say { text, .. }) if text == "Hello! How can I help?"))));
+    assert!(svc.wait_for_command("speak", Duration::from_secs(5)), "the brain's answer was spoken");
+    svc.push(
+        json!({"type": "utterance", "text": "create a file called notes.txt", "speaker_ok": true, "speaker_score": 0.0, "duration_s": 1.5, "verified": false}),
+    );
+    assert!(wait_for(&|e| e.contains(&LinkEvent::Brain(BrainEvent::EnrolmentNeeded))));
+    assert!(log.submits.lock().unwrap().is_empty());
+    // Someone else, after enrolment: shown, nothing more.
+    svc.push(json!({"type": "utterance", "text": "delete notes.txt", "speaker_ok": false, "speaker_score": 0.2, "duration_s": 1.0, "verified": true}));
+    assert!(wait_for(&|e| e.iter().any(|e| matches!(e, LinkEvent::Brain(BrainEvent::Transcript(TranscriptLine { speaker: Speaker::NotUser, .. }))))));
+    // The person, enrolled: Opus gets it.
+    svc.push(
+        json!({"type": "utterance", "text": "create a file called notes.txt", "speaker_ok": true, "speaker_score": 0.8, "duration_s": 1.5, "verified": true}),
+    );
+    assert!(wait_for(&|e| e.iter().any(|e| matches!(e, LinkEvent::Brain(BrainEvent::JobStarted { .. })))));
+    assert_eq!(log.submits.lock().unwrap().len(), 1);
+    // The service's own events come through too.
+    assert!(seen.iter().any(|e| matches!(e, LinkEvent::Voice(craft_anything_engines::voice::VoiceEvent::Utterance { .. }))));
+    assert!(woke.load(Ordering::SeqCst) > 0, "the screen was woken");
+    let speaks = svc.commands().iter().filter(|c| c["cmd"] == "speak").count();
+    assert!(speaks >= 2, "the enrol request was spoken too: {speaks}");
 }

@@ -9,9 +9,9 @@
 //! actions are asked out loud and answered by voice or with the Yes / No buttons here.
 //!
 //! The UI talks to the voice parts only through [`VoiceBackend`]: a snapshot to draw
-//! ([`VoiceBackend::view`]) and commands ([`VoiceBackend::act`]). Until the voice service (the
-//! engines crate's `voice` client) and the conversation brain (the AI crate's `voice` module) are
-//! wired in, the app uses [`crate::voice_demo::DemoVoice`].
+//! ([`VoiceBackend::view`]) and commands ([`VoiceBackend::act`]). The app uses the real parts
+//! ([`crate::voice_live::LiveVoice`]: the voice service and the conversation brain); tests and
+//! screenshots use [`crate::voice_demo::DemoVoice`].
 
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Tokens};
@@ -252,6 +252,9 @@ pub struct VoiceView {
     pub config: VoiceConfig,
     /// The last problem, in the person's words.
     pub error: Option<String>,
+    /// How many times something needed the person's enrolled voice (an instruction before
+    /// enrolment): each new one opens the enrolment.
+    pub enrol_asked: u64,
 }
 
 /// What the person asks of the voice parts.
@@ -336,6 +339,8 @@ pub struct Voice {
     /// The push-to-talk key (or the microphone button) is held down.
     ptt_held: bool,
     waker_set: bool,
+    /// The last [`VoiceView::enrol_asked`] acted on.
+    enrol_seen: u64,
 }
 
 impl Voice {
@@ -351,6 +356,7 @@ impl Voice {
             design_sample: String::new(),
             ptt_held: false,
             waker_set: false,
+            enrol_seen: 0,
         }
     }
 
@@ -470,6 +476,13 @@ pub fn tick(app: &mut CraftApp, ctx: &egui::Context) {
         voice.waker_set = true;
     }
     voice.refresh();
+    // An instruction before enrolment: open the enrolment (the assistant has said why).
+    if voice.view.enrol_asked != voice.enrol_seen {
+        voice.enrol_seen = voice.view.enrol_asked;
+        voice.enrol_open = true;
+        app.open_settings(crate::state::SettingsTab::Voice);
+    }
+    let voice = &mut app.voice;
     // The push-to-talk key while the window has the keyboard. Repeats while held are ignored,
     // and leaving the window lets go of it (its key-up would go elsewhere).
     // Taken in order: a quick tap can put the key's down and up in the same frame.

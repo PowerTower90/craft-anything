@@ -18,6 +18,12 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[derive(Debug, Clone)]
 pub struct InboxDir(pub PathBuf);
 
+/// The folder the agent whose approvals this tool server answers works in (its shell's starting
+/// folder), so the approval policy reads a relative path where the agent's command will. Put in
+/// `Session::ext` by the tool server (`mcp --agent-cwd`).
+#[derive(Debug, Clone)]
+pub struct AgentCwd(pub PathBuf);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequestKind {

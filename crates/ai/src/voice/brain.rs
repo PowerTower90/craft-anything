@@ -8,7 +8,7 @@ use super::approvals::{self, PromptKind};
 use super::executor::{ExecEvent, Executor, JobControl, JobRequest};
 use super::intent::{self, Intent};
 use super::local::{ChatMessage, ChatRequest, Converser, Purpose};
-use super::{BrainCommand, BrainEvent, JobStatus, Resolution, RunningJob, Speaker, TranscriptLine, Utterance};
+use super::{BrainCommand, BrainEvent, ENROL_FIRST, JobStatus, Resolution, RunningJob, Speaker, TranscriptLine, Utterance};
 use craft_anything_engine::inbox::{Answer, Inbox, RequestKind};
 use craft_anything_platform::sync::Mutex;
 use std::collections::{HashSet, VecDeque};
@@ -222,6 +222,13 @@ impl Brain {
             None => self.classify(&text),
         };
         self.remember(format!("User: {text}"));
+        if !u.verified && !matches!(c.kind, Intent::Chat | Intent::Question | Intent::Repeat) {
+            // Nobody's voice can be told from another's yet: talk, but take no instruction and no
+            // answer to anything waiting.
+            self.say(ENROL_FIRST);
+            self.emit(BrainEvent::EnrolmentNeeded);
+            return;
+        }
         self.act(&text, c);
     }
 

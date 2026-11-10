@@ -1864,3 +1864,11 @@ Your voice	เสียงของคุณ
 Your voice is enrolled: only you can give commands.	ลงทะเบียนเสียงของคุณแล้ว: มีเพียงคุณที่สั่งงานได้
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	ยังไม่ได้ลงทะเบียนเสียงของคุณ เสียงของใครก็อาจสั่งงานได้ ลงทะเบียนได้ในการตั้งค่า → เสียง
 {done} of {needed} seconds	{done} จาก {needed} วินาที
+Claude Code with Opus 5.5 does what you ask	Claude Code กับ Opus 5.5 ทำสิ่งที่คุณขอ
+Downloaded the first time voice starts	ดาวน์โหลดเมื่อเริ่มเสียงครั้งแรก
+Not enrolled yet: nothing you say goes to Opus until you are	ยังไม่ได้ลงทะเบียน: จนกว่าจะลงทะเบียน สิ่งที่คุณพูดจะไม่ถูกส่งไปที่ Opus
+Not used in this listen mode	ไม่ใช้ในโหมดการฟังนี้
+Running on this computer	กำลังทำงานบนคอมพิวเตอร์เครื่องนี้
+The voice service stopped as soon as it started.	บริการเสียงหยุดทันทีหลังเริ่ม
+Voice isn't running. Start it with the microphone in the title bar.	เสียงปิดอยู่ เริ่มได้ด้วยไมโครโฟนในแถบชื่อเรื่อง
+Your voice is enrolled	ลงทะเบียนเสียงของคุณแล้ว

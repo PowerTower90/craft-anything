@@ -698,6 +698,7 @@ impl Worker {
     /// tool uses: allowed, refused, or asked of the person through this project's inbox.
     fn approver(&self, ws: &Workspace) -> crate::cli_agents::acp::Approver {
         let inbox = ws.inbox_dir();
+        let root = ws.root.clone();
         let (auto_mode, clean_room) = {
             let s = self.engine.session();
             (s.settings.auto_mode, s.clean_room())
@@ -708,6 +709,7 @@ impl Worker {
                 Some(Inbox::new(inbox.clone())),
                 auto_mode,
                 clean_room,
+                Some(&root),
                 tool,
                 input,
                 &|| stop.is_cancelled(),

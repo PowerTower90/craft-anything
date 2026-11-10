@@ -52,7 +52,7 @@ fn events_are_read_leniently() {
     assert_eq!(p(r#"{"type":"partial","text":"open the tra","t":12}"#), Some(VoiceEvent::Partial { text: "open the tra".into() }));
     assert_eq!(
         p(r#"{"type":"utterance","text":"open the trailer folder","speaker_ok":true,"speaker_score":0.71,"duration_s":2.4,"lang":"en","new_field":[1,2]}"#),
-        Some(VoiceEvent::Utterance { text: "open the trailer folder".into(), speaker_ok: true, speaker_score: 0.71, duration_s: 2.4 })
+        Some(VoiceEvent::Utterance { text: "open the trailer folder".into(), speaker_ok: true, speaker_score: 0.71, duration_s: 2.4, verified: true })
     );
     assert_eq!(p(r#"{"type":"barge_in","at":3.2}"#), Some(VoiceEvent::BargeIn));
     assert_eq!(p(r#"{"type":"spoken","id":"s1","interrupted":true}"#), Some(VoiceEvent::Spoken { id: "s1".into(), interrupted: true }));
@@ -73,7 +73,7 @@ fn events_are_read_leniently() {
     // Missing fields get their empty values; wrong types too.
     assert_eq!(
         p(r#"{"type":"utterance","text":7}"#),
-        Some(VoiceEvent::Utterance { text: String::new(), speaker_ok: false, speaker_score: 0.0, duration_s: 0.0 })
+        Some(VoiceEvent::Utterance { text: String::new(), speaker_ok: false, speaker_score: 0.0, duration_s: 0.0, verified: true })
     );
     // Not events: skipped, never a crash.
     for bad in ["", "null", "[]", "{}", r#"{"type":"something_new","x":1}"#, r#"{"type":5}"#, "{not json", "\u{0}\u{1}"] {
@@ -147,7 +147,10 @@ fn the_client_hears_scripted_events_and_sends_commands() {
     // The first state may be replayed or still arriving; then the script, in order, the unknown
     // event skipped.
     assert_eq!(next_non_state(&rx), VoiceEvent::Partial { text: "open the tra".into() });
-    assert_eq!(next_non_state(&rx), VoiceEvent::Utterance { text: "open the trailer folder".into(), speaker_ok: true, speaker_score: 0.71, duration_s: 2.4 });
+    assert_eq!(
+        next_non_state(&rx),
+        VoiceEvent::Utterance { text: "open the trailer folder".into(), speaker_ok: true, speaker_score: 0.71, duration_s: 2.4, verified: true }
+    );
     assert_eq!(next_non_state(&rx), VoiceEvent::BargeIn);
     assert_eq!(next_non_state(&rx), VoiceEvent::Spoken { id: "s0".into(), interrupted: true });
     assert_eq!(next_non_state(&rx), VoiceEvent::Error { message: "no microphone".into(), fatal: false });
@@ -456,6 +459,22 @@ fn the_start_command_is_the_contracts() {
     assert_eq!(args, ["-I", &script, "--host", "127.0.0.1", "--port", "8191", "--models-dir", &models, "--device", "cuda:0", "--parent-pid", &me]);
     assert!(setup.script_path().is_file() && setup.models_dir.is_dir());
     assert!(cmd.env.iter().any(|(k, v)| k == "PYTHONUNBUFFERED" && v == "1"), "READY must not sit in a buffer");
+    assert!(!args.iter().any(|a| a == "--allow-inject"), "never from the settings");
+    let test = VoiceSetup { allow_inject: true, ..setup.clone() };
+    let args: Vec<String> = test.command().unwrap().args.iter().map(|a| a.to_string_lossy().into_owned()).collect();
+    assert_eq!(args.last().map(String::as_str), Some("--allow-inject"));
+}
+
+/// Before enrolment the service says `verified: false`; test audio goes in as `inject_wav`.
+#[test]
+fn verification_and_test_injection_are_read_and_written() {
+    let u = VoiceEvent::parse(r#"{"type":"utterance","text":"hi","speaker_ok":true,"speaker_score":0.0,"duration_s":1.0,"verified":false}"#);
+    assert!(matches!(u, Some(VoiceEvent::Utterance { verified: false, speaker_ok: true, .. })), "{u:?}");
+    assert_eq!(VoiceEvent::parse(r#"{"type":"injected","path":"a.wav","seconds":1.5}"#), Some(VoiceEvent::Injected { seconds: 1.5 }));
+    let j: Value = serde_json::from_str(&VoiceCommand::InjectWav { path: PathBuf::from("a.wav"), ptt: None }.to_json().unwrap()).unwrap();
+    assert_eq!(j, json!({"cmd": "inject_wav", "path": "a.wav"}));
+    let j: Value = serde_json::from_str(&VoiceCommand::InjectWav { path: PathBuf::from("a.wav"), ptt: Some(false) }.to_json().unwrap()).unwrap();
+    assert_eq!(j["ptt"], false);
 }
 
 /// The shipped service script for real, when a Python is given (`CRAFT_TEST_VOICE_PYTHON`); the

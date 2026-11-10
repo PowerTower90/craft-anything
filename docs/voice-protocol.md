@@ -183,6 +183,17 @@ See the numbers in `target/voice-test-report.json` after running the real-model 
 Whisper large-v3-turbo fp16 ~1.6 GB, Qwen3-TTS Base bf16 + caches ~4.5 GB; peak ~6 GB while
 idle-resident (+4 GB transiently during `design_voice`). Speaker model and VAD run on the CPU.
 
+## Test audio injection (`--allow-inject`)
+
+For end-to-end tests only. Started with `--allow-inject`, the service also takes
+`{"cmd":"inject_wav","path":"C:\…\hello.wav","ptt":true}`: the WAV (any rate, mixed to mono) is fed in
+real time into the same pipeline as the microphone, which is muted meanwhile. `ptt` holds push-to-talk
+down around it; left out, it does so in push-to-talk mode unless enrolling (enrolment and the other modes
+rely on the voice activity detector, so ~1 s of silence follows the clip). When the clip has been fed it
+sends `{"type":"injected","path":…,"seconds":…}` (with the command's `id`). Without the flag the
+command is refused with an `error` and nothing is fed. Craft Anything never passes the flag from its
+settings; only test code sets `VoiceSetup::allow_inject`.
+
 ## Tests
 
 From the repository root, with the voice Python:

@@ -585,6 +585,10 @@ fn mcp_for(spec: &CliSpec, remote: bool) -> McpCommand {
         None => McpCommand::local_or_remote(remote, spec.project.clone(), None),
     };
     mcp.args.push(if spec.deep { "--deep" } else { "--clean-room" }.into());
+    // Where the agent's commands run, for the approval policy's relative paths.
+    if let (Some(dir), true, false) = (&spec.project, spec.builder.is_some(), remote) {
+        mcp.args.extend(["--agent-cwd".into(), dir.display().to_string()]);
+    }
     if spec.deep && spec.builder.is_some() {
         mcp.args.push("--all-tools".into());
     }
@@ -2412,6 +2416,13 @@ mod tests {
         // A chat's server runs in the chat's mode too, whatever was saved.
         assert!(args(true, false).contains(&"--deep".to_string()) && !args(true, false).contains(&"--all-tools".to_string()));
         assert!(args(false, false).contains(&"--clean-room".to_string()));
+        // A builder's server is told where the agent works, for the approval policy's relative paths.
+        let mut built = spec(false, true);
+        built.project = Some(PathBuf::from("/tasks/voice"));
+        let a = mcp_for(&built, false).args;
+        assert!(a.windows(2).any(|w| w[0] == "--agent-cwd" && w[1] == PathBuf::from("/tasks/voice").display().to_string()), "{a:?}");
+        assert!(!mcp_for(&built, true).args.contains(&"--agent-cwd".to_string()), "not for a remote agent");
+        assert!(!args(false, false).contains(&"--agent-cwd".to_string()), "a chat answers no approvals");
     }
 
     #[test]

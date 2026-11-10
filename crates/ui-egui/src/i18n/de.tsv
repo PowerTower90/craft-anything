@@ -1864,3 +1864,11 @@ Your voice	Deine Stimme
 Your voice is enrolled: only you can give commands.	Deine Stimme ist eingelernt: Nur du kannst Befehle geben.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Deine Stimme ist noch nicht eingelernt, daher könnte jede Stimme Befehle geben. Lerne sie unter Einstellungen → Sprachsteuerung ein.
 {done} of {needed} seconds	{done} von {needed} Sekunden
+Claude Code with Opus 5.5 does what you ask	Claude Code mit Opus 5.5 erledigt, worum du bittest
+Downloaded the first time voice starts	Wird beim ersten Start der Sprachsteuerung geladen
+Not enrolled yet: nothing you say goes to Opus until you are	Noch nicht eingelernt: Bis dahin geht nichts, was du sagst, an Opus
+Not used in this listen mode	In diesem Hörmodus nicht genutzt
+Running on this computer	Läuft auf diesem Computer
+The voice service stopped as soon as it started.	Der Sprachdienst hat sich gleich nach dem Start beendet.
+Voice isn't running. Start it with the microphone in the title bar.	Sprache ist aus. Starte sie mit dem Mikrofon in der Titelleiste.
+Your voice is enrolled	Deine Stimme ist eingelernt

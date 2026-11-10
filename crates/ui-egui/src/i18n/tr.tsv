@@ -1864,3 +1864,11 @@ Your voice	Sesiniz
 Your voice is enrolled: only you can give commands.	Sesiniz kaydedildi: yalnızca siz komut verebilirsiniz.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Sesiniz henüz kaydedilmedi, bu yüzden herhangi bir ses komut verebilir. Ayarlar → Ses bölümünden kaydedin.
 {done} of {needed} seconds	{done} / {needed} saniye
+Claude Code with Opus 5.5 does what you ask	Opus 5.5 ile Claude Code istediğini yapar
+Downloaded the first time voice starts	Ses ilk başladığında indirilir
+Not enrolled yet: nothing you say goes to Opus until you are	Henüz kaydedilmedi: o zamana kadar söylediğin hiçbir şey Opus'a gitmez
+Not used in this listen mode	Bu dinleme modunda kullanılmaz
+Running on this computer	Bu bilgisayarda çalışıyor
+The voice service stopped as soon as it started.	Ses hizmeti başlar başlamaz durdu.
+Voice isn't running. Start it with the microphone in the title bar.	Ses kapalı. Başlık çubuğundaki mikrofonla başlat.
+Your voice is enrolled	Sesin kaydedildi

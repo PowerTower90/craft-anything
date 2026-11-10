@@ -1864,3 +1864,11 @@ Your voice	Váš hlas
 Your voice is enrolled: only you can give commands.	Váš hlas je nahraný: příkazy můžete dávat jen vy.
 Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Váš hlas ještě není nahraný, takže příkazy by mohl dávat jakýkoli hlas. Nahrajte ho v Nastavení → Hlas.
 {done} of {needed} seconds	{done} z {needed} sekund
+Claude Code with Opus 5.5 does what you ask	Claude Code s Opus 5.5 dělá, o co požádáte
+Downloaded the first time voice starts	Stáhne se při prvním spuštění hlasu
+Not enrolled yet: nothing you say goes to Opus until you are	Zatím nezaregistrováno: nic, co řeknete, nejde do Opusu, dokud se nezaregistrujete
+Not used in this listen mode	V tomto režimu poslechu se nepoužívá
+Running on this computer	Běží na tomto počítači
+The voice service stopped as soon as it started.	Hlasová služba se hned po spuštění zastavila.
+Voice isn't running. Start it with the microphone in the title bar.	Hlas neběží. Spusťte ho mikrofonem v záhlaví.
+Your voice is enrolled	Váš hlas je zaregistrován
