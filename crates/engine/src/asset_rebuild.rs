@@ -46,6 +46,14 @@ pub const METHODS: &[Method] = &[
     Method { id: "engine_particles", title: "Engine particles", detail: "The engine's own particle systems.", not_ready: None },
     Method { id: "blender", title: "Blender", detail: "Modelled in Blender from simple shapes.", not_ready: None },
     Method {
+        id: LOCAL_AI_BETTER_3D,
+        title: "Better 3D (TRELLIS.2)",
+        detail: "Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.",
+
+        // Ready or not depends on this computer: see `Ready`.
+        not_ready: None,
+    },
+    Method {
         id: LOCAL_AI,
         title: "Local AI on your graphics cards (free)",
         detail: "Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.",
@@ -79,6 +87,15 @@ pub const WITH_MODEL: &str = "with_model";
 pub const LOCAL_AI: &str = "local_ai";
 /// Why local AI can't be used, when it can't.
 pub const LOCAL_AI_NOT_READY: &str = "Not running and can't be started: set it up in Settings → Local generation";
+/// Better 3D models with TRELLIS.2 on the picture server (local AI too, for models only).
+pub const LOCAL_AI_BETTER_3D: &str = "local_ai_better_3d";
+/// Why better 3D can't be used, when it can't.
+pub const BETTER_3D_NOT_READY: &str = "The picture server lacks the TRELLIS.2 nodes or models, or Blender is missing: see Settings → Local generation";
+
+/// Whether a method makes things with local AI (any of its routes).
+pub fn is_local_ai(id: &str) -> bool {
+    id == LOCAL_AI || id == LOCAL_AI_BETTER_3D
+}
 
 /// What this computer can make with local AI now (or once its servers are started).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -87,11 +104,16 @@ pub struct Ready {
     pub models: bool,
     /// Sounds and music (the audio server).
     pub sounds: bool,
+    /// Better 3D models (TRELLIS.2 on the picture server, and Blender).
+    pub better_models: bool,
 }
 
 impl Ready {
     /// Why `id` can't be used for `kind`, if it can't.
     pub fn why_not(self, id: &str, kind: Kind) -> Option<&'static str> {
+        if id == LOCAL_AI_BETTER_3D {
+            return (kind != Kind::Model || !self.better_models).then_some(BETTER_3D_NOT_READY);
+        }
         if id == LOCAL_AI {
             let ok = match kind {
                 Kind::Model => self.models,
@@ -107,7 +129,8 @@ impl Ready {
 /// The methods offered for one kind of asset in one category, the first being the default:
 /// [`base_options`], with local AI offered for pictures, models, sounds and music, first where it
 /// suits best (the HUD's pictures; the models of characters, enemies, weapons, items and machines;
-/// every sound and piece of music) when it's ready.
+/// every sound and piece of music) when it's ready. Models are offered better 3D (TRELLIS.2) too,
+/// ahead of local AI's quick shape, and it's their default where local AI would be when it's ready.
 pub fn options(category: Category, kind: Kind, ready: Ready) -> Vec<&'static str> {
     use Category as C;
     let mut v: Vec<&'static str> = base_options(category, kind).to_vec();
@@ -124,7 +147,13 @@ pub fn options(category: Category, kind: Kind, ready: Ready) -> Vec<&'static str
     } else {
         matches!(category, C::Characters | C::Enemies | C::Weapons | C::Items | C::Machines) && ready.models
     };
-    v.insert(if first { 0 } else { 1.min(v.len()) }, LOCAL_AI);
+    let at = if first { 0 } else { 1.min(v.len()) };
+    v.insert(at, LOCAL_AI);
+    if model && ready.better_models {
+        v.insert(at, LOCAL_AI_BETTER_3D);
+    } else if model {
+        v.insert(at + 1, LOCAL_AI_BETTER_3D);
+    }
     v
 }
 
@@ -288,7 +317,7 @@ impl Plan {
 
     /// Whether any row is made with local AI (the style matters then).
     pub fn uses_local_ai(&self) -> bool {
-        self.rows.iter().any(|r| r.method == LOCAL_AI)
+        self.rows.iter().any(|r| is_local_ai(r.method))
     }
 
     /// The plan as the tools return it.
@@ -470,17 +499,25 @@ pub fn brief(category: Option<Category>, count: usize, methods: &BTreeMap<Kind, 
          Use free methods only: never use paid services or spend money. Keep the game working while you replace them.",
         how.join("; ")
     );
-    if methods.values().any(|m| *m == LOCAL_AI) {
+    if methods.values().any(|m| is_local_ai(m)) {
         let style = style.unwrap_or("match the original's mood");
         text.push_str(&format!(
             " For the items made with local AI: look at each original (its thumbnail or path) only to understand WHAT it shows and what it's for in the game, \
              then write a short plain description of the subject in your own words (no copying of logos, text or exact designs). \
              Where the list has a description for an item (written beforehand by asset_describe), use it as that item's description as it is; \
              write your own only for the rest. Call asset_generate_batch once with all the descriptions (project, job \"{job}\", style \"{style}\"; kind image for pictures, \
-             kind model with height_m for 3D models; each item's id from the list as its id). Never feed the original file to a generator as an input picture. \
+             kind model with height_m and role (hero, enemy or prop) for 3D models; each item's id from the list as its id). Never feed the original file to a generator as an input picture. \
              Then put the generated files into the game (import them, replace the references, keep sizes and aspect ratios; HUD icons keep their \
              transparent background) and rebuild."
         ));
+        match methods.get(&Kind::Model) {
+            Some(&LOCAL_AI_BETTER_3D) => text.push_str(
+                " Models: model_method better (TRELLIS.2). Each comes with <id>.glb, <id>.fbx (levels of detail <id>_LOD1 and _LOD2), \
+                 <id>_BaseColor.png, <id>_Normal.png (DirectX) and <id>_ORM.png (R ambient occlusion, G roughness, B metallic): use those maps in the engine's material.",
+            ),
+            Some(&LOCAL_AI) => text.push_str(" Models: model_method quick (the older quick shape, coloured from its front picture)."),
+            _ => {}
+        }
         let audio = methods.iter().any(|(k, m)| *m == LOCAL_AI && matches!(k, Kind::Sound | Kind::Music));
         if audio {
             text.push_str(
@@ -512,20 +549,20 @@ mod tests {
 
     #[test]
     fn local_ai_is_the_default_where_it_suits_when_ready_and_never_starts_when_not() {
-        let ready = Ready { pictures: true, models: true, sounds: false };
+        let ready = Ready { pictures: true, models: true, sounds: false, better_models: false };
         assert_eq!(options(Category::Hud, Kind::Texture, ready), ["local_ai", "engine_ui", "keep"]);
         assert_eq!(options(Category::Hud, Kind::Texture, Ready::default()), ["engine_ui", "local_ai", "keep"]);
         assert_eq!(options(Category::Enemies, Kind::Model, ready)[0], "local_ai");
         assert_eq!(options(Category::Environment, Kind::Texture, ready)[0], "engine_materials", "offered, not the default");
         assert_eq!(options(Category::Hud, Kind::Sound, ready), ["keep", "local_ai"], "sounds wait for the audio server");
-        let all = Ready { pictures: true, models: true, sounds: true };
+        let all = Ready { pictures: true, models: true, sounds: true, better_models: false };
         assert_eq!(options(Category::Characters, Kind::Sound, all), ["local_ai", "keep"], "local AI makes sounds when it can");
         assert_eq!(options(Category::Music, Kind::Music, all), ["local_ai", "keep"]);
         let hud = [item("a", Kind::Texture, Category::Hud), item("m", Kind::Model, Category::Enemies)];
         let refs: Vec<&Item> = hud.iter().collect();
         let mut chosen = BTreeMap::new();
         chosen.insert("model".to_string(), "local_ai".to_string());
-        let plan = Plan::new(&refs, None, &chosen, Ready { pictures: true, models: false, sounds: false }).unwrap();
+        let plan = Plan::new(&refs, None, &chosen, Ready { pictures: true, models: false, sounds: false, better_models: false }).unwrap();
         assert_eq!(plan.rows[1].not_ready, Some(LOCAL_AI_NOT_READY), "models need the 3D server and Blender");
         assert!(plan.uses_local_ai());
         assert_eq!(plan.to_json()["total"], "Free");
@@ -546,6 +583,30 @@ mod tests {
         ] {
             assert!(text.contains(words), "{words}: {text}");
         }
+    }
+
+    #[test]
+    fn models_default_to_better_3d_when_it_is_ready_and_keep_the_quick_shape_offered() {
+        let better = Ready { pictures: true, models: true, sounds: false, better_models: true };
+        assert_eq!(options(Category::Enemies, Kind::Model, better), [LOCAL_AI_BETTER_3D, LOCAL_AI, "blender", "keep"]);
+        assert_eq!(options(Category::Environment, Kind::Model, better)[..3], ["blender", LOCAL_AI_BETTER_3D, LOCAL_AI], "offered, not the default");
+        let quick = Ready { better_models: false, ..better };
+        assert_eq!(options(Category::Enemies, Kind::Model, quick), [LOCAL_AI, LOCAL_AI_BETTER_3D, "blender", "keep"]);
+        assert!(!options(Category::Hud, Kind::Texture, better).contains(&LOCAL_AI_BETTER_3D), "pictures don't get it");
+        let enemies = [item("e", Kind::Model, Category::Enemies)];
+        let refs: Vec<&Item> = enemies.iter().collect();
+        let plan = Plan::new(&refs, None, &BTreeMap::new(), better).unwrap();
+        assert_eq!(plan.rows[0].method, LOCAL_AI_BETTER_3D);
+        assert!(plan.rows[0].ready() && plan.uses_local_ai());
+        let plan = Plan::new(&refs, None, &BTreeMap::new(), quick).unwrap();
+        assert_eq!(plan.rows[0].method, LOCAL_AI, "the quick shape when better 3D isn't ready");
+        let mut chosen = BTreeMap::new();
+        chosen.insert("model".to_string(), LOCAL_AI_BETTER_3D.to_string());
+        let plan = Plan::new(&refs, None, &chosen, quick).unwrap();
+        assert_eq!(plan.rows[0].not_ready, Some(BETTER_3D_NOT_READY));
+        let methods = [(Kind::Model, LOCAL_AI_BETTER_3D)].into_iter().collect();
+        let text = brief(Some(Category::Enemies), 2, &methods, "rebuild/e.json", "e", None);
+        assert!(text.contains("model_method better") && text.contains("_ORM.png") && text.contains("asset_generate_batch"), "{text}");
     }
 
     #[test]

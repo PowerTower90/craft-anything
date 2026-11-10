@@ -2070,6 +2070,12 @@ mod tests {
         let o = BackendOptions { cli_model: Some("opus".into()), ..Default::default() };
         let b = build_args(adapter_for("claude-code").as_ref(), &o, "q", "PRE", &mcp(), None, Access::Analyse);
         assert_eq!(b[b.iter().position(|x| x == "--model").unwrap() + 1], "opus");
+        // The builder runs on the model set for the backend too.
+        let o = BackendOptions { cli_model: Some("claude-opus-5-5".into()), ..Default::default() };
+        for access in [Access::Build, Access::CleanRoomBuild] {
+            let b = build_args(adapter_for("claude-code").as_ref(), &o, "build it", "PRE", &mcp(), None, access);
+            assert_eq!(b[b.iter().position(|x| x == "--model").unwrap() + 1], "claude-opus-5-5", "{access:?}");
+        }
         let cfg: Value = serde_json::from_str(&a[pos("--mcp-config") + 1]).unwrap();
         assert_eq!(cfg["mcpServers"]["craft-anything"]["args"][0], "mcp");
         // variadic flags come last: nothing after them is read as one of their values

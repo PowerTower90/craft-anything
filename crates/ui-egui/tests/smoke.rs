@@ -978,16 +978,17 @@ fn asking_an_ai_that_is_turned_off_says_so_instead_of_looking_alone() {
     let mut h = harness(|| {
         let mut a = demo::app(demo::engine(Mode::Beginner, true));
         demo::deep(&mut a);
+        // The Claude API (on a closed local port): only Claude is offered for the chat.
         for (name, enabled) in [("On", true), ("Off", false)] {
             let config = BackendConfig {
                 name: name.into(),
-                kind: BackendKind::OpenaiCompatible,
+                kind: BackendKind::Anthropic,
                 model: "m".into(),
                 base_url: Some("http://127.0.0.1:9/v1".into()),
                 ssh_host: None,
                 enabled,
             };
-            a.hub.add_backend(config, None).unwrap();
+            a.hub.add_backend(config, Some("sk-test".into())).unwrap();
         }
         a.state.backend = Some("Off".into());
         a.state.screen = Screen::Ask;

@@ -1759,3 +1759,10 @@ In the game	თამაშში
 Back to the Workbench	სამუშაო მაგიდასთან დაბრუნება
 The original things	თავდაპირველი ნივთები
 The things with a new version: being made, made, or in the game	ახალი ვერსიის მქონე ნივთები: მზადდება, მზადაა ან თამაშშია
+Better 3D (TRELLIS.2)	უკეთესი 3D (TRELLIS.2)
+Quick shape (older)	სწრაფი ფორმა (ძველი)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	შექმნილია ამ კომპიუტერის ვიდეობარათზე TRELLIS.2-ით: UV-გაშლილი მოდელი საბაზისო ფერის, მეტალურობის, უხეშობის, ნორმალების და გარემოს დაჩრდილვის რუკებით, დეტალების დონეებითა და ძრავისთვის მზა ტექსტურებით.
+Asset work only	მხოლოდ ასეტებზე მუშაობა
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	ლოკალური მოდელი მხოლოდ ასეტებზე მუშაობს: აღწერს, ახარისხებს და ათვალიერებს მოდელებს. რასაც ითხოვ, Claude აკეთებს.
+Not used for your tasks	შენი დავალებებისთვის არ გამოიყენება
+Every task you give goes to Claude (Claude Code or the Anthropic API).	ყველა დავალება, რომელსაც აძლევ, Claude-ს გადაეცემა (Claude Code ან Anthropic API).

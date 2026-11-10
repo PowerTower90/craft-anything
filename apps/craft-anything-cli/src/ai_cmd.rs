@@ -82,9 +82,13 @@ pub enum AiCommand {
     Test { name: String },
     /// Choose the backend that builds (leave the name out to go back to automatic).
     Builder { name: Option<String> },
-    /// Choose the backend that takes a game's own files out after the study, in Deep mode (an API
-    /// backend such as Kimi K3 through OpenRouter; leave the name out to turn it off).
+    /// Choose the backend that takes a game's own files out after the study, in Deep mode (Claude:
+    /// Claude Code or the Anthropic API; leave the name out to turn it off).
     Extractor { name: Option<String> },
+    /// Choose the backend for a role: lead, worker, reviewer, builder or extractor take Claude
+    /// only (Claude Code or the Anthropic API); assets may be a local model. Leave the name out to
+    /// go back to the role's default.
+    Role { role: String, name: Option<String> },
     /// Choose the backend that does the asset work: describing, sorting, looking at models (leave
     /// the name out to go back to automatic: a model on this computer, else the builder).
     Assets { name: Option<String> },
@@ -117,7 +121,7 @@ pub fn chat(cli: &Cli, a: &ChatArgs) -> u8 {
             return fail(&e, cli.format());
         }
     }
-    let mut conv = match hub.start(a.backend.as_deref(), a.beginner) {
+    let mut conv = match hub.start_chat(a.backend.as_deref(), a.beginner) {
         Ok(c) => c,
         Err(e) => return fail(&e, cli.format()),
     };
@@ -400,6 +404,18 @@ pub fn ai(cli: &Cli, c: &AiCommand, f: Format) -> u8 {
             }
             Err(e) => fail(&e, f),
         },
+        AiCommand::Role { role, name } => {
+            let Some(r) = craft_anything_ai::config::role_from_key(role) else {
+                return fail(&ToolError::invalid(format!("{role:?} isn't a role: lead, worker, reviewer, builder, extractor or assets.")), f);
+            };
+            match hub.set_role(r, name.as_deref()) {
+                Ok(()) => {
+                    emit(&json!({"role": role, "backend": name}), f);
+                    0
+                }
+                Err(e) => fail(&e, f),
+            }
+        }
         AiCommand::Test { name } => match hub.test_backend(name) {
             Ok(r) => {
                 emit(&serde_json::to_value(r).unwrap_or(Value::Null), f);

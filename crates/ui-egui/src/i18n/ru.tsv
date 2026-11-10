@@ -1759,3 +1759,10 @@ In the game	В игре
 Back to the Workbench	Назад в рабочую область
 The original things	Исходные вещи
 The things with a new version: being made, made, or in the game	Вещи с новой версией: делается, сделана или в игре
+Better 3D (TRELLIS.2)	Улучшенное 3D (TRELLIS.2)
+Quick shape (older)	Быстрая форма (старый способ)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	Создаётся на видеокарте этого компьютера с TRELLIS.2: модель с UV-развёрткой и картами базового цвета, металличности, шероховатости, нормалей и фонового затенения, уровнями детализации и текстурами, готовыми для движка.
+Asset work only	Только работа с ассетами
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Локальная модель делает только работу с ассетами: описывает, сортирует и осматривает модели. То, что вы просите, делает Claude.
+Not used for your tasks	Не используется для ваших задач
+Every task you give goes to Claude (Claude Code or the Anthropic API).	Каждая ваша задача уходит Claude (Claude Code или Anthropic API).

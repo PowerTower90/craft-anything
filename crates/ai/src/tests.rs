@@ -262,7 +262,8 @@ fn disabled_backends_are_refused_on_either_side_of_compare() {
         assert!(error.message.contains("Off") && error.message.contains("turned off"), "{error:?}");
     }
     assert!(h.start(Some("On"), false).is_ok());
-    assert!(h.start(None, false).is_ok());
+    let no_claude = h.start(None, false).err().expect("the lead is Claude, never a local model");
+    assert!(no_claude.message.contains("No Claude is set up"), "{no_claude:?}");
     assert!(h.compare("On", "Other", false).is_ok());
     let unknown = h.start(Some("Missing"), false).err().unwrap();
     assert!(unknown.message.contains("No AI backend named"), "{unknown:?}");
@@ -368,8 +369,8 @@ fn a_failed_save_changes_nothing() {
 fn ai_settings_that_cant_be_read_are_never_saved_over() {
     let (h, d) = hub();
     add(&h, "Claude Code", BackendKind::AgentCli, "http://127.0.0.1:9", None);
-    add(&h, "Kimi K3.1 Pro (OpenRouter)", BackendKind::Openrouter, "http://127.0.0.1:9", None);
-    h.set_role(Role::Builder, Some("Kimi K3.1 Pro (OpenRouter)")).unwrap();
+    add(&h, "Claude", BackendKind::Anthropic, "http://127.0.0.1:9", None);
+    h.set_role(Role::Builder, Some("Claude")).unwrap();
     let file = d.path().join("config.toml");
     let mut bad = h.engine.session().settings.clone();
     let price: toml::Table = toml::from_str(
@@ -397,22 +398,67 @@ input_per_mtok = 1.0
 #[test]
 fn the_person_chooses_who_builds() {
     let (h, _d) = hub();
-    add(&h, "Claude Code", BackendKind::AgentCli, "http://127.0.0.1:9", None);
-    add(&h, "Kimi K3.1 Pro (OpenRouter)", BackendKind::Openrouter, "http://127.0.0.1:9", Some("sk-test"));
+    h.add_backend(
+        BackendConfig { name: "Claude Code".into(), kind: BackendKind::AgentCli, model: "claude-code".into(), base_url: None, ssh_host: None, enabled: true },
+        None,
+    )
+    .unwrap();
+    add(&h, "Claude", BackendKind::Anthropic, "http://127.0.0.1:9", Some("sk-test"));
     assert_eq!(h.chosen(Role::Builder), None, "automatic until chosen");
     assert!(h.set_role(Role::Builder, Some("Nobody")).is_err(), "only a configured backend");
-    h.set_role(Role::Builder, Some("Kimi K3.1 Pro (OpenRouter)")).unwrap();
-    assert_eq!(h.chosen(Role::Builder).as_deref(), Some("Kimi K3.1 Pro (OpenRouter)"));
+    h.set_role(Role::Builder, Some("Claude")).unwrap();
+    assert_eq!(h.chosen(Role::Builder).as_deref(), Some("Claude"));
     // The extractor is chosen the same way, and has no default.
     assert_eq!(h.chosen(Role::Extractor), None);
-    h.set_role(Role::Extractor, Some("Kimi K3.1 Pro (OpenRouter)")).unwrap();
-    assert_eq!(h.chosen(Role::Extractor).as_deref(), Some("Kimi K3.1 Pro (OpenRouter)"));
+    h.set_role(Role::Extractor, Some("Claude")).unwrap();
+    assert_eq!(h.chosen(Role::Extractor).as_deref(), Some("Claude"));
     // A removed backend can't stay the builder.
-    h.remove_backend("Kimi K3.1 Pro (OpenRouter)").unwrap();
+    h.remove_backend("Claude").unwrap();
     assert_eq!((h.chosen(Role::Builder), h.chosen(Role::Extractor)), (None, None));
     h.set_role(Role::Builder, Some("Claude Code")).unwrap();
     h.set_role(Role::Builder, None).unwrap();
     assert_eq!(h.chosen(Role::Builder), None, "back to automatic");
+}
+
+/// The person's rule: every job they give is Claude's; a local model only does the asset work.
+#[test]
+fn only_claude_takes_the_jobs_and_a_local_model_only_the_asset_work() {
+    let (h, d) = hub();
+    h.add_backend(
+        BackendConfig { name: "Claude Code".into(), kind: BackendKind::AgentCli, model: "claude-code".into(), base_url: None, ssh_host: None, enabled: true },
+        None,
+    )
+    .unwrap();
+    add(&h, "Local", BackendKind::OpenaiCompatible, "http://127.0.0.1:9/v1", None);
+    add(&h, "Kimi K3.1 Pro (OpenRouter)", BackendKind::Openrouter, "http://127.0.0.1:9", Some("sk-test"));
+    let file = d.path().join("config.toml");
+    let before = std::fs::read(&file).unwrap();
+    for role in [Role::Lead, Role::Worker, Role::Reviewer, Role::Builder, Role::Extractor] {
+        let e = h.set_role(role, Some("Local")).unwrap_err();
+        assert_eq!(e.code, ErrorCode::BadInput, "{role:?}");
+        assert!(e.message.contains("Local is a local model") && e.message.contains("only Claude"), "{}", e.message);
+        assert!(h.set_role(role, Some("Kimi K3.1 Pro (OpenRouter)")).unwrap_err().message.contains("not Claude"), "{role:?}");
+    }
+    assert_eq!(std::fs::read(&file).unwrap(), before, "a refused role saves nothing");
+    assert!(
+        h.set_role(Role::Assets, Some("Kimi K3.1 Pro (OpenRouter)")).unwrap_err().message.contains("not Claude"),
+        "no work for a cloud model that isn't Claude"
+    );
+    h.set_role(Role::Assets, Some("Local")).unwrap();
+    assert_eq!(h.assets_backend().as_deref(), Some("Local"));
+    h.set_role(Role::Builder, Some("Claude Code")).unwrap();
+    assert_eq!(h.chosen(Role::Builder).as_deref(), Some("Claude Code"));
+    assert_eq!(config::role_from_key("Builder"), Some(Role::Builder));
+    assert_eq!(config::role_from_key("boss"), None);
+    // The person's conversation never runs on the local model.
+    let e = h.start_chat(Some("Local"), false).err().expect("refused");
+    assert!(e.message.contains("only does the asset work") && e.remediation.unwrap_or_default().contains("Claude"), "{}", e.message);
+    // Nor on a cloud model that isn't Claude.
+    let e = h.start_chat(Some("Kimi K3.1 Pro (OpenRouter)"), false).err().expect("refused");
+    assert!(e.message.contains("isn't Claude"), "{}", e.message);
+    let all = h.backends();
+    let names: Vec<&str> = chat_backends(&all).map(|b| b.name.as_str()).collect();
+    assert_eq!(names, ["Claude Code"], "the chat picker offers Claude only");
 }
 
 /// #53: an agent app installed where it isn't looked for gets its program set (and cleared).

@@ -274,6 +274,38 @@ pub fn is_local_server(c: &BackendConfig) -> bool {
     c.kind == BackendKind::OpenaiCompatible && c.base_url.as_deref().is_none_or(crate::detect::on_this_network)
 }
 
+/// Claude: the Claude Code agent app or the Anthropic API.
+pub fn is_claude(c: &BackendConfig) -> bool {
+    match c.kind {
+        BackendKind::Anthropic => true,
+        BackendKind::AgentCli => matches!(c.model.as_str(), "claude-code" | "claude"),
+        _ => false,
+    }
+}
+
+/// Whether `c` may fill `role`: every job the person gives is Claude's (lead, worker, reviewer,
+/// builder, extractor); the asset work may also go to a local model, the work it was set up for.
+pub fn may_fill(role: Role, c: &BackendConfig) -> bool {
+    is_claude(c) || (role == Role::Assets && is_local_server(c))
+}
+
+/// Why `c` can't fill `role`, in plain words, when it can't.
+pub fn why_not_role(role: Role, c: &BackendConfig) -> Option<String> {
+    if may_fill(role, c) {
+        return None;
+    }
+    let what = if is_local_server(c) { "a local model" } else { "not Claude" };
+    let only = if role == Role::Assets { "Claude or a local model" } else { "only Claude (Claude Code or the Anthropic API)" };
+    Some(format!("{} is {what}: {only} can be the {}. Local models only do the asset work (the assets role).", c.name, role_key(role)))
+}
+
+/// The role a key names (`lead`, `builder`…).
+pub fn role_from_key(key: &str) -> Option<Role> {
+    [Role::Lead, Role::Worker, Role::Reviewer, Role::Builder, Role::Extractor, Role::Assets]
+        .into_iter()
+        .find(|r| role_key(*r) == key.trim().to_ascii_lowercase())
+}
+
 pub fn role_key(r: Role) -> &'static str {
     match r {
         Role::Lead => "lead",
@@ -335,30 +367,32 @@ impl AiConfig {
         before != self.backends.len()
     }
 
-    /// The backend for a role, with the plan's defaults: lead = first enabled backend; worker =
-    /// a local model if present, else lead; reviewer and extractor = only when set; builder = an
-    /// agent CLI if present, else lead; assets = a model server on this computer or its network
-    /// if present, else the builder.
+    /// The backend for a role, with the plan's defaults. Every job but the asset work is
+    /// Claude's ([`may_fill`]; a saved choice that isn't is passed over): lead = the Anthropic
+    /// API, else Claude Code; worker = lead; reviewer and extractor = only when set; builder =
+    /// Claude Code, else lead; assets = a model server on this computer or its network if present,
+    /// else the builder.
     pub fn backend_for(&self, role: Role) -> Option<&BackendEntry> {
-        if let Some(b) = self.roles.get(role_key(role)).and_then(|n| self.get(n)).filter(|b| b.config.enabled) {
+        if let Some(b) = self.roles.get(role_key(role)).and_then(|n| self.get(n)).filter(|b| b.config.enabled && may_fill(role, &b.config)) {
             return Some(b);
         }
-        let lead = || self.enabled().find(|b| b.config.kind != BackendKind::AgentCli).or_else(|| self.enabled().next());
+        let claude = || self.enabled().filter(|b| is_claude(&b.config));
+        let lead = || claude().find(|b| b.config.kind != BackendKind::AgentCli).or_else(|| claude().next());
         match role {
-            Role::Lead => lead(),
-            Role::Worker => self.enabled().find(|b| b.config.kind == BackendKind::OpenaiCompatible).or_else(lead),
+            Role::Lead | Role::Worker => lead(),
             Role::Reviewer | Role::Extractor => None,
-            Role::Builder => self.enabled().find(|b| b.config.kind == BackendKind::AgentCli).or_else(lead),
+            Role::Builder => claude().find(|b| b.config.kind == BackendKind::AgentCli).or_else(lead),
             Role::Assets => self.enabled().find(|b| is_local_server(&b.config)).or_else(|| self.backend_for(Role::Builder)),
         }
     }
 
     /// The chain to try for a conversation started on `first`: `first`, then the configured
-    /// fallback chain (skipping duplicates and disabled backends).
+    /// fallback chain (skipping duplicates, disabled backends and local models: a local model
+    /// never takes over a job).
     pub fn chain_from(&self, first: &str) -> Vec<String> {
         let mut out = vec![first.to_string()];
         for n in &self.fallback_chain {
-            if !out.contains(n) && self.get(n).is_some_and(|b| b.config.enabled) {
+            if !out.contains(n) && self.get(n).is_some_and(|b| b.config.enabled && !is_local_server(&b.config)) {
                 out.push(n.clone());
             }
         }
@@ -461,26 +495,61 @@ mod tests {
         }
     }
 
+    fn agent(name: &str, id: &str) -> BackendEntry {
+        let mut e = entry(name, BackendKind::AgentCli);
+        e.config.model = id.into();
+        e
+    }
+
     #[test]
     fn roles_and_chains() {
         let mut c = AiConfig::default();
-        c.upsert(entry("Codex", BackendKind::AgentCli));
+        c.upsert(agent("Codex", "codex"));
+        c.upsert(agent("Claude Code", "claude-code"));
         c.upsert(entry("Claude", BackendKind::Anthropic));
         c.upsert(entry("Local", BackendKind::OpenaiCompatible));
         assert_eq!(c.backend_for(Role::Lead).unwrap().config.name, "Claude");
-        assert_eq!(c.backend_for(Role::Worker).unwrap().config.name, "Local");
-        assert_eq!(c.backend_for(Role::Builder).unwrap().config.name, "Codex");
+        assert_eq!(c.backend_for(Role::Worker).unwrap().config.name, "Claude", "the worker is Claude, never the local model");
+        assert_eq!(c.backend_for(Role::Builder).unwrap().config.name, "Claude Code");
         assert!(c.backend_for(Role::Reviewer).is_none());
         assert!(c.backend_for(Role::Extractor).is_none(), "the extractor only runs when chosen");
         assert_eq!(c.backend_for(Role::Assets).unwrap().config.name, "Local", "a local model does the asset work");
+        // A saved choice that isn't Claude (an older config) is passed over.
         c.roles.insert("lead".into(), "Local".into());
-        assert_eq!(c.backend_for(Role::Lead).unwrap().config.name, "Local");
+        c.roles.insert("builder".into(), "Codex".into());
+        assert_eq!(c.backend_for(Role::Lead).unwrap().config.name, "Claude");
+        assert_eq!(c.backend_for(Role::Builder).unwrap().config.name, "Claude Code");
         c.fallback_chain = vec!["Claude".into(), "Local".into(), "Gone".into()];
-        assert_eq!(c.chain_from("Local"), vec!["Local".to_string(), "Claude".to_string()]);
+        assert_eq!(c.chain_from("Claude Code"), vec!["Claude Code".to_string(), "Claude".to_string()], "a local model never takes over");
         assert!(c.remove("Local"));
-        assert!(c.roles.is_empty());
-        assert_eq!(c.backend_for(Role::Assets).unwrap().config.name, "Codex", "without a local model the builder does the asset work");
+        assert!(!c.roles.contains_key("lead"));
+        assert_eq!(c.backend_for(Role::Assets).unwrap().config.name, "Claude Code", "without a local model the builder does the asset work");
         assert!(!c.remove("Local"));
+        // Without Claude, nobody works: no role falls to another model.
+        let mut other = AiConfig::default();
+        other.upsert(agent("Codex", "codex"));
+        other.upsert(entry("Local", BackendKind::OpenaiCompatible));
+        assert!(other.backend_for(Role::Lead).is_none() && other.backend_for(Role::Builder).is_none());
+        assert_eq!(other.backend_for(Role::Assets).unwrap().config.name, "Local");
+    }
+
+    #[test]
+    fn only_claude_may_take_the_jobs_and_any_model_the_asset_work() {
+        let local = entry("Local", BackendKind::OpenaiCompatible).config;
+        let claude_code = agent("Claude Code", "claude-code").config;
+        let api = entry("Claude", BackendKind::Anthropic).config;
+        let codex = agent("Codex", "codex").config;
+        for role in [Role::Lead, Role::Worker, Role::Reviewer, Role::Builder, Role::Extractor] {
+            assert!(may_fill(role, &claude_code) && may_fill(role, &api), "{role:?}");
+            assert!(!may_fill(role, &local) && !may_fill(role, &codex), "{role:?}");
+        }
+        assert!(may_fill(Role::Assets, &local) && may_fill(Role::Assets, &claude_code));
+        assert!(!may_fill(Role::Assets, &codex), "a cloud model that isn't Claude does no work at all");
+        assert!(why_not_role(Role::Assets, &codex).unwrap().contains("Claude or a local model"));
+        let why = why_not_role(Role::Builder, &local).unwrap();
+        assert!(why.contains("Local is a local model") && why.contains("only Claude") && why.contains("builder"), "{why}");
+        assert!(why_not_role(Role::Lead, &codex).unwrap().contains("not Claude"));
+        assert!(why_not_role(Role::Assets, &local).is_none());
     }
 
     #[test]

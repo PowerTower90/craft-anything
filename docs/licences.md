@@ -27,6 +27,7 @@ and how the third-party licence bundle for a release is made.
 |---|---|
 | `dssim` (image similarity) | AGPL-3.0. Don't use it; pick a permissive metric or write our own. |
 | Hunyuan3D models | Licence excludes the EU, UK and South Korea. Don't make it a default or bundle it. |
+| TRELLIS.2 / Pixal3D chain (with DINOv3, MoGe-2, BiRefNet) | Run from weights the person puts in their own ComfyUI; never bundled. Each has its own licence (DINOv3's is Meta's own): read them before shipping what they make. |
 | FLUX.1 [dev] weights | Non-commercial licence. Only through a hosted API whose terms allow our use. |
 
 Model weights and hosted APIs have their own terms; read them before adding one as a default.

@@ -1759,3 +1759,10 @@ In the game	已进游戏
 Back to the Workbench	回到工作台
 The original things	原始对象
 The things with a new version: being made, made, or in the game	有新版本的对象：制作中、已制作或已进游戏
+Better 3D (TRELLIS.2)	更好的 3D（TRELLIS.2）
+Quick shape (older)	快速形状（旧方式）
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	在这台电脑的显卡上用 TRELLIS.2 制作：已展开 UV 的模型，带基础色、金属度、粗糙度、法线和环境光遮蔽贴图、LOD 以及可直接用于引擎的纹理。
+Asset work only	仅限资源工作
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	本地模型只做资源工作：描述、分类和查看模型。你交代的事由 Claude 完成。
+Not used for your tasks	不用于你的任务
+Every task you give goes to Claude (Claude Code or the Anthropic API).	你交代的每项任务都交给 Claude（Claude Code 或 Anthropic API）。

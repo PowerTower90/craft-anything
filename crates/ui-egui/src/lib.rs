@@ -1462,6 +1462,12 @@ impl CraftApp {
 
     /// Select a backend without counting it as the person's choice (an add that finished).
     fn select_backend(&mut self, name: Option<String>) {
+        // Every job the person gives is Claude's: another model never takes the conversation.
+        if let Some(b) = name.as_ref().and_then(|n| self.backends.iter().find(|b| &b.name == n)).filter(|b| !craft_anything_ai::config::is_claude(b)) {
+            let refused = craft_anything_ai::chat_refused(b).for_people();
+            self.toast(refused, true);
+            return;
+        }
         if self.state.backend != name {
             self.state.backend = name;
             if let Some(mut c) = self.conversation.take() {
@@ -1483,7 +1489,7 @@ impl CraftApp {
             self.backend_choices = self.backend_choices.wrapping_add(1);
         }
         if self.state.backend.is_some() && self.conversation.is_none() {
-            match self.hub.start(self.state.backend.as_deref(), self.beginner()) {
+            match self.hub.start_chat(self.state.backend.as_deref(), self.beginner()) {
                 Ok(c) => self.conversation = Some(c),
                 // The AI that was picked didn't start (it may be turned off), so the error is the
                 // answer; an AI is set up, so the built-in engines' "no AI brain" line would be wrong.
@@ -1733,7 +1739,8 @@ impl CraftApp {
                 self.assets_chosen = assets_chosen;
                 self.assets_backend = assets_backend;
                 self.looks.finished(Look::Backends);
-                if self.state.backend.as_ref().is_some_and(|n| !b.iter().any(|c| &c.name == n)) {
+                // Gone, or not Claude (every job is Claude's): no longer the one asked.
+                if self.state.backend.as_ref().is_some_and(|n| !craft_anything_ai::chat_backends(&b).any(|c| &c.name == n)) {
                     self.state.backend = None;
                 }
                 self.backends = b;

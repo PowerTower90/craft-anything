@@ -1189,3 +1189,10 @@ In the game	ゲームに反映済み
 Back to the Workbench	ワークベンチに戻る
 The original things	元のもの
 The things with a new version: being made, made, or in the game	新しい版があるもの：作成中、作成済み、ゲームに反映済み
+Better 3D (TRELLIS.2)	高品質 3D（TRELLIS.2）
+Quick shape (older)	簡易形状（旧方式）
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	このコンピューターのグラフィックカードで TRELLIS.2 により作成：UV 展開済みのモデルに、ベースカラー・メタリック・ラフネス・法線・アンビエントオクルージョンのマップ、LOD、エンジン用テクスチャ付き。
+Asset work only	アセット作業のみ
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	ローカルモデルはアセット作業（説明、分類、モデルの確認）だけを行います。依頼した作業は Claude が行います。
+Not used for your tasks	あなたの作業には使われません
+Every task you give goes to Claude (Claude Code or the Anthropic API).	依頼した作業はすべて Claude（Claude Code または Anthropic API）が行います。

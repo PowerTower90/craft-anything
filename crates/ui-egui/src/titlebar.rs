@@ -395,7 +395,8 @@ fn backend_picker(app: &mut CraftApp, ui: &mut Ui) {
             .icon(move |ui, rect, _, _| icons::paint(ui, rect.expand(2.0 * s), "chevron-down", 14.0 * s, Tokens::get(ui.ctx()).icon))
             .width(190.0 * s)
             .show_ui(ui, |ui| {
-                for b in &app.backends {
+                // Every question and task goes to Claude, so only Claude is offered.
+                for b in craft_anything_ai::chat_backends(&app.backends) {
                     let on = app.state.backend.as_ref() == Some(&b.name);
                     if ui.selectable_label(on, &b.name).on_hover_text(format!("{} · {}", tr(b.kind.title()), b.model)).clicked() {
                         choice = Some(Some(b.name.clone()));

@@ -1759,3 +1759,10 @@ In the game	Im Spiel
 Back to the Workbench	Zurück zur Werkbank
 The original things	Die ursprünglichen Dinge
 The things with a new version: being made, made, or in the game	Die Dinge mit neuer Version: in Arbeit, gemacht oder im Spiel
+Better 3D (TRELLIS.2)	Besseres 3D (TRELLIS.2)
+Quick shape (older)	Schnelle Form (älter)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	Auf der Grafikkarte dieses Computers mit TRELLIS.2 erstellt: ein UV-abgewickeltes Modell mit Grundfarbe-, Metallic-, Rauheits-, Normal- und Ambient-Occlusion-Maps, Detailstufen und Texturen fertig für die Engine.
+Asset work only	Nur Asset-Arbeit
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Ein lokales Modell erledigt nur die Asset-Arbeit: beschreiben, sortieren und Modelle ansehen. Was du verlangst, erledigt Claude.
+Not used for your tasks	Nicht für deine Aufgaben genutzt
+Every task you give goes to Claude (Claude Code or the Anthropic API).	Jede Aufgabe, die du gibst, geht an Claude (Claude Code oder die Anthropic-API).

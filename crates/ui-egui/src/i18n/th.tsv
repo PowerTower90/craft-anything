@@ -1759,3 +1759,10 @@ In the game	อยู่ในเกม
 Back to the Workbench	กลับไปเวิร์กเบนช์
 The original things	สิ่งของต้นฉบับ
 The things with a new version: being made, made, or in the game	สิ่งที่มีเวอร์ชันใหม่: กำลังทำ ทำแล้ว หรืออยู่ในเกม
+Better 3D (TRELLIS.2)	3D ที่ดีกว่า (TRELLIS.2)
+Quick shape (older)	รูปทรงแบบเร็ว (แบบเก่า)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	สร้างบนการ์ดจอของคอมพิวเตอร์เครื่องนี้ด้วย TRELLIS.2: โมเดลที่คลี่ UV แล้ว พร้อมแมปสีพื้น เมทัลลิก ความหยาบ นอร์มอล และแอมเบียนต์ออคคลูชัน ระดับรายละเอียด และเท็กซ์เจอร์ที่พร้อมใช้กับเอนจิน
+Asset work only	เฉพาะงานแอสเซ็ต
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	โมเดลในเครื่องทำเฉพาะงานแอสเซ็ต: อธิบาย จัดหมวด และตรวจดูโมเดล สิ่งที่คุณสั่ง Claude เป็นผู้ทำ
+Not used for your tasks	ไม่ใช้กับงานของคุณ
+Every task you give goes to Claude (Claude Code or the Anthropic API).	ทุกงานที่คุณสั่งจะส่งให้ Claude (Claude Code หรือ Anthropic API)

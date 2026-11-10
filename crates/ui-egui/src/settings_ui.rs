@@ -612,24 +612,34 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
                 });
             });
             ui.add_space(6.0);
+            // Every job the person gives is Claude's; a local model only does the asset work.
+            let claude = craft_anything_ai::config::is_claude(b);
+            let local = craft_anything_ai::config::is_local_server(b);
             ui.horizontal_wrapped(|ui| {
                 ui.add_space(26.0);
-                if app.state.backend.as_ref() == Some(&b.name) {
+                if local {
+                    widgets::pill(ui, "Asset work only", t.text_dim, t.raised).on_hover_text(tr(
+                        "A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.",
+                    ));
+                } else if !claude {
+                    widgets::pill(ui, "Not used for your tasks", t.text_dim, t.raised)
+                        .on_hover_text(tr("Every task you give goes to Claude (Claude Code or the Anthropic API)."));
+                } else if app.state.backend.as_ref() == Some(&b.name) {
                     widgets::pill(ui, "In use", t.on_accent, t.accent);
                 } else if widgets::secondary(ui, None, "Use").clicked() {
                     pick = Some(b.name.clone());
                 }
-                // Who builds: the chosen one says so (click to go back to automatic).
-                if app.builder.as_ref() == Some(&b.name) {
+                // Who builds: the chosen one says so (click to go back to automatic). Claude only.
+                if claude && app.builder.as_ref() == Some(&b.name) {
                     if widgets::secondary(ui, Some("hammer"), "Builds").on_hover_text(tr("Builds use this one. Click to choose automatically again.")).clicked()
                     {
                         builds = Some(None);
                     }
-                } else if b.enabled && widgets::secondary(ui, None, "Build with this").clicked() {
+                } else if claude && b.enabled && widgets::secondary(ui, None, "Build with this").clicked() {
                     builds = Some(Some(b.name.clone()));
                 }
-                // Who takes a game's files out in Deep mode (an API backend, e.g. Kimi K3).
-                if b.kind != BackendKind::AgentCli {
+                // Who takes a game's files out in Deep mode (the Claude API).
+                if b.kind != BackendKind::AgentCli && claude {
                     if app.extractor.as_ref() == Some(&b.name) {
                         if widgets::secondary(ui, Some("package"), "Extracts")
                             .on_hover_text(tr("In Deep mode this one takes a game's own files out after the study. Click to stop."))
@@ -641,8 +651,8 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
                         extracts = Some(Some(b.name.clone()));
                     }
                 }
-                // Who does the asset work (describing, sorting, Blender): an API backend.
-                if b.kind != BackendKind::AgentCli {
+                // Who does the asset work (describing, sorting, Blender): a local model or the Claude API.
+                if b.kind != BackendKind::AgentCli && (local || claude) {
                     let does = app.assets_backend.as_ref() == Some(&b.name);
                     let chosen = app.assets_chosen.as_ref() == Some(&b.name);
                     let tip = if chosen {
@@ -1245,11 +1255,11 @@ mod tests {
         assert_eq!(app.state.backend.as_deref(), Some("Laptop"), "the add that finished last is selected");
     }
 
-    /// A chat started while an AI connects is a choice too: the add doesn't switch AI under it.
+    /// Only Claude takes the chat: a local model (asset work only) or another cloud model is
+    /// refused with a line saying so, and isn't in the AI menu.
     #[test]
-    fn a_late_add_does_not_stop_a_chat_started_meanwhile() {
+    fn a_local_model_is_not_picked_for_the_chat() {
         let mut app = demo::app(demo::engine(craft_anything_engine::Mode::Experienced, true));
-        // A closed local port: the chat starts, and its request fails without leaving this computer.
         let config = BackendConfig {
             name: "Box".into(),
             kind: BackendKind::OpenaiCompatible,
@@ -1258,7 +1268,44 @@ mod tests {
             ssh_host: None,
             enabled: true,
         };
-        app.hub.add_backend(config, None).unwrap();
+        app.hub.add_backend(config.clone(), None).unwrap();
+        app.backends.push(config);
+        app.state.backend = None;
+        app.choose_backend(Some("Box".into()));
+        assert_eq!(app.state.backend, None, "not chosen");
+        assert!(app.state.toasts.iter().any(|(t, _)| t.contains("only does the asset work")), "it says why");
+        assert!(craft_anything_ai::chat_backends(&app.backends).all(|b| b.name != "Box"), "the menu leaves it out");
+        // A chat on it from an older session is refused the same way.
+        app.state.backend = Some("Box".into());
+        app.send("Hi");
+        assert!(app.conversation.is_none());
+        assert!(matches!(app.state.chat.last(), Some(crate::state::ChatItem::Error { message, .. }) if message.contains("only does the asset work")));
+        // Nor a cloud model that isn't Claude.
+        let codex = BackendConfig { name: "Kimi".into(), kind: BackendKind::Openrouter, base_url: None, ..app.backends[app.backends.len() - 1].clone() };
+        app.hub.add_backend(codex.clone(), Some("sk-test".into())).unwrap();
+        app.backends.push(codex);
+        app.state.backend = None;
+        app.choose_backend(Some("Kimi".into()));
+        assert_eq!(app.state.backend, None);
+        assert!(app.state.toasts.iter().any(|(t, _)| t.contains("isn't Claude")));
+        assert!(craft_anything_ai::chat_backends(&app.backends).all(|b| b.name != "Kimi"));
+    }
+
+    /// A chat started while an AI connects is a choice too: the add doesn't switch AI under it.
+    #[test]
+    fn a_late_add_does_not_stop_a_chat_started_meanwhile() {
+        let mut app = demo::app(demo::engine(craft_anything_engine::Mode::Experienced, true));
+        // A closed local port: the chat starts, and its request fails without leaving this computer.
+        // (The Claude API: only Claude is offered for the chat.)
+        let config = BackendConfig {
+            name: "Box".into(),
+            kind: BackendKind::Anthropic,
+            model: "m".into(),
+            base_url: Some("http://127.0.0.1:9/v1".into()),
+            ssh_host: None,
+            enabled: true,
+        };
+        app.hub.add_backend(config, Some("sk-test".into())).unwrap();
         app.state.backend = Some("Box".into());
         let started = app.backend_choices;
         app.send("Hi");

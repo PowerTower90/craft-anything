@@ -238,3 +238,38 @@ fn the_ai_checks_the_grouping_and_its_moves_are_an_agents() {
     assert_eq!(moved.thing.as_ref().map(|t| t.key.as_str()), r["moves"][0]["thing"].as_str());
     assert_eq!(parse_grouping("nothing", &[], &[]), (vec![], vec![]));
 }
+
+/// Every job the person gives is Claude's, but the asset work stays with the local model: with
+/// Claude Code and the Claude API set up too, describing, sorting and checking the grouping all
+/// ask the local model.
+#[test]
+fn the_asset_work_stays_with_the_local_model_when_claude_is_set_up() {
+    let (base, seen) = fake_server(answers);
+    let (_d, ws, e) = setup(&base);
+    {
+        let mut s = e.session();
+        let mut cfg = AiConfig::from_table(&s.settings.ai).unwrap();
+        for (name, kind, model) in [("Claude Code", BackendKind::AgentCli, "claude-code"), ("Claude", BackendKind::Anthropic, "claude-opus-5-5")] {
+            cfg.upsert(BackendEntry {
+                config: BackendConfig { name: name.into(), kind, model: model.into(), base_url: None, ssh_host: None, enabled: true },
+                options: BackendOptions::default(),
+            });
+        }
+        assert_eq!(cfg.backend_for(Role::Builder).unwrap().config.name, "Claude Code");
+        assert_eq!(cfg.backend_for(Role::Lead).unwrap().config.name, "Claude");
+        assert_eq!(cfg.backend_for(Role::Assets).unwrap().config.name, "Local vision");
+        s.settings.ai = cfg.to_table().unwrap();
+    }
+    let r = call(&e, "asset_describe", json!({"project": ws.root})).unwrap();
+    assert_eq!(r["described"].as_u64(), Some(5), "{r}");
+    let after_describe = seen.lock().unwrap().len();
+    assert!(after_describe >= 5, "the local model described them");
+    call(&e, "project_inventory_sort_with_agent", json!({"project": ws.root})).unwrap();
+    let after_sort = seen.lock().unwrap().len();
+    assert!(after_sort > after_describe, "the local model sorted them");
+    let inv = inventory::load(&ws.root).unwrap();
+    assert!(inv.items.iter().filter_map(|i| i.described_by.as_deref()).all(|b| b == "Local vision"));
+    let category = inv.items.iter().find(|i| i.id == "glyphid_wing").unwrap().category;
+    call(&e, "project_inventory_check_grouping", json!({"project": ws.root, "category": category})).unwrap();
+    assert!(seen.lock().unwrap().len() > after_sort, "the local model checked the grouping");
+}

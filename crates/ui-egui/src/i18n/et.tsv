@@ -1759,3 +1759,10 @@ In the game	Mängus
 Back to the Workbench	Tagasi töölauale
 The original things	Algsed asjad
 The things with a new version: being made, made, or in the game	Uue versiooniga asjad: valmimas, valmis või mängus
+Better 3D (TRELLIS.2)	Parem 3D (TRELLIS.2)
+Quick shape (older)	Kiire kuju (vanem)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	Tehtud selle arvuti graafikakaardil TRELLIS.2-ga: UV-lahtivõetud mudel põhivärvi, metallilisuse, kareduse, normaali ja ümbritseva varjutuse kaartidega, detailitasemete ja mootori jaoks valmis tekstuuridega.
+Asset work only	Ainult varade töö
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Kohalik mudel teeb ainult varade tööd: kirjeldab, sorteerib ja vaatab mudeleid. Mida sa palud, teeb Claude.
+Not used for your tasks	Sinu ülesanneteks ei kasutata
+Every task you give goes to Claude (Claude Code or the Anthropic API).	Iga ülesanne, mille annad, läheb Claude'ile (Claude Code või Anthropicu API).

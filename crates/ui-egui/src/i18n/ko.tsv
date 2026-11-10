@@ -1759,3 +1759,10 @@ In the game	게임에 들어감
 Back to the Workbench	워크벤치로 돌아가기
 The original things	원래 대상
 The things with a new version: being made, made, or in the game	새 버전이 있는 대상: 만드는 중, 만들어짐, 게임에 들어감
+Better 3D (TRELLIS.2)	더 좋은 3D (TRELLIS.2)
+Quick shape (older)	빠른 형태 (이전 방식)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	이 컴퓨터의 그래픽 카드에서 TRELLIS.2로 만듭니다: UV가 펼쳐진 모델에 베이스 컬러, 메탈릭, 러프니스, 노멀, 앰비언트 오클루전 맵, LOD, 엔진용 텍스처가 포함됩니다.
+Asset work only	에셋 작업 전용
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	로컬 모델은 에셋 작업(설명, 분류, 모델 확인)만 합니다. 요청한 일은 Claude가 합니다.
+Not used for your tasks	작업에 사용되지 않음
+Every task you give goes to Claude (Claude Code or the Anthropic API).	맡기는 모든 작업은 Claude(Claude Code 또는 Anthropic API)가 합니다.

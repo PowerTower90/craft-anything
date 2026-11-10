@@ -1,8 +1,9 @@
 //! Generating game assets on this computer's own graphics cards, for free: pictures with
-//! Z-Image Turbo and 3D shapes with Hunyuan3D 2.1, each on a ComfyUI server (one per card, or the
-//! same server for both), the background taken off a picture with rembg (BiRefNet), and a shape
-//! finished in Blender (cleaned, decimated to a budget, sized, pivoted, textured from its
-//! reference picture, exported as GLB and FBX with a preview). Sounds and music come from the
+//! Z-Image Turbo on the picture server; 3D models with TRELLIS.2 on the picture server when it has
+//! the chain ([`trellis`]: UV-unwrapped, with baked PBR maps, finished in Blender with levels of
+//! detail and engine-ready textures), else a quick shape with Hunyuan3D 2.1 on the 3D server
+//! (cleaned, decimated, sized, pivoted and textured from its front-view reference in Blender);
+//! the background taken off a picture with rembg (BiRefNet). Sounds and music come from the
 //! audio server ([`audio`]), voice lines from Qwen3-TTS in its own Python ([`voice`]).
 //!
 //! The helper scripts ship inside the app ([`BG_REMOVE_PY`], [`FINISH_MODEL_PY`],
@@ -11,6 +12,7 @@
 
 pub mod audio;
 pub mod comfy;
+pub mod trellis;
 pub mod voice;
 
 pub use audio::SoundKind;
@@ -27,6 +29,8 @@ use std::time::{Duration, Instant};
 pub const BG_REMOVE_PY: &str = include_str!("scripts/bg_remove.py");
 /// The Blender finishing script.
 pub const FINISH_MODEL_PY: &str = include_str!("scripts/finish_model.py");
+/// The Blender finishing script for a TRELLIS.2 model (maps, levels of detail, engine textures).
+pub const FINISH_PBR_PY: &str = include_str!("scripts/finish_pbr.py");
 
 /// How long one step may take.
 const BG_REMOVE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
@@ -160,6 +164,9 @@ pub struct Status {
     /// The decoder for an original's sounds (vgmstream).
     #[serde(default)]
     pub sound_decoder: PartStatus,
+    /// Better 3D models: the TRELLIS.2 chain on the picture server (its nodes and model files).
+    #[serde(default)]
+    pub better_models: PartStatus,
 }
 
 impl Status {
@@ -168,9 +175,16 @@ impl Status {
         self.pictures.ready || self.pictures.startable
     }
 
-    /// 3D models can be made now, or once the servers are started (Blender is needed either way).
+    /// 3D models can be made now, or once the servers are started, one way or the other (Blender
+    /// is needed either way).
     pub fn models_possible(&self) -> bool {
-        self.pictures_possible() && (self.shapes.ready || self.shapes.startable) && self.blender.ready
+        self.pictures_possible() && (self.shapes.ready || self.shapes.startable || self.better_models_possible()) && self.blender.ready
+    }
+
+    /// Better 3D models (TRELLIS.2) can be made now, or once the picture server is started (it
+    /// can't be told whether a stopped server has the chain, so that counts as possible).
+    pub fn better_models_possible(&self) -> bool {
+        (self.better_models.ready || (self.better_models.state == "not_running" && self.better_models.startable)) && self.blender.ready
     }
 
     /// Sounds and music can be made now, or once the audio server is started.
@@ -243,7 +257,8 @@ pub fn status(setup: &Setup) -> Status {
         Some(p) => part(true, "ready", format!("{}", p.display()), false),
         None => part(false, "not_set_up", "vgmstream wasn't found: an original's sounds in a game's own format can't be listened to.", false),
     };
-    Status { pictures, shapes, background_removal, blender, audio, voices, sound_decoder }
+    let better_models = trellis::status(setup);
+    Status { pictures, shapes, background_removal, blender, audio, voices, sound_decoder, better_models }
 }
 
 /// Start what isn't running (each start command once; a server shared by both parts once), then
@@ -341,6 +356,17 @@ pub fn model_prompt(description: &str, style: &str) -> String {
     )
 }
 
+/// The prompt for a better (TRELLIS.2) model's reference picture: the whole object seen from a
+/// little to one side, evenly lit, on white (the chain works out the camera itself).
+pub fn better_model_prompt(description: &str, style: &str) -> String {
+    let style = style.trim().trim_end_matches('.');
+    let style = if style.is_empty() { String::new() } else { format!(" {style}.") };
+    format!(
+        "3D game asset reference, three-quarter front view at eye level, facing the viewer: {}.{style} Its front and any face clearly visible, standing upright, the whole object in view, centered, single object, soft even lighting, no cast shadows, isolated on a plain white background, no text.",
+        description.trim().trim_end_matches('.')
+    )
+}
+
 /// Make one picture on the picture server, saved as `out` (a PNG).
 #[allow(clippy::too_many_arguments)]
 pub fn picture(
@@ -432,6 +458,90 @@ pub fn finish_model(
     Ok(report)
 }
 
+/// Finish a TRELLIS.2 model in Blender: `<out_base>.glb` (with its maps), `.fbx` (with levels of
+/// detail `_LOD1`, `_LOD2`), `_BaseColor.png`, `_Normal.png` (DirectX), `_ORM.png` and
+/// `_preview.png`; Blender's report.
+pub fn finish_pbr(
+    setup: &Setup,
+    model: &Path,
+    maps: &[(&str, PathBuf)],
+    out_base: &Path,
+    faces: u32,
+    height_m: f32,
+    cancel: &CancelToken,
+) -> Result<Value, ToolError> {
+    let blender = find_blender(setup.blender.as_deref()).ok_or_else(|| {
+        ToolError::new(ErrorCode::EngineMissing, "Blender wasn't found.").with_remediation("Install Blender, or set its path in Settings → Local generation.")
+    })?;
+    let script = setup.write_script("finish_pbr.py", FINISH_PBR_PY)?;
+    let job_file = PathBuf::from(format!("{}_finish.json", out_base.display()));
+    let maps: serde_json::Map<String, Value> = maps.iter().map(|(k, p)| (k.to_string(), json!(p))).collect();
+    let job = json!({
+        "model": model, "maps": maps, "out_base": out_base, "faces": faces.clamp(500, 500_000),
+        "height_m": height_m.clamp(0.01, 1000.0), "lods": [0.5, 0.25],
+    });
+    write(&job_file, job.to_string().as_bytes())?;
+    let c = cancel.clone();
+    let out = Process::new(blender)
+        .args(["-b", "--python"])
+        .arg(&script)
+        .arg("--")
+        .arg(&job_file)
+        .timeout(BLENDER_TIMEOUT)
+        .cancel_when(move || c.is_cancelled())
+        .label("Blender")
+        .run_checked();
+    let _ = std::fs::remove_file(&job_file);
+    let out = out?;
+    let text = out.stdout_text();
+    text.lines().rev().find_map(|l| l.strip_prefix("FINISH ")).and_then(|j| serde_json::from_str::<Value>(j).ok()).ok_or_else(|| {
+        ToolError::new(ErrorCode::ProgramFailed, "Blender didn't finish the model.")
+            .with_details(json!({"output": craft_anything_platform::process::output_excerpt(&format!("{text}
+{}", out.stderr_text()))}))
+    })
+}
+
+/// How a 3D model is made.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelMethod {
+    /// TRELLIS.2 on the picture server: a UV-unwrapped mesh with baked base colour, metallic,
+    /// roughness, normal and ambient occlusion maps, levels of detail and engine-ready textures.
+    Better,
+    /// The older quick shape: Hunyuan3D 2.1 on the 3D server, coloured by projecting its
+    /// front-view picture.
+    Quick,
+}
+
+/// What a 3D model is for in the game; it sets the default face budget and texture size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelRole {
+    /// A main or playable character: 30000 faces, 2048 textures.
+    Hero,
+    /// An enemy or other character: 15000 faces, 2048 textures.
+    Enemy,
+    /// A prop, item, weapon or piece of scenery: 5000 faces, 1024 textures.
+    Prop,
+}
+
+impl ModelRole {
+    pub fn faces(self) -> u32 {
+        match self {
+            ModelRole::Hero => 30_000,
+            ModelRole::Enemy => 15_000,
+            ModelRole::Prop => 5_000,
+        }
+    }
+
+    pub fn texture(self) -> u32 {
+        match self {
+            ModelRole::Hero | ModelRole::Enemy => 2048,
+            ModelRole::Prop => 1024,
+        }
+    }
+}
+
 /// What to make in a batch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -468,9 +578,16 @@ pub struct BatchItem {
     /// For a model: its height in metres (default 1).
     #[serde(default)]
     pub height_m: Option<f32>,
-    /// For a model: the most faces (default 20000).
+    /// For a model: the most faces (default from its role, else 20000).
     #[serde(default)]
     pub faces: Option<u32>,
+    /// For a model: hero, enemy or prop (sets the face budget and texture size when faces isn't given).
+    #[serde(default)]
+    pub role: Option<ModelRole>,
+    /// For a model: better (TRELLIS.2, PBR maps; the default when the picture server has it) or
+    /// quick (the older Hunyuan3D shape).
+    #[serde(default)]
+    pub model_method: Option<ModelMethod>,
     /// For a sound or music: its length in seconds (keep it close to the original's; sounds
     /// 0.5–47, music 10–240).
     #[serde(default)]
@@ -494,6 +611,11 @@ pub struct BatchItem {
 
 impl BatchItem {
     /// An item of `kind` with only an id and a description.
+    /// A model's face budget: `faces`, else its role's, else 20000.
+    pub fn face_budget(&self) -> u32 {
+        self.faces.or(self.role.map(ModelRole::faces)).unwrap_or(20_000)
+    }
+
     pub fn new(id: impl Into<String>, kind: ItemKind, description: impl Into<String>) -> Self {
         BatchItem {
             id: id.into(),
@@ -504,6 +626,8 @@ impl BatchItem {
             transparent: None,
             height_m: None,
             faces: None,
+            role: None,
+            model_method: None,
             seconds: None,
             sound: None,
             character: None,
@@ -529,10 +653,12 @@ pub struct ItemResult {
     pub stats: Value,
 }
 
-/// A model's reference picture, made and ready for the 3D server.
+/// A model's reference picture, made and ready for the 3D server (or for TRELLIS.2 on the picture
+/// server, when `better`).
 struct Reference {
     index: usize,
     item: BatchItem,
+    better: bool,
     raw: PathBuf,
     rgba: PathBuf,
     white: PathBuf,
@@ -567,12 +693,14 @@ fn picture_item(
     }
 }
 
-/// A model's reference picture (square), with its background taken off when possible.
+/// A model's reference picture (square), with its background taken off when possible (a better
+/// model's chain takes it off itself).
 #[allow(clippy::too_many_arguments)]
 fn reference_item(
     setup: &Setup,
     index: usize,
     item: &BatchItem,
+    better: bool,
     style: &str,
     dir: &Path,
     stem: &str,
@@ -581,8 +709,9 @@ fn reference_item(
 ) -> Result<Reference, ToolError> {
     let started = Instant::now();
     let raw = dir.join(format!("{stem}_ref_raw.png"));
-    picture(setup, &model_prompt(&item.description, style), 1024, 1024, seed_for(&item.id), &raw, cancel, say)?;
-    let (rgba, white) = if setup.bg_python.as_deref().is_some_and(Path::is_file) {
+    let prompt = if better { better_model_prompt(&item.description, style) } else { model_prompt(&item.description, style) };
+    picture(setup, &prompt, 1024, 1024, seed_for(&item.id), &raw, cancel, say)?;
+    let (rgba, white) = if !better && setup.bg_python.as_deref().is_some_and(Path::is_file) {
         say("taking the background off");
         let (rgba, white) = (dir.join(format!("{stem}_ref.png")), dir.join(format!("{stem}_ref_white.png")));
         remove_background(setup, &raw, &rgba, &white, cancel)?;
@@ -590,11 +719,62 @@ fn reference_item(
     } else {
         (raw.clone(), raw.clone())
     };
-    Ok(Reference { index, item: item.clone(), raw, rgba, white, started })
+    Ok(Reference { index, item: item.clone(), better, raw, rgba, white, started })
 }
 
-/// The shape and the finished model from a reference picture.
+/// The finished model from a reference picture, by the reference's route.
 fn model_from(setup: &Setup, r: &Reference, dir: &Path, stem: &str, cancel: &CancelToken, say: &dyn Fn(&str)) -> Result<(Vec<PathBuf>, Value), ToolError> {
+    if r.better { better_model_from(setup, r, dir, stem, cancel, say) } else { quick_model_from(setup, r, dir, stem, cancel, say) }
+}
+
+/// A better model: TRELLIS.2 on the picture server, then finished in Blender.
+fn better_model_from(
+    setup: &Setup,
+    r: &Reference,
+    dir: &Path,
+    stem: &str,
+    cancel: &CancelToken,
+    say: &dyn Fn(&str),
+) -> Result<(Vec<PathBuf>, Value), ToolError> {
+    let server = setup.picture();
+    let bytes = std::fs::read(&r.raw).map_err(|e| ToolError::io(r.raw.display(), e))?;
+    let name = server.upload_image(&bytes, &format!("craft_{stem}.png"))?;
+    let detail = trellis::Detail { faces: r.item.face_budget(), texture: r.item.role.map_or(2048, ModelRole::texture) };
+    say("making the model (TRELLIS.2)");
+    let id = server.queue(&trellis::graph(&name, seed_for(&r.item.id), detail, stem))?;
+    let outputs = server.wait(&id, trellis::limits(setup.limits), cancel, say)?;
+    let file = comfy::first_output(&outputs, trellis::MODEL_OUTPUT_NODE)
+        .ok_or_else(|| ToolError::new(ErrorCode::GarbledOutput, "The picture server finished without a model."))?;
+    let raw_model = dir.join(format!("{stem}_trellis.glb"));
+    write(&raw_model, &server.view(&file)?)?;
+    let mut maps = Vec::new();
+    for (map, f) in trellis::maps(&outputs) {
+        let p = dir.join(format!("{stem}_trellis_{map}.png"));
+        write(&p, &server.view(&f)?)?;
+        maps.push((map, p));
+    }
+    say("finishing in Blender");
+    let base = dir.join(stem);
+    let mut stats = finish_pbr(setup, &raw_model, &maps, &base, detail.faces, r.item.height_m.unwrap_or(1.0), cancel)?;
+    stats["method"] = json!(ModelMethod::Better);
+    let with = |ext: &str| PathBuf::from(format!("{}{ext}", base.display()));
+    let mut files = vec![with(".glb"), with(".fbx"), with("_preview.png")];
+    files.extend(["_BaseColor.png", "_Normal.png", "_ORM.png"].into_iter().map(with).filter(|p| p.is_file()));
+    files.extend([r.raw.clone(), raw_model]);
+    files.extend(maps.into_iter().map(|(_, p)| p));
+    Ok((files, stats))
+}
+
+/// The older quick model: a Hunyuan3D shape on the 3D server, finished and textured from its
+/// reference in Blender.
+fn quick_model_from(
+    setup: &Setup,
+    r: &Reference,
+    dir: &Path,
+    stem: &str,
+    cancel: &CancelToken,
+    say: &dyn Fn(&str),
+) -> Result<(Vec<PathBuf>, Value), ToolError> {
     let server = setup.shape();
     let bytes = std::fs::read(&r.white).map_err(|e| ToolError::io(r.white.display(), e))?;
     let name = server.upload_image(&bytes, &format!("craft_{stem}.png"))?;
@@ -606,7 +786,10 @@ fn model_from(setup: &Setup, r: &Reference, dir: &Path, stem: &str, cancel: &Can
     write(&shape, &server.view(&file)?)?;
     say("finishing in Blender");
     let base = dir.join(stem);
-    let stats = finish_model(setup, &shape, &r.rgba, &base, r.item.faces.unwrap_or(20_000), r.item.height_m.unwrap_or(1.0), cancel)?;
+    let mut stats = finish_model(setup, &shape, &r.rgba, &base, r.item.face_budget(), r.item.height_m.unwrap_or(1.0), cancel)?;
+    if stats.is_object() {
+        stats["method"] = json!(ModelMethod::Quick);
+    }
     let with = |ext: &str| PathBuf::from(format!("{}{ext}", base.display()));
     Ok((vec![with(".glb"), with(".fbx"), with("_preview.png"), r.rgba.clone(), r.raw.clone(), shape], stats))
 }
@@ -724,6 +907,9 @@ pub fn run_batch(
         let n = done.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
         progress(n, total, &format!("{n} of {total} done"));
     };
+    // Models are made the better way when asked, or by default when the picture server has the
+    // chain (looked at once, only when there are models to make).
+    let better_ready = items.iter().any(|it| it.kind == ItemKind::Model && it.model_method != Some(ModelMethod::Quick)) && trellis::status(setup).ready;
     let (tx, rx) = std::sync::mpsc::channel::<Reference>();
     std::thread::scope(|scope| {
         // The 3D server works through the references as they come.
@@ -789,8 +975,24 @@ pub fn run_batch(
                     finish(i, ItemKind::Image, started, r);
                 }
                 ItemKind::Model => {
+                    let better = match item.model_method {
+                        Some(ModelMethod::Quick) => false,
+                        Some(ModelMethod::Better) if !better_ready => {
+                            let why = trellis::status(setup).detail;
+                            finish(
+                                i,
+                                ItemKind::Model,
+                                started,
+                                Err(ToolError::new(ErrorCode::EngineMissing, format!("Better 3D (TRELLIS.2) isn't ready: {why}"))
+                                    .with_remediation("Make it with model_method quick, or add the TRELLIS.2 models to the picture server.")),
+                            );
+                            continue;
+                        }
+                        Some(ModelMethod::Better) => true,
+                        None => better_ready,
+                    };
                     say(i, "making the reference picture");
-                    match reference_item(setup, i, item, style, dir, &stem, cancel, &|w| say(i, w)) {
+                    match reference_item(setup, i, item, better, style, dir, &stem, cancel, &|w| say(i, w)) {
                         Ok(r) => {
                             let _ = tx.send(r);
                         }

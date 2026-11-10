@@ -54,6 +54,9 @@ fn fake_comfy(jobs: Vec<Job>, models: Value) -> (String, Arc<Mutex<Fake>>) {
                 let mut s = st.lock().unwrap();
                 if path == "/system_stats" {
                     (200, "application/json", b"{\"system\":{}}".to_vec())
+                } else if let Some(class) = path.strip_prefix("/object_info/") {
+                    let has = models["nodes"].as_array().is_some_and(|n| n.iter().any(|n| n == class));
+                    (200, "application/json", if has { json!({class: {}}) } else { json!({}) }.to_string().into_bytes())
                 } else if let Some(folder) = path.strip_prefix("/models/") {
                     (200, "application/json", models[folder].to_string().into_bytes())
                 } else if path == "/prompt" {
@@ -75,6 +78,7 @@ fn fake_comfy(jobs: Vec<Job>, models: Value) -> (String, Arc<Mutex<Fake>>) {
                     let graph: Value = s.queued.get(n).and_then(|q| serde_json::from_str(q).ok()).unwrap_or(Value::Null);
                     let shape = graph["prompt"][comfy::SHAPE_OUTPUT_NODE]["class_type"] == "SaveGLB";
                     let sound = graph["prompt"][audio::AUDIO_OUTPUT_NODE]["class_type"] == "SaveAudio";
+                    let better = graph["prompt"][trellis::MODEL_OUTPUT_NODE]["class_type"] == "SaveGLB";
                     let v = match job {
                         Job::Stuck => json!({}),
                         _ if polls < 2 => json!({}),
@@ -82,6 +86,13 @@ fn fake_comfy(jobs: Vec<Job>, models: Value) -> (String, Arc<Mutex<Fake>>) {
                             "messages": [["execution_error", {"exception_message": "CUDA out of memory", "node_type": "KSampler"}]]}, "outputs": {}}}),
                         Job::Done if sound => json!({id: {"status": {"status_str": "success", "completed": true},
                             "outputs": {"20": {"audio": [{"filename": format!("{id}.flac"), "subfolder": "craft", "type": "output"}]}}}}),
+                        Job::Done if better => {
+                            let mut out = json!({"40": {"3d": [{"filename": format!("{id}.glb"), "subfolder": "craft", "type": "output"}]}});
+                            for (node, map) in trellis::MAP_NODES {
+                                out[*node] = json!({"images": [{"filename": format!("{id}_{map}.png"), "subfolder": "craft", "type": "output"}]});
+                            }
+                            json!({id: {"status": {"status_str": "success", "completed": true}, "outputs": out}})
+                        }
                         Job::Done if shape => json!({id: {"status": {"status_str": "success", "completed": true},
                             "outputs": {"10": {"3d": [{"filename": format!("{id}.glb"), "subfolder": "craft", "type": "output"}]}}}}),
                         Job::Done => json!({id: {"status": {"status_str": "success", "completed": true},
@@ -118,6 +129,16 @@ fn models() -> Value {
     })
 }
 
+/// The picture server with the TRELLIS.2 chain too.
+fn better_models() -> Value {
+    let mut m = models();
+    for (folder, file) in trellis::MODELS {
+        m[*folder] = json!(m[*folder].as_array().cloned().unwrap_or_default().into_iter().chain([json!(file)]).collect::<Vec<_>>());
+    }
+    m["nodes"] = json!(trellis::NODES);
+    m
+}
+
 fn audio_models() -> Value {
     json!({
         "checkpoints": [audio::SOUND_CHECKPOINT], "diffusion_models": [audio::MUSIC_UNET], "vae": [audio::MUSIC_VAE],
@@ -136,21 +157,54 @@ fn setup(base: &str, dir: &Path) -> Setup {
     }
 }
 
-/// A stand-in Blender: writes the files the finishing script would and prints its report.
+/// A stand-in Blender: writes the files the finishing script would and prints its report. The
+/// quick route's arguments are -b --factory-startup --python <script> -- <shape> <ref> <out_base>
+/// <faces> <height>; the better route's -b --python <script> -- <out_base>_finish.json.
 fn fake_blender(dir: &Path) -> PathBuf {
     if cfg!(windows) {
         let p = dir.join("blender.cmd");
-        // Arguments: -b --factory-startup --python <script> -- <shape> <ref> <out_base> <faces> <height>
         std::fs::write(
             &p,
-            "@echo off\r\necho glb> \"%8.glb\"\r\necho fbx> \"%8.fbx\"\r\necho png> \"%8_preview.png\"\r\necho FINISH {\"faces_out\": 1200, \"size_m\": [1, 1, 1]}\r\n",
+            [
+                "@echo off",
+                "if \"%4\"==\"--\" goto pbr",
+                "echo glb> \"%8.glb\"",
+                "echo fbx> \"%8.fbx\"",
+                "echo png> \"%8_preview.png\"",
+                "echo FINISH {\"faces_out\": 1200, \"size_m\": [1, 1, 1]}",
+                "exit /b 0",
+                ":pbr",
+                "set b=%~dpn5",
+                "set b=%b:_finish=%",
+                "for %%e in (.glb .fbx _preview.png _BaseColor.png _Normal.png _ORM.png) do echo x> \"%b%%%e\"",
+                "echo FINISH {\"faces_out\": 900, \"lod_faces\": [450, 225], \"maps_out\": [\"BaseColor\", \"Normal\", \"ORM\"]}",
+                "",
+            ]
+            .join("\r\n"),
         )
         .unwrap();
         p
     } else {
         let p = dir.join("blender.sh");
-        std::fs::write(&p, "#!/bin/sh\necho glb > \"$8.glb\"\necho fbx > \"$8.fbx\"\necho png > \"$8_preview.png\"\necho 'FINISH {\"faces_out\": 1200, \"size_m\": [1, 1, 1]}'\n")
-            .unwrap();
+        std::fs::write(
+            &p,
+            [
+                "#!/bin/sh",
+                "if [ \"$4\" = \"--\" ]; then",
+                "  b=\"${5%_finish.json}\"",
+                "  for e in .glb .fbx _preview.png _BaseColor.png _Normal.png _ORM.png; do echo x > \"$b$e\"; done",
+                "  echo 'FINISH {\"faces_out\": 900, \"lod_faces\": [450, 225], \"maps_out\": [\"BaseColor\", \"Normal\", \"ORM\"]}'",
+                "  exit 0",
+                "fi",
+                "echo glb > \"$8.glb\"",
+                "echo fbx > \"$8.fbx\"",
+                "echo png > \"$8_preview.png\"",
+                "echo 'FINISH {\"faces_out\": 1200, \"size_m\": [1, 1, 1]}'",
+                "",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -461,4 +515,145 @@ fn a_mixed_batch_uses_every_lane_at_once() {
     assert!(fake.queued.iter().all(|q| q.contains("Sci-fi")), "the style is in the sound prompts");
     let m = manifest("mix", "Sci-fi", d.path(), &items, &r);
     assert_eq!(m["items"][1]["kind"], "sound");
+}
+
+#[test]
+fn better_models_are_ready_only_with_the_nodes_and_every_model_file() {
+    let d = tempfile::tempdir().unwrap();
+    let (base, _) = fake_comfy(vec![], models());
+    let st = status(&setup(&base, d.path()));
+    assert_eq!(st.better_models.state, "missing_model");
+    assert!(st.better_models.detail.contains("pixal3d_int8_convrot.safetensors"), "{}", st.better_models.detail);
+    let mut no_nodes = better_models();
+    no_nodes["nodes"] = json!(["UnwrapMesh"]);
+    let (base, _) = fake_comfy(vec![], no_nodes);
+    let st = status(&setup(&base, d.path()));
+    assert!(!st.better_models.ready && st.better_models.detail.contains("Pixal3DConditioning"), "{:?}", st.better_models);
+    let (base, _) = fake_comfy(vec![], better_models());
+    let mut s = setup(&base, d.path());
+    let st = status(&s);
+    assert!(st.better_models.ready, "{:?}", st.better_models);
+    s.blender = Some(fake_blender(d.path()));
+    assert!(status(&s).better_models_possible());
+    // A stopped picture server that can be started counts as possible.
+    let mut stopped = setup("http://127.0.0.1:9", d.path());
+    stopped.blender = s.blender.clone();
+    stopped.picture_start = Some(d.path().join("start.ps1"));
+    std::fs::write(d.path().join("start.ps1"), "").unwrap();
+    let st = status(&stopped);
+    assert_eq!(st.better_models.state, "not_running");
+    assert!(st.better_models_possible());
+}
+
+#[test]
+fn a_model_is_made_the_better_way_when_the_picture_server_can_and_the_quick_way_when_asked() {
+    let d = tempfile::tempdir().unwrap();
+    // Jobs in order: the dwarf's reference picture and its TRELLIS.2 model, the crate's reference and its quick shape.
+    let (base, seen) = fake_comfy(vec![Job::Done; 4], better_models());
+    let mut s = setup(&base, d.path());
+    s.blender = Some(fake_blender(d.path()));
+    let mut dwarf = BatchItem::new("dwarf", ItemKind::Model, "a stocky armoured dwarf miner");
+    dwarf.role = Some(ModelRole::Hero);
+    dwarf.height_m = Some(1.4);
+    let mut crate_ = BatchItem::new("crate", ItemKind::Model, "a wooden crate");
+    crate_.model_method = Some(ModelMethod::Quick);
+    let out = d.path().join("generated/m");
+    let r = run_batch(&s, &[dwarf, crate_], "", &out, &d.path().join("voices"), &CancelToken::default(), &|_, _, _| {});
+    assert!(r[0].ok && r[1].ok, "{r:?}");
+    assert_eq!(r[0].stats["method"], "better");
+    assert_eq!(r[1].stats["method"], "quick");
+    assert_eq!(r[0].stats["lod_faces"], json!([450, 225]));
+    for f in
+        ["dwarf.glb", "dwarf.fbx", "dwarf_preview.png", "dwarf_BaseColor.png", "dwarf_Normal.png", "dwarf_ORM.png", "dwarf_trellis.glb", "dwarf_trellis_ao.png"]
+    {
+        assert!(out.join(f).is_file(), "{f}");
+        assert!(r[0].files.contains(&out.join(f)), "{f} is listed");
+    }
+    assert_eq!(r[0].files[0], out.join("dwarf.glb"), "the model first");
+    assert!(!out.join("dwarf_finish.json").exists(), "the Blender job file is cleaned up");
+    let fake = seen.lock().unwrap();
+    let sent: Vec<Value> = fake.queued.iter().map(|q| serde_json::from_str(q).unwrap()).collect();
+    assert!(
+        sent[0]["prompt"]["5"]["inputs"]["text"]
+            .as_str()
+            .unwrap()
+            .contains("three-quarter front view at eye level, facing the viewer: a stocky armoured dwarf miner")
+    );
+    let better = sent.iter().find(|g| g["prompt"]["40"]["class_type"] == "SaveGLB").expect("a TRELLIS.2 job");
+    assert_eq!(better["prompt"]["31"]["inputs"]["target_face_count"], 30_000, "a hero's budget");
+    assert_eq!(better["prompt"]["1"]["inputs"]["image"], "uploaded.png");
+    assert!(sent.iter().any(|g| g["prompt"][comfy::SHAPE_OUTPUT_NODE]["class_type"] == "SaveGLB"), "the crate went the quick way");
+    assert!(sent.iter().any(|g| g["prompt"]["5"]["inputs"]["text"].as_str().is_some_and(|t| t.contains("front view: a wooden crate"))));
+}
+
+#[test]
+fn asking_for_a_better_model_where_it_can_not_be_made_says_why() {
+    let d = tempfile::tempdir().unwrap();
+    let (base, seen) = fake_comfy(vec![Job::Done; 2], models());
+    let mut s = setup(&base, d.path());
+    s.blender = Some(fake_blender(d.path()));
+    let mut blob = BatchItem::new("blob", ItemKind::Model, "a round blob creature");
+    blob.model_method = Some(ModelMethod::Better);
+    let auto = BatchItem::new("bug", ItemKind::Model, "a six-legged armoured insect");
+    let r = run_batch(&s, &[blob, auto], "", &d.path().join("out"), &d.path().join("voices"), &CancelToken::default(), &|_, _, _| {});
+    assert!(!r[0].ok && r[0].error.as_deref().unwrap_or_default().contains("TRELLIS.2"), "{:?}", r[0]);
+    assert!(r[1].ok && r[1].stats["method"] == "quick", "without the chain a model is made the quick way: {:?}", r[1]);
+    assert_eq!(seen.lock().unwrap().queued.len(), 2, "nothing was queued for the refused one");
+}
+
+/// The real finishing script on a small textured model, when Blender is here.
+#[test]
+fn blender_finishes_a_pbr_model_with_levels_of_detail_and_engine_textures() {
+    let Some(blender) = find_blender(None) else { return };
+    let d = tempfile::tempdir().unwrap();
+    let make = d.path().join("make.py");
+    std::fs::write(
+        &make,
+        r#"import bpy, sys, os
+out = sys.argv[sys.argv.index("--") + 1]
+for o in list(bpy.data.objects):
+    bpy.data.objects.remove(o, do_unlink=True)
+bpy.ops.mesh.primitive_uv_sphere_add(segments=64, ring_count=32, radius=0.5)
+def img(name, rgb):
+    i = bpy.data.images.new(name, 64, 64)
+    i.pixels.foreach_set(list(rgb + (1.0,)) * 64 * 64)
+    i.filepath_raw = os.path.join(out, name + ".png"); i.file_format = "PNG"; i.save()
+img("basecolor", (0.8, 0.2, 0.1)); img("metallic", (0.9, 0.9, 0.9)); img("roughness", (0.3, 0.3, 0.3))
+img("normal", (0.5, 0.25, 1.0)); img("ao", (0.6, 0.6, 0.6))
+bpy.ops.export_scene.gltf(filepath=os.path.join(out, "m.glb"), use_selection=False)
+"#,
+    )
+    .unwrap();
+    let made = Process::new(&blender).args(["-b", "--python"]).arg(&make).arg("--").arg(d.path()).timeout(Duration::from_secs(300)).run_checked().unwrap();
+    assert!(d.path().join("m.glb").is_file(), "{}", made.stdout_text());
+    let s = setup("http://127.0.0.1:9", d.path());
+    let maps: Vec<(&str, PathBuf)> = ["basecolor", "metallic", "roughness", "normal", "ao"].iter().map(|m| (*m, d.path().join(format!("{m}.png")))).collect();
+    let base = d.path().join("out/ball");
+    let report = finish_pbr(&s, &d.path().join("m.glb"), &maps, &base, 1000, 2.0, &CancelToken::default()).unwrap();
+    assert_eq!(report["maps_out"], json!(["BaseColor", "Normal", "ORM"]), "{report}");
+    let faces = report["faces_out"].as_u64().unwrap();
+    assert!(faces <= 1050, "{report}");
+    let lods: Vec<u64> = report["lod_faces"].as_array().unwrap().iter().filter_map(Value::as_u64).collect();
+    assert!(lods.len() == 2 && lods[0] < faces && lods[1] < lods[0], "{report}");
+    assert!((report["size_m"][2].as_f64().unwrap() - 2.0).abs() < 0.01, "scaled to its height: {report}");
+    for ext in [".glb", ".fbx", "_preview.png", "_BaseColor.png", "_Normal.png", "_ORM.png"] {
+        assert!(PathBuf::from(format!("{}{ext}", base.display())).is_file(), "{ext}");
+    }
+    // The packed and flipped pictures hold the right numbers.
+    let check = d.path().join("check.py");
+    std::fs::write(
+        &check,
+        r#"import bpy, sys
+base = sys.argv[sys.argv.index("--") + 1]
+def px(name):
+    i = bpy.data.images.load(base + name); i.colorspace_settings.name = "Non-Color"
+    return [round(v, 2) for v in i.pixels[:3]]
+print("ORM", px("_ORM.png")); print("NORMAL", px("_Normal.png"))
+"#,
+    )
+    .unwrap();
+    let out = Process::new(&blender).args(["-b", "--python"]).arg(&check).arg("--").arg(&base).timeout(Duration::from_secs(300)).run_checked().unwrap();
+    let text = out.stdout_text();
+    assert!(text.contains("ORM [0.6, 0.3, 0.9]"), "R ambient occlusion, G roughness, B metallic: {text}");
+    assert!(text.contains("NORMAL [0.5, 0.75, 1.0]"), "DirectX: green flipped: {text}");
 }

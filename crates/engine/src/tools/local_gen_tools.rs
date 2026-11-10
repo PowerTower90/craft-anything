@@ -31,7 +31,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "local_generation_status",
             title: "Check local generation",
-            summary: "Whether this computer can generate assets on its own graphics cards: the picture server, the 3D server and the audio server (ComfyUI; answering, and which model files they have), background removal (rembg), Blender and voices (the Python with Qwen3-TTS), each ready, not running (and whether it can be started), missing a model, or not set up. Set them up with settings_set local_gen.*.",
+            summary: "Whether this computer can generate assets on its own graphics cards: the picture server, the 3D server and the audio server (ComfyUI; answering, and which model files they have), better 3D models (better_models: the TRELLIS.2 nodes and models on the picture server), background removal (rembg), Blender and voices (the Python with Qwen3-TTS), each ready, not running (and whether it can be started), missing a model, or not set up. Set them up with settings_set local_gen.*.",
             beginner: "Checks whether this computer can make pictures, 3D models, sounds and voices by itself.",
             toolset: Toolset::Core,
             effects: Effects::ACCESSES_NETWORK,
@@ -64,7 +64,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "asset_generate_model",
             title: "Make a 3D model locally",
-            summary: "Make a 3D model on this computer's graphics cards (free): a front-view reference picture from `prompt` and `style` on the picture server, its background taken off, a shape from it on the 3D server (Hunyuan3D 2.1), then finished in Blender: cleaned, decimated to `faces` (default 20000), `height_m` tall (default 1), its pivot at the base, textured from the reference. Writes <out>.glb, <out>.fbx, <out>_preview.png and the reference inside the project (default generated/models/<name>). About a minute per model.",
+            summary: "Make a 3D model on this computer's graphics cards (free) from a reference picture of `prompt` in `style`. model_method better (the default when local_generation_status says better_models is ready): TRELLIS.2 on the picture server makes a UV-unwrapped mesh at the face budget with baked base colour, metallic, roughness, normal and ambient occlusion maps; Blender sizes it to `height_m` (default 1) with its pivot at the base and adds levels of detail; writes <out>.glb, <out>.fbx (with <name>_LOD1 and _LOD2), <out>_BaseColor.png, <out>_Normal.png (DirectX), <out>_ORM.png (R occlusion, G roughness, B metallic) and <out>_preview.png; about two minutes. model_method quick (the older way): a Hunyuan3D 2.1 shape on the 3D server, decimated and coloured by projecting the front picture; about a minute. The face budget is `faces`, else `role` (hero 30000, enemy 15000, prop 5000), else 20000. Files go inside the project (default generated/models/<name>).",
             beginner: "Makes a 3D model for your game on this computer, for free.",
             toolset: Toolset::Core,
             effects: gen_effects,
@@ -108,7 +108,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "asset_generate_batch",
             title: "Make many assets locally",
-            summary: "Make a list of pictures, 3D models, sounds, music and voice lines on this computer's graphics cards in one `style` (free): items {id, kind: image|model|sound|music|voice, description, width/height or height_m, faces, transparent; for sound and music seconds and sound: sfx|ambience|ui; for voice character, voice_description, text or transcribe_from}. Pictures are made one after another on the picture server while the models' shapes are made on the 3D server, the sounds and music on the audio server and the voice lines on the voice helper, all at the same time. Files go to <project>/generated/<job>/<id>.png (or .glb, .fbx, _preview.png, .wav) with a manifest at generated/<job>.json; the characters' voices are kept in generated/voices/; an id that is an inventory item's id marks that item Generated with its file. One item failing doesn't stop the rest; the result lists what failed and why.",
+            summary: "Make a list of pictures, 3D models, sounds, music and voice lines on this computer's graphics cards in one `style` (free): items {id, kind: image|model|sound|music|voice, description, width/height or height_m, faces, role: hero|enemy|prop, model_method: better|quick, transparent; for sound and music seconds and sound: sfx|ambience|ui; for voice character, voice_description, text or transcribe_from}. Pictures are made one after another on the picture server while the models are made (better: TRELLIS.2 on the picture server, the default when ready; quick: Hunyuan3D on the 3D server), the sounds and music on the audio server and the voice lines on the voice helper, all at the same time. Files go to <project>/generated/<job>/<id>.png (or .glb, .fbx, _preview.png, a better model's _BaseColor.png, _Normal.png and _ORM.png, .wav) with a manifest at generated/<job>.json; the characters' voices are kept in generated/voices/; an id that is an inventory item's id marks that item Generated with its file. One item failing doesn't stop the rest; the result lists what failed and why.",
             beginner: "Makes a whole set of assets on this computer, in one style, for free.",
             toolset: Toolset::Core,
             effects: gen_effects,
@@ -144,18 +144,26 @@ pub fn setup_of(session: &Session) -> Setup {
 /// What local AI can make here (now, or once its servers are started): for rebuild plans.
 pub fn ready(session: &Session) -> crate::asset_rebuild::Ready {
     let st = local_gen::status(&setup_of(session));
-    crate::asset_rebuild::Ready { pictures: st.pictures_possible(), models: st.models_possible(), sounds: st.sounds_possible() }
+    crate::asset_rebuild::Ready {
+        pictures: st.pictures_possible(),
+        models: st.models_possible(),
+        sounds: st.sounds_possible(),
+        better_models: st.better_models_possible(),
+    }
 }
 
 fn status_json(st: &local_gen::Status) -> Value {
     json!({
         "pictures": st.pictures, "shapes": st.shapes, "background_removal": st.background_removal, "blender": st.blender,
-        "audio": st.audio, "voices": st.voices, "sound_decoder": st.sound_decoder,
+        "audio": st.audio, "voices": st.voices, "sound_decoder": st.sound_decoder, "better_models": st.better_models,
         "can_make": {
-            "pictures": st.pictures.ready, "models": st.pictures.ready && st.shapes.ready && st.blender.ready,
-            "sounds": st.audio.ready, "voices": st.voices.ready,
+            "pictures": st.pictures.ready, "models": st.pictures.ready && (st.shapes.ready || st.better_models.ready) && st.blender.ready,
+            "better_models": st.better_models.ready && st.blender.ready, "sounds": st.audio.ready, "voices": st.voices.ready,
         },
-        "can_start": {"pictures": st.pictures_possible(), "models": st.models_possible(), "sounds": st.sounds_possible(), "voices": st.voices.ready},
+        "can_start": {
+            "pictures": st.pictures_possible(), "models": st.models_possible(), "better_models": st.better_models_possible(),
+            "sounds": st.sounds_possible(), "voices": st.voices.ready,
+        },
     })
 }
 
@@ -292,9 +300,15 @@ pub struct ModelParams {
     /// Its height in metres (default 1).
     #[serde(default)]
     pub height_m: Option<f32>,
-    /// The most faces (500–500000, default 20000).
+    /// The most faces (500–500000; default from `role`, else 20000).
     #[serde(default)]
     pub faces: Option<u32>,
+    /// hero, enemy or prop: sets the face budget and texture size when faces isn't given.
+    #[serde(default)]
+    pub role: Option<local_gen::ModelRole>,
+    /// better (TRELLIS.2 with PBR maps; the default when ready) or quick (the older Hunyuan3D shape).
+    #[serde(default)]
+    pub model_method: Option<local_gen::ModelMethod>,
     /// Where to save it inside the project, without an extension (default generated/models/<name>).
     #[serde(default)]
     pub out: Option<String>,
@@ -313,6 +327,8 @@ fn asset_generate_model(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, 
         let mut item = BatchItem::new(id.clone(), ItemKind::Model, p.prompt.clone());
         item.height_m = p.height_m;
         item.faces = p.faces;
+        item.role = p.role;
+        item.model_method = p.model_method;
         let results = local_gen::run_batch(&setup, std::slice::from_ref(&item), &p.style, &dir, &voices, &cancel, &|_, _, what| {
             progress(Progress { fraction: None, message: what.to_string() })
         });
@@ -323,11 +339,16 @@ fn asset_generate_model(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, 
         }
         let sizes: serde_json::Map<String, Value> =
             r.files.iter().map(|f| (f.display().to_string(), json!(std::fs::metadata(f).map(|m| m.len()).unwrap_or(0)))).collect();
+        let ending = |end: &str| r.files.iter().find(|f| f.to_string_lossy().ends_with(end)).map(|f| f.display().to_string());
+        let maps: serde_json::Map<String, Value> =
+            ["BaseColor", "Normal", "ORM"].iter().filter_map(|m| ending(&format!("{id}_{m}.png")).map(|f| (m.to_string(), json!(f)))).collect();
         Ok(ToolOutput::Value(json!({
             "glb": r.files.first().map(|f| f.display().to_string()),
             "fbx": r.files.get(1).map(|f| f.display().to_string()),
             "preview": r.files.get(2).map(|f| f.display().to_string()),
-            "reference": r.files.get(3).map(|f| f.display().to_string()),
+            "reference": ending("_ref.png").or_else(|| ending("_ref_raw.png")),
+            "maps": maps,
+            "method": r.stats["method"],
             "bytes": sizes,
             "stats": r.stats,
             "seconds": (r.seconds * 10.0).round() / 10.0,

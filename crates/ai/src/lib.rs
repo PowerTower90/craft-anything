@@ -195,7 +195,7 @@ pub fn folder_var(config: &BackendConfig) -> Option<&'static str> {
 /// [`Role::Builder`], for a client that holds only the list (the app decides "can it build?"
 /// with it, so its warning and Start never disagree).
 pub fn default_builder<'a>(backends: &'a [BackendConfig], chosen: Option<&str>) -> Option<&'a BackendConfig> {
-    let on = || backends.iter().filter(|b| b.enabled);
+    let on = || backends.iter().filter(|b| b.enabled && config::is_claude(b));
     chosen
         .and_then(|n| on().find(|b| b.name == n))
         .or_else(|| on().find(|b| b.kind == BackendKind::AgentCli))
@@ -380,6 +380,22 @@ pub fn tools() -> Vec<craft_anything_engine::ToolSpec> {
     v
 }
 
+/// A backend that isn't Claude asked to take a conversation: every job the person gives is
+/// Claude's; a local model only does the asset work it was set up for.
+pub fn chat_refused(c: &BackendConfig) -> ToolError {
+    let message = if config::is_local_server(c) {
+        format!("{} is a local model: it only does the asset work (describing, sorting, checking assets). What you ask is done by Claude.", c.name)
+    } else {
+        format!("{} isn't Claude: what you ask is done by Claude (Claude Code or the Anthropic API).", c.name)
+    };
+    ToolError::invalid(message).with_remediation("Pick Claude Code or a Claude API backend for the conversation (the AI menu at the top).")
+}
+
+/// The backends a conversation may be started on: Claude only.
+pub fn chat_backends(backends: &[BackendConfig]) -> impl Iterator<Item = &BackendConfig> {
+    backends.iter().filter(|b| config::is_claude(b))
+}
+
 /// Entry point for the UI and CLI.
 pub struct AiHub {
     pub engine: Arc<Engine>,
@@ -458,11 +474,11 @@ impl AiHub {
         cfg.roles.get(config::role_key(role)).filter(|n| cfg.get(n).is_some_and(|b| b.config.enabled)).cloned()
     }
 
-    /// Choose the backend for `role`; `None` goes back to its default (the builder: an agent app,
-    /// else any AI backend; the extractor: none).
+    /// Choose the backend for `role`; `None` goes back to its default (the builder: Claude Code,
+    /// else the Anthropic API; the extractor: none). Every role but assets takes Claude only.
     pub fn set_role(&self, role: Role, name: Option<&str>) -> Result<(), ToolError> {
         let mut cfg = self.config_to_change()?;
-        let role = config::role_key(role).to_string();
+        let key = config::role_key(role).to_string();
         match name {
             Some(n) if cfg.get(n).is_none() => {
                 return Err(
@@ -470,10 +486,15 @@ impl AiHub {
                 );
             }
             Some(n) => {
-                cfg.roles.insert(role, n.to_string());
+                if let Some(why) = cfg.get(n).and_then(|e| config::why_not_role(role, &e.config)) {
+                    return Err(
+                        ToolError::invalid(why).with_remediation("Choose Claude Code or a Claude API backend for it; give the local model the assets role.")
+                    );
+                }
+                cfg.roles.insert(key, n.to_string());
             }
             None => {
-                cfg.roles.remove(&role);
+                cfg.roles.remove(&key);
             }
         }
         self.save_config(&cfg)
@@ -886,15 +907,24 @@ impl AiHub {
         })
     }
 
+    /// Start the person's conversation (the chat, "Ask the agent", `chat` on the command line):
+    /// as [`AiHub::start`], but on Claude only (the lead, when none is named, is Claude too).
+    pub fn start_chat(&self, backend: Option<&str>, beginner: bool) -> Result<Box<dyn Conversation>, ToolError> {
+        if let Some(e) = backend.and_then(|n| self.config().get(n).cloned()).filter(|e| !config::is_claude(&e.config)) {
+            return Err(chat_refused(&e.config));
+        }
+        self.start(backend, beginner)
+    }
+
     /// Start a conversation with the lead backend (or the named one, while it is enabled).
     pub fn start(&self, backend: Option<&str>, beginner: bool) -> Result<Box<dyn Conversation>, ToolError> {
         let cfg = self.config();
         let first = match backend {
             Some(n) => self.entry(n)?,
-            None => cfg
-                .backend_for(Role::Lead)
-                .cloned()
-                .ok_or_else(|| ToolError::unavailable("No AI is set up yet.").with_remediation("Add one in Settings → AI."))?,
+            None => cfg.backend_for(Role::Lead).cloned().ok_or_else(|| {
+                ToolError::unavailable("No Claude is set up yet: your questions and tasks go to Claude (local models only do the asset work).")
+                    .with_remediation("Add Claude Code or a Claude API key in Settings → AI.")
+            })?,
         };
         if !first.config.enabled {
             return Err(ToolError::new(ErrorCode::BadSettings, format!("{} is turned off.", first.config.name))

@@ -112,7 +112,8 @@ pub fn section(app: &mut CraftApp, ui: &mut Ui, path_field: fn(&mut Ui, &mut Opt
         Some(st) => {
             for (key, name) in [
                 ("pictures", "Picture server"),
-                ("shapes", "3D server"),
+                ("better_models", "Better 3D (TRELLIS.2)"),
+                ("shapes", "Quick shape (older)"),
                 ("background_removal", "Background removal"),
                 ("blender", "Blender"),
                 ("audio", "Sound and music"),

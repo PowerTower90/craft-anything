@@ -1759,3 +1759,10 @@ In the game	Oyunda
 Back to the Workbench	Çalışma tezgâhına dön
 The original things	Özgün şeyler
 The things with a new version: being made, made, or in the game	Yeni sürümü olan şeyler: yapılıyor, yapıldı ya da oyunda
+Better 3D (TRELLIS.2)	Daha iyi 3D (TRELLIS.2)
+Quick shape (older)	Hızlı şekil (eski)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	Bu bilgisayarın ekran kartında TRELLIS.2 ile yapılır: temel renk, metaliklik, pürüzlülük, normal ve ortam kapatma haritaları, ayrıntı düzeyleri ve motora hazır dokularla UV açılımı yapılmış bir model.
+Asset work only	Yalnızca varlık işi
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Yerel model yalnızca varlık işini yapar: tanımlama, sıralama ve modellere bakma. İstediğin işi Claude yapar.
+Not used for your tasks	Görevlerin için kullanılmaz
+Every task you give goes to Claude (Claude Code or the Anthropic API).	Verdiğin her görev Claude'a gider (Claude Code veya Anthropic API).

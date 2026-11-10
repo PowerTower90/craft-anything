@@ -1759,3 +1759,10 @@ In the game	Ve hře
 Back to the Workbench	Zpět na pracovní plochu
 The original things	Původní věci
 The things with a new version: being made, made, or in the game	Věci s novou verzí: vzniká, hotová nebo ve hře
+Better 3D (TRELLIS.2)	Lepší 3D (TRELLIS.2)
+Quick shape (older)	Rychlý tvar (starší)
+Made on this computer's graphics card with TRELLIS.2: a UV-unwrapped model with base colour, metallic, roughness, normal and ambient occlusion maps, levels of detail and textures ready for the engine.	Vytvořeno na grafické kartě tohoto počítače pomocí TRELLIS.2: model s UV rozložením a mapami základní barvy, kovovosti, drsnosti, normál a okolního zastínění, úrovněmi detailů a texturami připravenými pro engine.
+Asset work only	Jen práce s assety
+A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Místní model dělá jen práci s assety: popis, třídění a prohlížení modelů. O co požádáte, udělá Claude.
+Not used for your tasks	Nepoužívá se pro vaše úkoly
+Every task you give goes to Claude (Claude Code or the Anthropic API).	Každý úkol, který zadáte, jde Claudovi (Claude Code nebo Anthropic API).
