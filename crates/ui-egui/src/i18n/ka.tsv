@@ -1771,3 +1771,96 @@ Start voice	ხმის გაშვება
 Stop voice	ხმის გაჩერება
 Speak aloud	ხმამაღლა თქმა
 Set up voice	ხმის დაყენება
+# Voice (voice_ui.rs)
+After the wake word	გამოღვიძების სიტყვის შემდეგ
+Always listening	მუდამ მოსმენა
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	ყველაფერ საჯაროზე (პოსტი, შეტყობინება, შესყიდვა) ჯერ ყოველთვის გკითხავთ და რაც გაიგზავნება, წაგიკითხავთ.
+Click to stop it speaking.	დააწკაპუნეთ, რომ ლაპარაკი შეწყვიტოს.
+Close the voice panel	ხმის პანელის დახურვა
+Craft Anything, please open my newest project and show me what changed.	Craft Anything, გთხოვ, გახსენი ჩემი უახლესი პროექტი და მაჩვენე, რა შეიცვალა.
+Describe it: a calm, deep voice that speaks slowly…	აღწერეთ: მშვიდი, დაბალი ხმა, რომელიც ნელა ლაპარაკობს…
+Describe the voice	ხმის აღწერა
+Design the assistant's voice	ასისტენტის ხმის შექმნა
+Designing the voice…	ხმა იქმნება…
+Didn't work	არ გამოვიდა
+Done. Your voice is enrolled.	მზადაა. თქვენი ხმა ჩაწერილია.
+Enrol my voice	ჩემი ხმის ჩაწერა
+Enrol my voice again	ჩემი ხმის ხელახლა ჩაწერა
+Finish	დასრულება
+Hearing you	გისმენთ
+Hearing you. Click (or let go of the key) when you've finished.	გისმენთ. როცა დაასრულებთ, დააწკაპუნეთ (ან გაუშვით კლავიში).
+Hello, I'm Craft Anything. What shall we make today?	გამარჯობა, მე ვარ Craft Anything. დღეს რას გავაკეთებთ?
+Hold {key} (or press the microphone) and talk.	დააჭირეთ და გეჭიროთ {key} (ან დააჭირეთ მიკროფონს) და ილაპარაკეთ.
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	რამდენად უნდა ჰგავდეს ხმა თქვენსას, რომ ბრძანებები გასცეს. მეტი მნიშვნელობა მეტ სხვა ადამიანს უგულებელყოფს და ზოგჯერ თქვენც.
+I'd like a small game where a red ball bounces between two walls.	მინდა პატარა თამაში, სადაც წითელი ბურთი ორ კედელს შორის ხტება.
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	ეს თქვენს ჩაწერილ ხმას არ ჰგავდა, ამიტომ უგულებელყოფილია და Opus-ს არ გაეგზავნა.
+It speaks with the built-in voice.	ლაპარაკობს ჩაშენებული ხმით.
+It speaks with the voice you designed.	ლაპარაკობს თქვენ მიერ შექმნილი ხმით.
+Just talk: a pause ends what you say.	უბრალოდ ილაპარაკეთ: პაუზა ამთავრებს ნათქვამს.
+List the devices again	მოწყობილობების ხელახლა ჩამოთვლა
+Listen	მოსმენა
+Listening	ისმენს
+Listening…	ისმენს…
+Microphone	მიკროფონი
+No	არა
+No answer in {time} counts as no.	თუ {time}-ში პასუხი არ იქნება, ითვლება „არა“.
+Not enrolled yet: any voice can give commands.	ჯერ ჩაწერილი არ არის: ბრძანებების გაცემა ნებისმიერ ხმას შეუძლია.
+Not your voice	ეს თქვენი ხმა არ არის
+Only my voice	მხოლოდ ჩემი ხმა
+Opus asks	Opus გეკითხებათ
+Opus asks before anything public	Opus გეკითხებათ ყველაფერ საჯარომდე
+Opus is working on…	Opus მუშაობს…
+Opus working	Opus მუშაობს
+Opus works in	Opus მუშაობს საქაღალდეში
+Pick the folder Opus works in	აირჩიეთ საქაღალდე, სადაც Opus იმუშავებს
+Played. Keep it, or change the words and preview again.	დაკვრა დასრულდა. დატოვეთ, ან შეცვალეთ სიტყვები და კვლავ მოუსმინეთ.
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	დააჭირეთ „ჩაწერის დაწყებას“, შემდეგ ხმამაღლა წაიკითხეთ ეს ოთხი წინადადება ჩვეულ ტემპში. სულ დაახლოებით 20 წამი.
+Preview	მოსმენა-ნიმუში
+Push to talk	დააჭირე და ილაპარაკე
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	„დააჭირე და ილაპარაკე“ ისმენს მხოლოდ მაშინ, როცა კლავიშს უჭერთ. გამოღვიძების სიტყვა და მუდმივი მოსმენა მიკროფონს ღიად ტოვებს.
+Push-to-talk key	ლაპარაკის კლავიში
+Sample sentence	ნიმუში წინადადება
+Say “{word}”, then talk.	თქვით „{word}“, შემდეგ ილაპარაკეთ.
+Seven green bottles stood in a row on the kitchen window.	შვიდი მწვანე ბოთლი რიგად იდგა სამზარეულოს ფანჯარაზე.
+Speaker profile	მოლაპარაკის პროფილი
+Speakers	დინამიკები
+Speaking	ლაპარაკობს
+Speech	მეტყველება
+Speech recognition	მეტყველების ამოცნობა
+Start recording	ჩაწერის დაწყება
+Start voice first.	ჯერ ჩართეთ ხმა.
+Start voice when Craft Anything opens	ხმის ჩართვა Craft Anything-ის გახსნისას
+Start with the app	აპთან ერთად ჩართვა
+Stop speaking	ლაპარაკის შეწყვეტა
+Stopped	შეწყვეტილია
+System default	სისტემის ნაგულისხმევი
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	ელაპარაკეთ Craft Anything-ს და მოუსმინეთ პასუხს. მოსმენა, გაგება და ლაპარაკი ამ კომპიუტერზე ხდება; რასაც გააკეთებინებთ, აკეთებს Opus Claude Code-ში.
+Talk to Craft Anything. Click to start voice.	ელაპარაკეთ Craft Anything-ს. დააწკაპუნეთ ხმის ჩასართავად.
+That wasn't enough of your voice. Try again and read all four.	თქვენი ხმა საკმარისი არ იყო. სცადეთ ხელახლა და წაიკითხეთ ოთხივე.
+The assistant's voice	ასისტენტის ხმა
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	საქაღალდე, სადაც Opus იწყებს იმას, რასაც ხმით სთხოვთ. ცარიელი: თქვენი სახლის საქაღალდე.
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	ლოკალური მოდელი მხოლოდ ისმენს და ლაპარაკობს. ყველაფერს, რასაც გააკეთებინებთ, აკეთებს Opus Claude Code-ში.
+The wake word	გამოღვიძების სიტყვა
+The wake word, said before a request when listening for it.	გამოღვიძების სიტყვა, რომელსაც თხოვნის წინ ამბობენ, როცა მას ელოდება.
+Tomorrow morning I will finish the trailer and check the music.	ხვალ დილით ტრეილერს დავასრულებ და მუსიკას შევამოწმებ.
+Use this voice	ამ ხმის გამოყენება
+Voice	ხმა
+Voice ({n})	ხმა ({n})
+Voice conversation	ხმოვანი საუბარი
+Voice is off. Start it with the microphone in the title bar.	ხმა გამორთულია. ჩართეთ სათაურის ზოლის მიკროფონით.
+Voice is starting.	ხმა ირთვება.
+Voice isn't connected in this build yet: it comes with the voice service.	ამ ვერსიაში ხმა ჯერ არ არის დაკავშირებული: ის ხმის სერვისთან ერთად მოვა.
+Voice service	ხმის სერვისი
+Voice settings	ხმის პარამეტრები
+Voice: {state}	ხმა: {state}
+Wake word	გამოღვიძების სიტყვა
+What goes out:	რა გაიგზავნება:
+What to say first	რა უნდა თქვათ ჯერ
+What you say and what Craft Anything answers shows here.	აქ ჩანს, რას ამბობთ და რას პასუხობს Craft Anything.
+Works while Craft Anything is the window in front.	მუშაობს, როცა Craft Anything წინა ფანჯარაა.
+Yes	დიახ
+You	თქვენ
+Your voice	თქვენი ხმა
+Your voice is enrolled: only you can give commands.	თქვენი ხმა ჩაწერილია: ბრძანებების გაცემა მხოლოდ თქვენ შეგიძლიათ.
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	თქვენი ხმა ჯერ ჩაწერილი არ არის, ამიტომ ბრძანებების გაცემა ნებისმიერ ხმას შეუძლია. ჩაწერეთ აქ: პარამეტრები → ხმა.
+{done} of {needed} seconds	{done} / {needed} წამი

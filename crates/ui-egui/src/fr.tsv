@@ -1757,3 +1757,98 @@ Asset work only	Travail sur les assets uniquement
 A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Un modèle local ne fait que le travail sur les assets : décrire, trier et examiner les modèles. Ce que vous demandez est fait par Claude.
 Not used for your tasks	Pas utilisé pour vos tâches
 Every task you give goes to Claude (Claude Code or the Anthropic API).	Chaque tâche que vous donnez va à Claude (Claude Code ou l'API Anthropic).
+# Voice (voice_ui.rs)
+After the wake word	Après le mot d'éveil
+Always listening	Écoute permanente
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	Tout ce qui est public (une publication, un message, un achat) est toujours demandé d'abord, et ce qui sera envoyé vous est lu.
+Click to stop it speaking.	Cliquez pour qu'il arrête de parler.
+Close the voice panel	Fermer le panneau vocal
+Craft Anything, please open my newest project and show me what changed.	Craft Anything, ouvre mon projet le plus récent et montre-moi ce qui a changé.
+Describe it: a calm, deep voice that speaks slowly…	Décrivez-la : une voix calme et grave qui parle lentement…
+Describe the voice	Décrire la voix
+Design the assistant's voice	Créer la voix de l'assistant
+Designing the voice…	Création de la voix…
+Didn't work	N'a pas fonctionné
+Done. Your voice is enrolled.	Terminé. Votre voix est enregistrée.
+Enrol my voice	Enregistrer ma voix
+Enrol my voice again	Réenregistrer ma voix
+Finish	Terminer
+Hearing you	Je vous écoute
+Hearing you. Click (or let go of the key) when you've finished.	Je vous écoute. Cliquez (ou relâchez la touche) quand vous avez fini.
+Hello, I'm Craft Anything. What shall we make today?	Bonjour, je suis Craft Anything. Que fabriquons-nous aujourd'hui ?
+Hold {key} (or press the microphone) and talk.	Maintenez {key} (ou appuyez sur le micro) et parlez.
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	À quel point une voix doit ressembler à la vôtre pour donner des ordres. Plus haut, plus d'autres personnes sont ignorées, et parfois vous aussi.
+I'd like a small game where a red ball bounces between two walls.	J'aimerais un petit jeu où une balle rouge rebondit entre deux murs.
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	Cela ne ressemblait pas à votre voix enregistrée : c'est donc ignoré et pas envoyé à Opus.
+It speaks with the built-in voice.	Il parle avec la voix intégrée.
+It speaks with the voice you designed.	Il parle avec la voix que vous avez créée.
+Just talk: a pause ends what you say.	Parlez simplement : une pause termine ce que vous dites.
+List the devices again	Lister à nouveau les appareils
+Listen	Écoute
+Listening	À l'écoute
+Listening…	À l'écoute…
+Microphone	Micro
+No	Non
+No answer in {time} counts as no.	Sans réponse dans {time}, c'est non.
+Not enrolled yet: any voice can give commands.	Pas encore enregistrée : n'importe quelle voix peut donner des ordres.
+Not your voice	Pas votre voix
+Only my voice	Seulement ma voix
+Opus asks	Opus demande
+Opus asks before anything public	Opus demande avant toute action publique
+Opus is working on…	Opus travaille sur…
+Opus working	Opus travaille
+Opus works in	Opus travaille dans
+Pick the folder Opus works in	Choisissez le dossier où travaille Opus
+Played. Keep it, or change the words and preview again.	Lue. Gardez-la, ou changez les mots et réécoutez.
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	Appuyez sur Démarrer l'enregistrement, puis lisez ces quatre phrases à voix haute à votre rythme habituel. Environ 20 secondes en tout.
+Preview	Écouter
+Push to talk	Appuyer pour parler
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	Appuyer pour parler n'écoute que pendant que vous maintenez la touche. Le mot d'éveil et l'écoute permanente gardent le micro ouvert.
+Push-to-talk key	Touche pour parler
+Sample sentence	Phrase d'exemple
+Say “{word}”, then talk.	Dites « {word} », puis parlez.
+Seven green bottles stood in a row on the kitchen window.	Sept bouteilles vertes étaient alignées sur la fenêtre de la cuisine.
+Speaker profile	Profil de locuteur
+Speakers	Haut-parleurs
+Speaking	Parle
+Speech	Synthèse vocale
+Speech recognition	Reconnaissance vocale
+Start recording	Démarrer l'enregistrement
+Start voice	Démarrer la voix
+Start voice first.	Démarrez d'abord la voix.
+Start voice when Craft Anything opens	Démarrer la voix à l'ouverture de Craft Anything
+Start with the app	Démarrer avec l'application
+Stop speaking	Arrêter de parler
+Stop voice	Arrêter la voix
+Stopped	Arrêté
+System default	Par défaut du système
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	Parlez à Craft Anything et entendez sa réponse. L'écoute, la compréhension et la parole se font sur cet ordinateur ; ce que vous demandez de faire est fait par Opus dans Claude Code.
+Talk to Craft Anything. Click to start voice.	Parlez à Craft Anything. Cliquez pour démarrer la voix.
+That wasn't enough of your voice. Try again and read all four.	Ce n'était pas assez de votre voix. Réessayez en lisant les quatre.
+The assistant's voice	La voix de l'assistant
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	Le dossier où Opus commence ce que vous demandez à la voix. Vide : votre dossier personnel.
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	Le modèle local ne fait qu'écouter et parler. Tout ce que vous demandez de faire est fait par Opus dans Claude Code.
+The wake word	Le mot d'éveil
+The wake word, said before a request when listening for it.	Le mot d'éveil, dit avant une demande quand on l'écoute.
+Tomorrow morning I will finish the trailer and check the music.	Demain matin, je terminerai la bande-annonce et je vérifierai la musique.
+Use this voice	Utiliser cette voix
+Voice	Voix
+Voice ({n})	Voix ({n})
+Voice conversation	Conversation vocale
+Voice is off. Start it with the microphone in the title bar.	La voix est désactivée. Démarrez-la avec le micro dans la barre de titre.
+Voice is starting.	La voix démarre.
+Voice isn't connected in this build yet: it comes with the voice service.	La voix n'est pas encore connectée dans cette version : elle arrive avec le service vocal.
+Voice service	Service vocal
+Voice settings	Réglages de la voix
+Voice: {state}	Voix : {state}
+Wake word	Mot d'éveil
+What goes out:	Ce qui sera envoyé :
+What to say first	Ce qu'il faut dire d'abord
+What you say and what Craft Anything answers shows here.	Ce que vous dites et ce que répond Craft Anything s'affichent ici.
+Works while Craft Anything is the window in front.	Fonctionne quand Craft Anything est la fenêtre au premier plan.
+Yes	Oui
+You	Vous
+Your voice	Votre voix
+Your voice is enrolled: only you can give commands.	Votre voix est enregistrée : vous seul pouvez donner des ordres.
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Votre voix n'est pas encore enregistrée, donc n'importe quelle voix pourrait donner des ordres. Enregistrez-la dans Réglages → Voix.
+{done} of {needed} seconds	{done} sur {needed} secondes

@@ -1771,3 +1771,96 @@ Start voice	启动语音
 Stop voice	停止语音
 Speak aloud	朗读出来
 Set up voice	设置语音
+# Voice (voice_ui.rs)
+After the wake word	唤醒词之后
+Always listening	始终聆听
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	任何公开的内容（发帖、发消息、购买）都会先询问，并把要发出的内容读给你听。
+Click to stop it speaking.	点击让它停止说话。
+Close the voice panel	关闭语音面板
+Craft Anything, please open my newest project and show me what changed.	Craft Anything，请打开我最新的项目，告诉我改了什么。
+Describe it: a calm, deep voice that speaks slowly…	描述一下：一个说话缓慢、沉稳低沉的声音…
+Describe the voice	描述声音
+Design the assistant's voice	设计助手的声音
+Designing the voice…	正在设计声音…
+Didn't work	没有成功
+Done. Your voice is enrolled.	完成。你的声音已录入。
+Enrol my voice	录入我的声音
+Enrol my voice again	重新录入我的声音
+Finish	完成录入
+Hearing you	正在听你说
+Hearing you. Click (or let go of the key) when you've finished.	正在听你说。说完后点击（或松开按键）。
+Hello, I'm Craft Anything. What shall we make today?	你好，我是 Craft Anything。今天我们做点什么？
+Hold {key} (or press the microphone) and talk.	按住 {key}（或按下麦克风）说话。
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	声音要与你的声音多接近才能下达指令。越高越会忽略其他人，有时也会忽略你。
+I'd like a small game where a red ball bounces between two walls.	我想要一个小游戏，一个红球在两面墙之间来回弹跳。
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	听起来不像你录入的声音，所以已忽略，没有发送给 Opus。
+It speaks with the built-in voice.	使用内置声音说话。
+It speaks with the voice you designed.	使用你设计的声音说话。
+Just talk: a pause ends what you say.	直接说：停顿即表示说完。
+List the devices again	重新列出设备
+Listen	聆听
+Listening	正在聆听
+Listening…	正在聆听…
+Microphone	麦克风
+No	否
+No answer in {time} counts as no.	{time} 内未回答即视为否。
+Not enrolled yet: any voice can give commands.	尚未录入：任何声音都能下达指令。
+Not your voice	不是你的声音
+Only my voice	只认我的声音
+Opus asks	Opus 请求确认
+Opus asks before anything public	Opus 在公开之前请求确认
+Opus is working on…	Opus 正在处理…
+Opus working	Opus 工作中
+Opus works in	Opus 工作文件夹
+Pick the folder Opus works in	选择 Opus 工作的文件夹
+Played. Keep it, or change the words and preview again.	已播放。保留它，或修改文字后再试听。
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	按“开始录音”，然后用平常的语速大声读出这四句话。总共约 20 秒。
+Preview	试听
+Push to talk	按键说话
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	按键说话只在你按住按键时聆听。唤醒词和始终聆听会让麦克风保持开启。
+Push-to-talk key	说话按键
+Sample sentence	示例句子
+Say “{word}”, then talk.	说“{word}”，然后再说话。
+Seven green bottles stood in a row on the kitchen window.	厨房窗台上排着七个绿瓶子。
+Speaker profile	说话人档案
+Speakers	扬声器
+Speaking	正在说话
+Speech	语音合成
+Speech recognition	语音识别
+Start recording	开始录音
+Start voice first.	请先开启语音。
+Start voice when Craft Anything opens	Craft Anything 打开时开启语音
+Start with the app	随应用启动
+Stop speaking	停止说话
+Stopped	已停止
+System default	系统默认
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	对 Craft Anything 说话并听它回答。聆听、理解和说话都在这台电脑上进行；你要求完成的事由 Claude Code 中的 Opus 完成。
+Talk to Craft Anything. Click to start voice.	对 Craft Anything 说话。点击开启语音。
+That wasn't enough of your voice. Try again and read all four.	你的声音录得不够。请重试并读完全部四句。
+The assistant's voice	助手的声音
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	Opus 处理你语音请求时所在的文件夹。留空：你的主文件夹。
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	本地模型只负责听和说。你要求完成的一切都由 Claude Code 中的 Opus 完成。
+The wake word	唤醒词
+The wake word, said before a request when listening for it.	唤醒词：在等待唤醒时，请求之前要说的话。
+Tomorrow morning I will finish the trailer and check the music.	明天早上我会完成预告片并检查音乐。
+Use this voice	使用这个声音
+Voice	语音
+Voice ({n})	语音（{n}）
+Voice conversation	语音对话
+Voice is off. Start it with the microphone in the title bar.	语音已关闭。用标题栏中的麦克风开启它。
+Voice is starting.	语音正在启动。
+Voice isn't connected in this build yet: it comes with the voice service.	此版本尚未接入语音：它会随语音服务一起提供。
+Voice service	语音服务
+Voice settings	语音设置
+Voice: {state}	语音：{state}
+Wake word	唤醒词
+What goes out:	将发出的内容：
+What to say first	先说什么
+What you say and what Craft Anything answers shows here.	你说的话和 Craft Anything 的回答会显示在这里。
+Works while Craft Anything is the window in front.	当 Craft Anything 是最前面的窗口时有效。
+Yes	是
+You	你
+Your voice	你的声音
+Your voice is enrolled: only you can give commands.	你的声音已录入：只有你能下达指令。
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	你的声音尚未录入，因此任何声音都可能下达指令。请在“设置 → 语音”中录入。
+{done} of {needed} seconds	{done} / {needed} 秒

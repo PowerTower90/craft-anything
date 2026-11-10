@@ -8,7 +8,7 @@
 //! `--height 1000`, so Start shows), `project-plan` → project-website.png, `experienced` → workbench.png.
 //!
 //! Scenes: first run (welcome, brain, purpose), Beginner Home, Beginner Ask (with an evidence
-//! card), Experienced workbench, and Home in Studio Light.
+//! card), Experienced workbench, Home in Studio Light, and voice (panel, console tab, settings).
 
 use craft_anything_engine::Mode;
 use craft_anything_ui_egui::state::{FirstRunStep, Screen};
@@ -450,6 +450,32 @@ fn main() {
             let mut a = demo::app(demo::engine(Mode::Beginner, true));
             a.settings.theme = "studio-light".into();
             demo::fill_ask(&mut a);
+            a
+        });
+    }
+    if want("voice-panel") {
+        render(&out, "voice-panel", w, h, scale, || {
+            let mut a = demo::app(demo::engine(Mode::Beginner, true));
+            a.voice.set_backend(Box::new(craft_anything_ui_egui::voice_demo::DemoVoice::filled()));
+            a.voice.panel_open = true;
+            a
+        });
+    }
+    if want("voice-tab") {
+        render(&out, "voice-tab", w, h, scale, || {
+            let mut a = demo::app(demo::engine(Mode::Experienced, true));
+            demo::fill_workbench(&mut a);
+            a.voice.set_backend(Box::new(craft_anything_ui_egui::voice_demo::DemoVoice::filled()));
+            a.state.bottom = craft_anything_ui_egui::state::BottomTab::Voice;
+            a
+        });
+    }
+    if want("voice-settings") {
+        render(&out, "voice-settings", w, h, scale, || {
+            let mut a = demo::app(demo::engine(Mode::Beginner, true));
+            a.voice.set_backend(Box::new(craft_anything_ui_egui::voice_demo::DemoVoice::filled()));
+            a.state.settings_open = true;
+            a.state.settings_tab = craft_anything_ui_egui::state::SettingsTab::Voice;
             a
         });
     }

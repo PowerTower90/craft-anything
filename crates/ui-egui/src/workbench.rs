@@ -947,14 +947,18 @@ fn bottom(app: &mut CraftApp, ui: &mut Ui) {
     ui.horizontal(|ui| {
         let n_jobs = app.jobs.running().filter(|j| j.visible).count();
         let jobs_title = if n_jobs > 0 { crate::i18n::trf("Jobs ({n})", &[("n", &n_jobs.to_string())]) } else { tr("Jobs") };
-        let tabs = [("bot", "Agent"), ("activity", jobs_title.as_str()), ("terminal", "Log")];
+        // The Voice tab counts the questions waiting for a yes or no.
+        let asks = app.voice.view.approvals.len();
+        let voice_title = if asks > 0 { crate::i18n::trf("Voice ({n})", &[("n", &asks.to_string())]) } else { tr("Voice") };
+        let tabs = [("bot", "Agent"), ("activity", jobs_title.as_str()), ("terminal", "Log"), ("mic", voice_title.as_str())];
         let sel = match app.state.bottom {
             BottomTab::Agent => 0,
             BottomTab::Jobs => 1,
             BottomTab::Log => 2,
+            BottomTab::Voice => 3,
         };
         if let Some(i) = tab_strip(ui, &tabs, sel) {
-            app.state.bottom = [BottomTab::Agent, BottomTab::Jobs, BottomTab::Log].get(i).copied().unwrap_or_default();
+            app.state.bottom = [BottomTab::Agent, BottomTab::Jobs, BottomTab::Log, BottomTab::Voice].get(i).copied().unwrap_or_default();
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if icons::button(ui, "chevron-down", 24.0, false, "Hide the console").clicked() {
@@ -977,6 +981,7 @@ fn bottom(app: &mut CraftApp, ui: &mut Ui) {
         }
         BottomTab::Log if project => wb_project::log(app, ui),
         BottomTab::Log => log_view(app, ui),
+        BottomTab::Voice => crate::voice_ui::conversation(app, ui),
     }
     // The panel stores the height its contents used: a tab that comes out even a point short
     // would make the console shrink a point every frame, creeping back after every drag. So the

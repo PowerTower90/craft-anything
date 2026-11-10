@@ -1771,3 +1771,96 @@ Start voice	Bật giọng nói
 Stop voice	Tắt giọng nói
 Speak aloud	Nói thành tiếng
 Set up voice	Thiết lập giọng nói
+# Voice (voice_ui.rs)
+After the wake word	Sau từ đánh thức
+Always listening	Luôn lắng nghe
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	Mọi thứ công khai (bài đăng, tin nhắn, giao dịch mua) luôn được hỏi trước, và nội dung gửi đi sẽ được đọc cho bạn nghe.
+Click to stop it speaking.	Bấm để nó ngừng nói.
+Close the voice panel	Đóng bảng giọng nói
+Craft Anything, please open my newest project and show me what changed.	Craft Anything, hãy mở dự án mới nhất của tôi và cho tôi xem có gì thay đổi.
+Describe it: a calm, deep voice that speaks slowly…	Mô tả giọng: một giọng trầm, điềm tĩnh, nói chậm rãi…
+Describe the voice	Mô tả giọng
+Design the assistant's voice	Thiết kế giọng của trợ lý
+Designing the voice…	Đang thiết kế giọng…
+Didn't work	Không thành công
+Done. Your voice is enrolled.	Xong. Giọng của bạn đã được đăng ký.
+Enrol my voice	Đăng ký giọng của tôi
+Enrol my voice again	Đăng ký lại giọng của tôi
+Finish	Hoàn tất
+Hearing you	Đang nghe bạn
+Hearing you. Click (or let go of the key) when you've finished.	Đang nghe bạn. Bấm (hoặc thả phím) khi bạn nói xong.
+Hello, I'm Craft Anything. What shall we make today?	Xin chào, tôi là Craft Anything. Hôm nay mình làm gì nhé?
+Hold {key} (or press the microphone) and talk.	Giữ {key} (hoặc bấm micrô) rồi nói.
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	Giọng nói phải giống giọng bạn đến mức nào mới được ra lệnh. Càng cao càng bỏ qua người khác nhiều hơn, và đôi khi cả bạn.
+I'd like a small game where a red ball bounces between two walls.	Tôi muốn một trò chơi nhỏ có quả bóng đỏ nảy qua lại giữa hai bức tường.
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	Nghe không giống giọng bạn đã đăng ký nên đã bị bỏ qua và không gửi cho Opus.
+It speaks with the built-in voice.	Nó nói bằng giọng tích hợp sẵn.
+It speaks with the voice you designed.	Nó nói bằng giọng bạn đã thiết kế.
+Just talk: a pause ends what you say.	Cứ nói thôi: một khoảng ngừng sẽ kết thúc câu bạn nói.
+List the devices again	Liệt kê lại thiết bị
+Listen	Nghe
+Listening	Đang nghe
+Listening…	Đang nghe…
+Microphone	Micrô
+No	Không
+No answer in {time} counts as no.	Không trả lời trong {time} sẽ tính là không.
+Not enrolled yet: any voice can give commands.	Chưa đăng ký: giọng của bất kỳ ai cũng có thể ra lệnh.
+Not your voice	Không phải giọng bạn
+Only my voice	Chỉ giọng của tôi
+Opus asks	Opus hỏi
+Opus asks before anything public	Opus hỏi trước mọi việc công khai
+Opus is working on…	Opus đang làm…
+Opus working	Opus đang làm việc
+Opus works in	Opus làm việc trong
+Pick the folder Opus works in	Chọn thư mục Opus làm việc
+Played. Keep it, or change the words and preview again.	Đã phát. Giữ giọng này, hoặc đổi lời mô tả rồi nghe thử lại.
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	Bấm Bắt đầu ghi âm, rồi đọc to bốn câu này với tốc độ bình thường. Tổng cộng khoảng 20 giây.
+Preview	Nghe thử
+Push to talk	Nhấn để nói
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	Nhấn để nói chỉ nghe khi bạn giữ phím. Từ đánh thức và luôn lắng nghe giữ micrô luôn mở.
+Push-to-talk key	Phím để nói
+Sample sentence	Câu mẫu
+Say “{word}”, then talk.	Nói “{word}”, rồi nói tiếp.
+Seven green bottles stood in a row on the kitchen window.	Bảy chai thủy tinh xanh đứng thành hàng trên bậu cửa sổ nhà bếp.
+Speaker profile	Hồ sơ giọng nói
+Speakers	Loa
+Speaking	Đang nói
+Speech	Giọng đọc
+Speech recognition	Nhận dạng giọng nói
+Start recording	Bắt đầu ghi âm
+Start voice first.	Hãy bật giọng nói trước.
+Start voice when Craft Anything opens	Bật giọng nói khi mở Craft Anything
+Start with the app	Khởi động cùng ứng dụng
+Stop speaking	Ngừng nói
+Stopped	Đã dừng
+System default	Mặc định của hệ thống
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	Nói chuyện với Craft Anything và nghe nó trả lời. Việc nghe, hiểu và nói diễn ra trên máy tính này; những gì bạn nhờ làm sẽ do Opus trong Claude Code thực hiện.
+Talk to Craft Anything. Click to start voice.	Nói chuyện với Craft Anything. Bấm để bật giọng nói.
+That wasn't enough of your voice. Try again and read all four.	Chưa đủ giọng của bạn. Hãy thử lại và đọc cả bốn câu.
+The assistant's voice	Giọng của trợ lý
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	Thư mục Opus bắt đầu làm những gì bạn nhờ bằng giọng nói. Để trống: thư mục cá nhân của bạn.
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	Mô hình cục bộ chỉ nghe và nói. Mọi việc bạn nhờ làm đều do Opus trong Claude Code thực hiện.
+The wake word	Từ đánh thức
+The wake word, said before a request when listening for it.	Từ đánh thức, nói trước một yêu cầu khi đang chờ nó.
+Tomorrow morning I will finish the trailer and check the music.	Sáng mai tôi sẽ làm xong đoạn trailer và kiểm tra phần nhạc.
+Use this voice	Dùng giọng này
+Voice	Giọng nói
+Voice ({n})	Giọng nói ({n})
+Voice conversation	Trò chuyện bằng giọng nói
+Voice is off. Start it with the microphone in the title bar.	Giọng nói đang tắt. Bật nó bằng micrô trên thanh tiêu đề.
+Voice is starting.	Giọng nói đang khởi động.
+Voice isn't connected in this build yet: it comes with the voice service.	Bản dựng này chưa kết nối giọng nói: tính năng đi kèm dịch vụ giọng nói.
+Voice service	Dịch vụ giọng nói
+Voice settings	Cài đặt giọng nói
+Voice: {state}	Giọng nói: {state}
+Wake word	Từ đánh thức
+What goes out:	Nội dung gửi đi:
+What to say first	Nói gì trước
+What you say and what Craft Anything answers shows here.	Những gì bạn nói và Craft Anything trả lời sẽ hiện ở đây.
+Works while Craft Anything is the window in front.	Hoạt động khi Craft Anything là cửa sổ ở phía trước.
+Yes	Có
+You	Bạn
+Your voice	Giọng của bạn
+Your voice is enrolled: only you can give commands.	Giọng của bạn đã được đăng ký: chỉ bạn mới ra lệnh được.
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Giọng của bạn chưa được đăng ký, nên giọng của bất kỳ ai cũng có thể ra lệnh. Hãy đăng ký trong Cài đặt → Giọng nói.
+{done} of {needed} seconds	{done} / {needed} giây

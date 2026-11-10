@@ -1771,3 +1771,96 @@ Start voice	เริ่มเสียง
 Stop voice	หยุดเสียง
 Speak aloud	พูดออกเสียง
 Set up voice	ตั้งค่าเสียง
+# Voice (voice_ui.rs)
+After the wake word	หลังคำปลุก
+Always listening	ฟังตลอดเวลา
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	ทุกอย่างที่เป็นสาธารณะ (โพสต์ ข้อความ การซื้อ) จะถามก่อนเสมอ และจะอ่านสิ่งที่จะส่งออกไปให้คุณฟัง
+Click to stop it speaking.	คลิกเพื่อให้หยุดพูด
+Close the voice panel	ปิดแผงเสียง
+Craft Anything, please open my newest project and show me what changed.	Craft Anything ช่วยเปิดโปรเจกต์ล่าสุดของฉัน แล้วบอกว่ามีอะไรเปลี่ยนไปบ้าง
+Describe it: a calm, deep voice that speaks slowly…	อธิบายเสียง: เสียงทุ้มนุ่มนวลที่พูดช้า ๆ…
+Describe the voice	อธิบายเสียง
+Design the assistant's voice	ออกแบบเสียงของผู้ช่วย
+Designing the voice…	กำลังออกแบบเสียง…
+Didn't work	ไม่สำเร็จ
+Done. Your voice is enrolled.	เสร็จแล้ว ลงทะเบียนเสียงของคุณแล้ว
+Enrol my voice	ลงทะเบียนเสียงของฉัน
+Enrol my voice again	ลงทะเบียนเสียงของฉันใหม่
+Finish	เสร็จสิ้น
+Hearing you	กำลังฟังคุณ
+Hearing you. Click (or let go of the key) when you've finished.	กำลังฟังคุณ คลิก (หรือปล่อยปุ่ม) เมื่อพูดจบ
+Hello, I'm Craft Anything. What shall we make today?	สวัสดี ฉันคือ Craft Anything วันนี้เราจะสร้างอะไรกันดี
+Hold {key} (or press the microphone) and talk.	กด {key} ค้างไว้ (หรือกดไมโครโฟน) แล้วพูด
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	เสียงต้องคล้ายเสียงของคุณมากแค่ไหนจึงจะสั่งงานได้ ยิ่งสูงยิ่งไม่สนใจคนอื่นมากขึ้น และบางครั้งก็รวมถึงคุณด้วย
+I'd like a small game where a red ball bounces between two walls.	ฉันอยากได้เกมเล็ก ๆ ที่ลูกบอลสีแดงเด้งไปมาระหว่างกำแพงสองด้าน
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	เสียงนี้ไม่เหมือนเสียงที่คุณลงทะเบียนไว้ จึงไม่สนใจและไม่ได้ส่งให้ Opus
+It speaks with the built-in voice.	พูดด้วยเสียงในตัว
+It speaks with the voice you designed.	พูดด้วยเสียงที่คุณออกแบบ
+Just talk: a pause ends what you say.	พูดได้เลย: การหยุดพักคือจบประโยค
+List the devices again	แสดงรายการอุปกรณ์อีกครั้ง
+Listen	การฟัง
+Listening	กำลังฟัง
+Listening…	กำลังฟัง…
+Microphone	ไมโครโฟน
+No	ไม่
+No answer in {time} counts as no.	ถ้าไม่ตอบภายใน {time} จะถือว่าไม่
+Not enrolled yet: any voice can give commands.	ยังไม่ได้ลงทะเบียน: เสียงของใครก็สั่งงานได้
+Not your voice	ไม่ใช่เสียงของคุณ
+Only my voice	เฉพาะเสียงของฉัน
+Opus asks	Opus ขอถาม
+Opus asks before anything public	Opus ขอถามก่อนทำสิ่งที่เป็นสาธารณะ
+Opus is working on…	Opus กำลังทำ…
+Opus working	Opus กำลังทำงาน
+Opus works in	Opus ทำงานใน
+Pick the folder Opus works in	เลือกโฟลเดอร์ที่ Opus ทำงาน
+Played. Keep it, or change the words and preview again.	เล่นแล้ว เก็บไว้ หรือเปลี่ยนคำแล้วฟังตัวอย่างอีกครั้ง
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	กดเริ่มบันทึก แล้วอ่านสี่ประโยคนี้ออกเสียงด้วยความเร็วปกติ รวมประมาณ 20 วินาที
+Preview	ฟังตัวอย่าง
+Push to talk	กดเพื่อพูด
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	กดเพื่อพูดจะฟังเฉพาะตอนที่คุณกดปุ่มค้างไว้ คำปลุกและการฟังตลอดเวลาจะเปิดไมโครโฟนไว้
+Push-to-talk key	ปุ่มกดเพื่อพูด
+Sample sentence	ประโยคตัวอย่าง
+Say “{word}”, then talk.	พูดว่า “{word}” แล้วพูดต่อ
+Seven green bottles stood in a row on the kitchen window.	ขวดสีเขียวเจ็ดใบตั้งเรียงกันอยู่ที่หน้าต่างห้องครัว
+Speaker profile	โปรไฟล์ผู้พูด
+Speakers	ลำโพง
+Speaking	กำลังพูด
+Speech	เสียงพูด
+Speech recognition	การรู้จำเสียงพูด
+Start recording	เริ่มบันทึก
+Start voice first.	เริ่มเสียงก่อน
+Start voice when Craft Anything opens	เริ่มเสียงเมื่อเปิด Craft Anything
+Start with the app	เริ่มพร้อมแอป
+Stop speaking	หยุดพูด
+Stopped	หยุดแล้ว
+System default	ค่าเริ่มต้นของระบบ
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	พูดคุยกับ Craft Anything และฟังคำตอบ การฟัง การเข้าใจ และการพูดเกิดขึ้นบนคอมพิวเตอร์เครื่องนี้ ส่วนงานที่คุณขอให้ทำ Opus ใน Claude Code จะเป็นผู้ทำ
+Talk to Craft Anything. Click to start voice.	พูดคุยกับ Craft Anything คลิกเพื่อเริ่มเสียง
+That wasn't enough of your voice. Try again and read all four.	เสียงของคุณยังไม่พอ ลองอีกครั้งและอ่านให้ครบทั้งสี่ประโยค
+The assistant's voice	เสียงของผู้ช่วย
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	โฟลเดอร์ที่ Opus เริ่มทำงานที่คุณขอด้วยเสียง เว้นว่าง: โฟลเดอร์หลักของคุณ
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	โมเดลในเครื่องทำได้แค่ฟังและพูด งานทุกอย่างที่คุณขอให้ทำ Opus ใน Claude Code จะเป็นผู้ทำ
+The wake word	คำปลุก
+The wake word, said before a request when listening for it.	คำปลุก พูดก่อนคำขอเมื่อกำลังรอฟังคำปลุก
+Tomorrow morning I will finish the trailer and check the music.	พรุ่งนี้เช้าฉันจะทำตัวอย่างหนังให้เสร็จและตรวจเพลง
+Use this voice	ใช้เสียงนี้
+Voice	เสียง
+Voice ({n})	เสียง ({n})
+Voice conversation	สนทนาด้วยเสียง
+Voice is off. Start it with the microphone in the title bar.	เสียงปิดอยู่ เริ่มได้ที่ไมโครโฟนในแถบชื่อเรื่อง
+Voice is starting.	กำลังเริ่มเสียง
+Voice isn't connected in this build yet: it comes with the voice service.	รุ่นนี้ยังไม่ได้เชื่อมต่อเสียง: จะมาพร้อมบริการเสียง
+Voice service	บริการเสียง
+Voice settings	การตั้งค่าเสียง
+Voice: {state}	เสียง: {state}
+Wake word	คำปลุก
+What goes out:	สิ่งที่จะส่งออกไป:
+What to say first	สิ่งที่ต้องพูดก่อน
+What you say and what Craft Anything answers shows here.	สิ่งที่คุณพูดและคำตอบของ Craft Anything จะแสดงที่นี่
+Works while Craft Anything is the window in front.	ใช้ได้เมื่อ Craft Anything เป็นหน้าต่างด้านหน้า
+Yes	ใช่
+You	คุณ
+Your voice	เสียงของคุณ
+Your voice is enrolled: only you can give commands.	ลงทะเบียนเสียงของคุณแล้ว: มีเพียงคุณที่สั่งงานได้
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	ยังไม่ได้ลงทะเบียนเสียงของคุณ เสียงของใครก็อาจสั่งงานได้ ลงทะเบียนได้ในการตั้งค่า → เสียง
+{done} of {needed} seconds	{done} จาก {needed} วินาที
