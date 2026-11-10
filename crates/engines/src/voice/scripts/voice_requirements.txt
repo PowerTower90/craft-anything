@@ -1,0 +1,12 @@
+# Python packages the voice service needs on top of the local-voice venv
+# (which already has torch + torchaudio (CUDA build), transformers 4.57, qwen-tts, soundfile, accelerate,
+# numpy, scipy, librosa, onnxruntime, huggingface_hub, psutil).
+# Install into the voice Python only:  <voice python> -m pip install -r voice_requirements.txt
+sounddevice>=0.5        # microphone and speakers (PortAudio), MIT
+aiohttp>=3.9            # WebSocket + /health server, Apache-2.0
+silero-vad>=5.1         # voice activity detection (model bundled in the wheel), MIT
+speechbrain>=1.0        # ECAPA-TDNN speaker verification, Apache-2.0
+openwakeword>=0.6       # built-in wake words (hey jarvis, alexa, ...), Apache-2.0
+psutil>=5.9             # parent-process watchdog, BSD-3-Clause
+# tests only
+pytest>=8
