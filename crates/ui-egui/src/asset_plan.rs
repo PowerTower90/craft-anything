@@ -279,7 +279,10 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
         // Things when the cards are shown ("Enemies 19"), files when every file is.
         let things = !app.assets.show_files;
         let shown_n = if things { app.assets.category_things(c) } else { n };
-        let label = format!("{} {}", tr(c.title()), count(shown_n as u64));
+        // One string for both what's painted and what's announced, so they can't disagree (the
+        // painted number once stayed the file count while the label said the things).
+        let shown = count(shown_n as u64);
+        let label = format!("{} {}", tr(c.title()), shown);
         resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, on, &label));
         let fill = if on { t.accent_soft } else { theme::mix(egui::Color32::TRANSPARENT, t.hover, widgets::hover_t(ui, &resp)) };
         ui.painter().rect_filled(rect, t.r_sm(), fill);
@@ -290,7 +293,7 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
             14.0,
             if on { t.accent_ink } else { t.icon },
         );
-        let num = ui.painter().layout_no_wrap(count(n as u64), theme::mono(theme::CAPTION), t.text_faint);
+        let num = ui.painter().layout_no_wrap(shown, theme::mono(theme::CAPTION), t.text_faint);
         let name_clip = egui::Rect::from_min_max(rect.min, egui::pos2(rect.right() - num.size().x - 10.0, rect.bottom()));
         let name = ui.painter().layout_no_wrap(tr(c.title()), egui::FontId::proportional(theme::CAPTION), t.text);
         ui.painter().with_clip_rect(name_clip).galley(egui::pos2(rect.left() + 28.0, rect.center().y - name.size().y / 2.0), name, t.text);

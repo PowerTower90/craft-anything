@@ -4336,7 +4336,19 @@ fn the_gallery_counts_and_shows_things_and_files_on_request() {
     assert!(wait(&mut h, |a| a.assets.items.len() == 10));
     h.run_steps(2);
     // Two enemies (the sound group isn't one), ten files.
-    h.get_by_label("Enemies 2");
+    let row = h.get_by_label("Enemies 2").rect();
+    // What's painted in the row says the same as its label: the things, not the files.
+    let painted: Vec<String> = h
+        .output()
+        .shapes
+        .iter()
+        .filter_map(|cs| match &cs.shape {
+            egui::Shape::Text(t) if t.visual_bounding_rect().intersects(row) => Some(t.galley.text().to_owned()),
+            _ => None,
+        })
+        .collect();
+    assert!(painted.iter().any(|t| t == "2"), "the row paints the thing count: {painted:?}");
+    assert!(!painted.iter().any(|t| t == "10"), "the row doesn't paint the file count: {painted:?}");
     h.state_mut().assets.category = Some(craft_anything_engine::inventory::Category::Enemies);
     h.run_steps(2);
     h.get_by_label_contains("Enemies · 2 enemies · 10 files");
