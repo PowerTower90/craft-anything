@@ -411,6 +411,10 @@ impl Inventory {
             not_taken_out += u64::from(i.path.is_none());
             problems += u64::from(i.problem.is_some());
         }
+        let after: BTreeMap<&str, usize> = {
+            let (all, _) = crate::asset_things::things(self.items.iter(), None);
+            crate::asset_things::count_after(&all).into_iter().map(|(c, n)| (c.id(), n)).collect()
+        };
         serde_json::json!({
             "items": self.items.len(),
             "by_source": by_source,
@@ -418,6 +422,7 @@ impl Inventory {
             "by_status": by_status,
             "by_category": by_category,
             "things_by_category": crate::asset_things::counts(self, |_| true).into_iter().map(|(c, (t, _))| (c.id(), t)).collect::<BTreeMap<_, _>>(),
+            "after_by_category": after,
             "without_file": not_taken_out,
             "with_problem": problems,
         })

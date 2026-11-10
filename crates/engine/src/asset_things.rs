@@ -643,6 +643,74 @@ fn audio_anchor(anchors: &[Anchor], models: usize, w: &[String], resolve: &dyn F
 
 // ---- Counting ----
 
+// ---- Before and after ----
+
+/// Where a thing's new version stands, from asked for to in the game (the order counts: a
+/// thing shows its furthest).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NewVersion {
+    /// Sent to be rebuilt; its new version isn't there yet.
+    BeingMade,
+    /// Made (by local AI or the builder), not yet in the game.
+    Made,
+    /// Replaced in the game.
+    InTheGame,
+}
+
+impl NewVersion {
+    pub fn id(self) -> &'static str {
+        match self {
+            NewVersion::BeingMade => "being_made",
+            NewVersion::Made => "made",
+            NewVersion::InTheGame => "in_the_game",
+        }
+    }
+
+    pub fn title(self) -> &'static str {
+        match self {
+            NewVersion::BeingMade => "Being made",
+            NewVersion::Made => "Made",
+            NewVersion::InTheGame => "In the game",
+        }
+    }
+}
+
+/// Where an item's new version stands, when it has one.
+pub fn new_version(i: &Item) -> Option<NewVersion> {
+    use crate::inventory::Status;
+    match i.status {
+        Status::Replaced => Some(NewVersion::InTheGame),
+        Status::Generated => Some(NewVersion::Made),
+        Status::NeedsReplacing if i.rebuild.is_some() => Some(NewVersion::BeingMade),
+        _ => None,
+    }
+}
+
+/// The picture of an item's new version (relative to the project): the generated picture, or
+/// a generated model's preview (`<model>_preview.png` beside it); for a generated asset listed on
+/// its own, its own picture.
+pub fn new_picture(i: &Item) -> Option<String> {
+    let picture = |p: &str| {
+        let lower = p.to_ascii_lowercase();
+        if [".png", ".jpg", ".jpeg", ".webp"].iter().any(|e| lower.ends_with(e)) {
+            return Some(p.to_string());
+        }
+        // A model: the preview written beside it.
+        [".glb", ".gltf", ".fbx", ".obj"]
+            .iter()
+            .find_map(|e| lower.ends_with(e).then(|| p.get(..p.len() - e.len())).flatten())
+            .map(|stem| format!("{stem}_preview.png"))
+    };
+    if let Some(out) = i.rebuild.as_ref().and_then(|r| r.output.as_deref()) {
+        return picture(out);
+    }
+    // A generated file listed as an item of its own (assets.json): it is the new version.
+    (i.status == crate::inventory::Status::Generated && i.source == crate::inventory::Source::Build)
+        .then(|| i.thumb.clone().or_else(|| i.path.as_deref().and_then(picture)))
+        .flatten()
+}
+
 /// One thing, as the gallery and the tools show it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Thing {
@@ -665,6 +733,17 @@ pub struct Thing {
     pub has_model: bool,
     /// Grouped by a person or an agent (some of its files).
     pub chosen: bool,
+    /// Where its new version stands (the furthest of its files), when it has one.
+    #[serde(default)]
+    pub after: Option<NewVersion>,
+    /// The new version's picture (relative to the project), and the item it's of.
+    #[serde(default)]
+    pub after_preview: Option<String>,
+    #[serde(default)]
+    pub after_item: Option<String>,
+    /// The rebuild jobs its new version came from.
+    #[serde(default)]
+    pub jobs: Vec<String>,
 }
 
 /// The things of `items` (in `category`, or all), biggest first; and the files in no thing.
@@ -689,6 +768,10 @@ pub fn things<'a>(items: impl Iterator<Item = &'a Item>, category: Option<Catego
             sounds_only: true,
             has_model: false,
             chosen: false,
+            after: None,
+            after_preview: None,
+            after_item: None,
+            jobs: Vec::new(),
         });
         let role = i.role.unwrap_or_else(|| role_of(i));
         *th.roles.entry(role.id().to_string()).or_default() += 1;
@@ -713,6 +796,20 @@ pub fn things<'a>(items: impl Iterator<Item = &'a Item>, category: Option<Catego
             preview_rank.insert(t.key.clone(), rank);
             th.preview.clone_from(&i.thumb);
             th.preview_item = Some(i.id.clone());
+        }
+        if let Some(nv) = new_version(i) {
+            th.after = th.after.max(Some(nv));
+            if let Some(job) = i.rebuild.as_ref().map(|r| r.job.clone()).filter(|j| !j.is_empty() && !th.jobs.contains(j)) {
+                th.jobs.push(job);
+            }
+            if let Some(p) = new_picture(i) {
+                let key = format!("after:{}", t.key);
+                if preview_rank.get(&key).is_none_or(|r| rank.max(1) > *r) {
+                    preview_rank.insert(key, rank.max(1));
+                    th.after_preview = Some(p);
+                    th.after_item = Some(i.id.clone());
+                }
+            }
         }
     }
     let mut v: Vec<Thing> = map.into_values().collect();
@@ -741,6 +838,18 @@ pub fn counts(inv: &Inventory, visible: impl Fn(&Item) -> bool) -> BTreeMap<Cate
     let (all, _) = things(inv.items.iter().filter(|i| visible(i)), None);
     let n = count_things(&all);
     files.into_iter().map(|(c, f)| (c, (n.get(&c).copied().unwrap_or(0), f))).collect()
+}
+
+/// The things that count ([`counted`]) and have a new version, in each category of `list`.
+pub fn count_after(list: &[Thing]) -> BTreeMap<Category, usize> {
+    let with_models: BTreeSet<Category> = list.iter().filter(|t| t.has_model).map(|t| t.category).collect();
+    let mut n: BTreeMap<Category, usize> = BTreeMap::new();
+    for t in list.iter().filter(|t| t.after.is_some()) {
+        if counted(t, with_models.contains(&t.category)) {
+            *n.entry(t.category).or_default() += 1;
+        }
+    }
+    n
 }
 
 /// The things that count ([`counted`]) in each category of `list`.

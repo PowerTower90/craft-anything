@@ -72,8 +72,12 @@ pub struct ThingsParams {
 
 /// The counts per category: things and files.
 pub fn counts_json(inv: &inventory::Inventory, see: &impl Fn(&Item) -> bool) -> Value {
-    let c: serde_json::Map<String, Value> =
-        asset_things::counts(inv, see).into_iter().map(|(cat, (things, files))| (cat.id().to_string(), json!({"things": things, "files": files}))).collect();
+    let (all, _) = asset_things::things(inv.items.iter().filter(|i| see(i)), None);
+    let after = asset_things::count_after(&all);
+    let c: serde_json::Map<String, Value> = asset_things::counts(inv, see)
+        .into_iter()
+        .map(|(cat, (things, files))| (cat.id().to_string(), json!({"things": things, "after": after.get(&cat).copied().unwrap_or(0), "files": files})))
+        .collect();
     Value::Object(c)
 }
 
@@ -82,6 +86,7 @@ fn thing_json(t: &asset_things::Thing) -> Value {
     json!({
         "key": t.key, "name": t.name, "category": t.category, "files": t.files, "roles": t.roles, "variants": t.variants,
         "preview": t.preview, "preview_item": t.preview_item, "sounds_only": t.sounds_only, "has_model": t.has_model, "chosen": t.chosen, "badge": badge,
+        "after": t.after, "after_preview": t.after_preview, "jobs": t.jobs,
     })
 }
 
@@ -113,8 +118,9 @@ fn project_inventory_things(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutp
     let things = asset_things::counts(&inv, &see).into_iter().filter(|(c, _)| p.category.is_none_or(|x| x == *c)).map(|(_, (t, _))| t).sum::<usize>();
     let sound_groups = list.iter().filter(|t| t.sounds_only).count();
     let page: Vec<Value> = list.iter().skip(p.offset).take(p.limit.clamp(1, 1000)).map(thing_json).collect();
+    let after = asset_things::count_after(&list).into_values().sum::<usize>();
     Ok(ToolOutput::Value(json!({
-        "things": things, "sound_groups": sound_groups, "files_in_no_thing": loose,
+        "things": things, "after": after, "sound_groups": sound_groups, "files_in_no_thing": loose,
         "total": total, "offset": p.offset, "list": page, "by_category": counts_json(&inv, &see),
     })))
 }
@@ -253,7 +259,7 @@ mod tests {
         let e = Engine::new(crate::testing::session());
         let r = call(&e, "project_inventory_things", json!({"project": ws.root, "category": "enemies"}));
         assert_eq!((r["things"].as_u64(), r["files_in_no_thing"].as_u64()), (Some(2), Some(1)), "{r}");
-        assert_eq!(r["by_category"]["enemies"], json!({"things": 2, "files": 6}));
+        assert_eq!(r["by_category"]["enemies"], json!({"things": 2, "after": 0, "files": 6}));
         let one = call(&e, "project_inventory_things", json!({"project": ws.root, "key": "enemies:warden"}));
         assert_eq!(one["files_by_role"]["normal_map"][0]["name"], "Warden_Mat_Normal");
         // The person moves the odd map to the warden; an agent can't move it back.

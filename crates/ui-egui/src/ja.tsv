@@ -1178,3 +1178,14 @@ pictures	画像
 effects	エフェクト
 pieces of music	曲
 things	もの
+After	後
+Before	前
+Job {job} · style {style}	ジョブ {job} · スタイル {style}
+Job {job}	ジョブ {job}
+{after} rebuilt · {n} files	作り直し {after} · ファイル {n}
+Being made	作成中
+Made	作成済み
+In the game	ゲームに反映済み
+Back to the Workbench	ワークベンチに戻る
+The original things	元のもの
+The things with a new version: being made, made, or in the game	新しい版があるもの：作成中、作成済み、ゲームに反映済み

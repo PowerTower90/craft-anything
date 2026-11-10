@@ -1,9 +1,11 @@
 //! The gallery's things: one card per thing (an enemy, a character with its outfits, a voice
 //! group) with its preview and what it holds, and the Inspector's view of a thing's files by role.
-//! "Show individual files" goes back to the file grid. The grouping is the engine's
+//! "Show individual files" goes back to the file grid. Under "After" the cards show each thing's
+//! new version, with where it stands (being made, made, in the game); a thing with a new version
+//! opens with its before and after side by side. The grouping is the engine's
 //! ([`craft_anything_engine::asset_things`]); the cards read the gallery's list.
 
-use crate::assets_ui::count;
+use crate::assets_ui::{Phase, count};
 use crate::i18n::{tr, trf};
 use crate::project::Thumb;
 use crate::theme::{self, Tokens};
@@ -50,6 +52,7 @@ pub fn grid(app: &mut CraftApp, ui: &mut Ui) {
     let rows = things.len().div_ceil(cols);
     let mut want: Vec<(String, String)> = Vec::new();
     let mut picked = None;
+    let after = app.assets.phase == Some(Phase::After);
     ui.spacing_mut().item_spacing = Vec2::splat(GAP);
     egui::ScrollArea::vertical().id_salt("thing-grid").auto_shrink([false, false]).show_rows(ui, CARD_H, rows, |ui, range| {
         for r in range {
@@ -57,9 +60,11 @@ pub fn grid(app: &mut CraftApp, ui: &mut Ui) {
                 ui.spacing_mut().item_spacing.x = GAP;
                 for c in 0..cols {
                     let Some(th) = things.get(r * cols + c) else { break };
-                    let thumb = th.preview_item.as_ref().and_then(|id| app.assets.thumb(id));
-                    if let (None, Some(id), Some(rel)) = (thumb, &th.preview_item, &th.preview) {
-                        want.push((id.clone(), rel.clone()));
+                    // Under After, the new version's picture; else the original's.
+                    let (key, rel) = picture_of(th, after);
+                    let thumb = key.as_ref().and_then(|id| app.assets.thumb(id));
+                    if let (None, Some(id), Some(rel)) = (thumb, key, rel) {
+                        want.push((id, rel));
                     }
                     let focused = app.assets.thing_focus.as_deref() == Some(th.key.as_str());
                     if card(ui, th, thumb, focused, &t).clicked() {
@@ -79,7 +84,12 @@ pub fn grid(app: &mut CraftApp, ui: &mut Ui) {
 fn card(ui: &mut Ui, th: &Thing, thumb: Option<&Thumb>, focused: bool, t: &Tokens) -> egui::Response {
     let (rect, _) = ui.allocate_exact_size(Vec2::new(CARD_W, CARD_H), Sense::hover());
     let resp = ui.interact(rect, egui::Id::new(("thing-card", th.key.as_str())), Sense::click());
-    resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, focused, &th.name));
+    // Its name, and where its new version stands when it has one ("Shield · Made").
+    let label = match th.after {
+        Some(nv) => format!("{} · {}", th.name, tr(nv.title())),
+        None => th.name.clone(),
+    };
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, focused, &label));
     if !ui.is_rect_visible(rect) {
         return resp;
     }
@@ -118,8 +128,52 @@ fn card(ui: &mut Ui, th: &Thing, thumb: Option<&Thumb>, focused: bool, t: &Token
     p.with_clip_rect(clip).galley(egui::pos2(rect.left() + 6.0, pic.bottom() + 24.0), files, t.text_dim);
     let badge = p.layout_no_wrap(badge_text(th), egui::FontId::proportional(theme::CAPTION), t.text_faint);
     p.with_clip_rect(clip).galley(egui::pos2(rect.left() + 6.0, pic.bottom() + 40.0), badge, t.text_faint);
-    let tip = if th.variants.is_empty() { badge_text(th) } else { format!("{}\n{}", badge_text(th), th.variants.join(", ")) };
+    // Where its new version stands, on the picture's corner.
+    if let Some(nv) = th.after {
+        let col = match nv {
+            asset_things::NewVersion::BeingMade => t.warning,
+            asset_things::NewVersion::Made => t.accent,
+            asset_things::NewVersion::InTheGame => t.success,
+        };
+        let g = p.layout_no_wrap(tr(nv.title()), egui::FontId::proportional(theme::CAPTION - 1.0), t.canvas);
+        let pill = egui::Rect::from_min_size(pic.left_top() + Vec2::new(4.0, 4.0), g.size() + Vec2::new(10.0, 4.0));
+        p.rect_filled(pill, 6.0, col);
+        p.galley(pill.min + Vec2::new(5.0, 2.0), g, t.canvas);
+    }
+    let mut tip = if th.variants.is_empty() { badge_text(th) } else { format!("{}\n{}", badge_text(th), th.variants.join(", ")) };
+    if let Some(nv) = th.after {
+        tip = format!("{}\n{tip}", tr(nv.title()));
+    }
     resp.on_hover_text(tip)
+}
+
+/// The picture a card shows (its cache key and its path in the project): the new version's
+/// under After (or the original's when the new one has none yet), else the original's.
+pub fn picture_of(th: &Thing, after: bool) -> (Option<String>, Option<String>) {
+    match (&th.after_item, &th.after_preview) {
+        (Some(id), Some(rel)) if after => (Some(format!("after:{id}")), Some(rel.clone())),
+        _ => (th.preview_item.clone(), th.preview.clone()),
+    }
+}
+
+/// One picture of the Before/After pair, as large as the Inspector's column.
+fn side_picture(ui: &mut Ui, thumb: Option<&Thumb>, caption: &str, t: &Tokens) {
+    ui.vertical(|ui| {
+        let w = ui.available_width().max(60.0);
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(w, w), Sense::hover());
+        ui.painter().rect_filled(rect, t.radius_sm, t.raised);
+        match thumb {
+            Some(Thumb::Ready(tex)) => {
+                let [tw, th] = tex.size();
+                let scale = (rect.width() / tw.max(1) as f32).min(rect.height() / th.max(1) as f32);
+                let fit = egui::Rect::from_center_size(rect.center(), Vec2::new(tw as f32 * scale, th as f32 * scale));
+                ui.painter().image(tex.id(), fit, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), Color32::WHITE);
+            }
+            Some(Thumb::Loading) => {}
+            _ => icons::paint(ui, rect, "image", 28.0, t.text_faint),
+        }
+        ui.label(RichText::new(caption).size(theme::CAPTION).color(t.text_dim));
+    });
 }
 
 /// The Inspector for a focused thing: its name, outfits, and its files grouped by role; a file
@@ -131,6 +185,7 @@ pub fn inspector(app: &mut CraftApp, ui: &mut Ui) -> bool {
     let files: Vec<Item> = app.assets.items.iter().filter(|i| i.thing.as_ref().is_some_and(|x| x.key == key)).cloned().collect();
     let mut open = None;
     let mut rebuild = false;
+    let mut want: Vec<(String, String)> = Vec::new();
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         widgets::panel(&t).show(ui, |ui| {
             ui.set_width(ui.available_width());
@@ -145,6 +200,37 @@ pub fn inspector(app: &mut CraftApp, ui: &mut Ui) -> bool {
             }
         });
         ui.add_space(8.0);
+        // Before and after, side by side, with the job and the style it was made with.
+        if let Some(nv) = th.after {
+            widgets::panel(&t).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(RichText::new(tr(nv.title())).font(theme::semibold(theme::SMALL)));
+                let (bk, br) = picture_of(&th, false);
+                let (ak, ar) = picture_of(&th, true);
+                let after_own = th.after_preview.is_some();
+                for (k, r) in [(&bk, &br), (&ak, &ar)] {
+                    if let (Some(k), Some(r)) = (k, r)
+                        && app.assets.thumb(k).is_none()
+                    {
+                        want.push((k.clone(), r.clone()));
+                    }
+                }
+                ui.columns(2, |cols| {
+                    side_picture(&mut cols[0], bk.as_ref().and_then(|k| app.assets.thumb(k)), &tr("Before"), &t);
+                    let thumb = if after_own { ak.as_ref().and_then(|k| app.assets.thumb(k)) } else { None };
+                    side_picture(&mut cols[1], thumb, &tr("After"), &t);
+                });
+                for job in &th.jobs {
+                    let style = app.assets.style_of(job).map(str::to_string);
+                    let line = match style {
+                        Some(s) => trf("Job {job} · style {style}", &[("job", job), ("style", &s)]),
+                        None => trf("Job {job}", &[("job", job)]),
+                    };
+                    ui.add(egui::Label::new(RichText::new(line).size(theme::CAPTION).color(t.text_faint)).wrap());
+                }
+            });
+            ui.add_space(8.0);
+        }
         for role in ROLES {
             let of: Vec<&Item> = files.iter().filter(|i| i.role.unwrap_or_else(|| asset_things::role_of(i)) == *role).collect();
             if of.is_empty() {
@@ -170,6 +256,8 @@ pub fn inspector(app: &mut CraftApp, ui: &mut Ui) -> bool {
             ui.add_space(8.0);
         }
     });
+    let ctx = ui.ctx().clone();
+    crate::assets_ui::want_thumbs(app, &ctx, want);
     if let Some(id) = open {
         app.assets.show_files = true;
         app.assets.selected = [id.clone()].into_iter().collect();

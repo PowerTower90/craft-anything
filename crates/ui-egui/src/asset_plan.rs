@@ -4,7 +4,7 @@
 //! ([`craft_anything_engine::asset_categories`], [`craft_anything_engine::asset_rebuild`]); this
 //! draws them and calls their tools on workers.
 
-use crate::assets_ui::{Summary, count, kind_words};
+use crate::assets_ui::{Phase, Summary, count, kind_words};
 use crate::i18n::{tr, trf};
 use crate::state::Screen;
 use crate::theme::{self, Tokens};
@@ -261,6 +261,7 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     widgets::caption(ui, "Category");
     let mut pick = None;
+    let mut pick_phase = None;
     let mut rebuild = None;
     for c in Category::ALL {
         let n = app.assets.category_count(c);
@@ -315,6 +316,33 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
                 rebuild = Some(c);
             }
         }
+        // Before (the originals) and After (the things with a new version), each a filter.
+        if n > 0 {
+            let before = app.assets.category_things(c);
+            let after = app.assets.category_after(c);
+            for (phase, word, num) in [(Phase::Before, "Before", before), (Phase::After, "After", after)] {
+                let (row, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 20.0), Sense::hover());
+                let rect = egui::Rect::from_min_max(row.min + Vec2::new(24.0, 0.0), row.max);
+                let resp = ui.interact(rect, egui::Id::new(("asset-category-phase", c.id(), word)), Sense::click());
+                let on = app.assets.category == Some(c) && app.assets.phase == Some(phase);
+                // One string for what's painted and what's announced.
+                let shown = count(num as u64);
+                let label = format!("{} {} {}", tr(c.title()), tr(word), shown);
+                resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, on, &label));
+                let fill = if on { t.accent_soft } else { theme::mix(egui::Color32::TRANSPARENT, t.hover, widgets::hover_t(ui, &resp)) };
+                ui.painter().rect_filled(rect, t.r_sm(), fill);
+                let small = theme::CAPTION - 1.0;
+                let num_g = ui.painter().layout_no_wrap(shown, theme::mono(small), t.text_faint);
+                let word_g = ui.painter().layout_no_wrap(tr(word), egui::FontId::proportional(small), if on { t.accent_ink } else { t.text_dim });
+                ui.painter().galley(egui::pos2(rect.left() + 8.0, rect.center().y - word_g.size().y / 2.0), word_g, t.text_dim);
+                ui.painter().galley(egui::pos2(rect.right() - num_g.size().x - 6.0, rect.center().y - num_g.size().y / 2.0), num_g, t.text_faint);
+                let tip = if phase == Phase::Before { "The original things" } else { "The things with a new version: being made, made, or in the game" };
+                if resp.on_hover_text(tr(tip)).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                    pick_phase = Some((c, phase));
+                }
+            }
+            ui.add_space(2.0);
+        }
     }
     if app.assets.category_count(Category::Unsorted) > 0
         && widgets::secondary(ui, Some("sparkles"), "Sort the unsorted with the agent")
@@ -336,7 +364,14 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
         }
     }
     if let Some(c) = pick {
-        app.assets.category = if app.assets.category == Some(c) { None } else { Some(c) };
+        app.assets.category = if app.assets.category == Some(c) && app.assets.phase.is_none() { None } else { Some(c) };
+        app.assets.phase = None;
+        app.assets.kind = None;
+    }
+    if let Some((c, phase)) = pick_phase {
+        let again = app.assets.category == Some(c) && app.assets.phase == Some(phase);
+        app.assets.category = Some(c);
+        app.assets.phase = (!again).then_some(phase);
         app.assets.kind = None;
     }
     if let Some(c) = rebuild {
@@ -361,6 +396,10 @@ pub fn category_header(app: &mut CraftApp, ui: &mut Ui, category: Category, show
             )
         };
         ui.label(RichText::new(words).font(theme::semibold(theme::BODY)));
+        if let Some(phase) = app.assets.phase {
+            let word = if phase == Phase::Before { "Before" } else { "After" };
+            widgets::pill(ui, &tr(word), t.on_accent, t.accent);
+        }
         if widgets::link(ui, "Rebuild…").clicked() {
             app.open_rebuild_plan(Some(category), Vec::new());
         }
@@ -426,8 +465,9 @@ pub fn card_categories(app: &mut CraftApp, ui: &mut Ui, s: &Summary) {
         if n == 0 {
             continue;
         }
-        // The things ("Enemies 19") over the files ("827 files").
+        // The things ("Enemies 19") over how many are rebuilt and the files.
         let things = s.things_by_category.get(&c).copied().unwrap_or(0);
+        let after = s.after_by_category.get(&c).copied().unwrap_or(0);
         // Right to left: the button, then the icon with the name over its count, so a narrow card
         // keeps both readable (a name too long for the card is shortened, never the count).
         ui.horizontal(|ui| {
@@ -442,7 +482,8 @@ pub fn card_categories(app: &mut CraftApp, ui: &mut Ui, s: &Summary) {
                         ui.spacing_mut().item_spacing.y = 0.0;
                         let name = if things > 0 { format!("{} {}", tr(c.title()), count(things)) } else { tr(c.title()) };
                         ui.add(egui::Label::new(RichText::new(name).size(theme::SMALL).color(t.text)).truncate());
-                        ui.label(RichText::new(trf("{n} files", &[("n", &count(n))])).font(theme::mono(theme::CAPTION)).color(t.text_faint));
+                        let second = trf("{after} rebuilt · {n} files", &[("after", &count(after)), ("n", &count(n))]);
+                        ui.label(RichText::new(second).font(theme::mono(theme::CAPTION)).color(t.text_faint));
                     });
                 });
             });

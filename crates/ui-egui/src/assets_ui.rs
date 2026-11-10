@@ -143,6 +143,8 @@ pub struct Summary {
     pub by_category: BTreeMap<Category, u64>,
     /// Things counted in each category (asset_things).
     pub things_by_category: BTreeMap<Category, u64>,
+    /// Of those, the ones with a new version.
+    pub after_by_category: BTreeMap<Category, u64>,
     /// Items marked "needs replacing".
     pub marked: u64,
     /// The build or the original was scanned (an inventory exists).
@@ -173,12 +175,17 @@ impl Summary {
             .as_object()
             .map(|m| m.iter().filter_map(|(k, n)| Some((Category::from_id(k)?, n.as_u64().unwrap_or(0)))).collect())
             .unwrap_or_default();
+        let after_by_category = counts["after_by_category"]
+            .as_object()
+            .map(|m| m.iter().filter_map(|(k, n)| Some((Category::from_id(k)?, n.as_u64().unwrap_or(0)))).collect())
+            .unwrap_or_default();
         Summary {
             root: root.to_path_buf(),
             items: counts["items"].as_u64().unwrap_or(0),
             by_kind,
             by_category,
             things_by_category,
+            after_by_category,
             marked: counts["by_status"][Status::NeedsReplacing.id()].as_u64().unwrap_or(0),
             scanned: !v["build_scanned_ms"].is_null() || !v["original_scanned_ms"].is_null() || counts["items"].as_u64().unwrap_or(0) > 0,
             hidden: counts["original_hidden_in_clean_room"].as_u64().unwrap_or(0),
@@ -213,6 +220,26 @@ pub fn count(n: u64) -> String {
 pub struct Loaded {
     pub summary: Summary,
     pub items: Vec<Item>,
+    /// Each rebuild job's style.
+    pub styles: BTreeMap<String, String>,
+}
+
+/// The style each rebuild job used, from the project's rebuild lists (small files).
+fn job_styles(root: &Path) -> BTreeMap<String, String> {
+    let mut out = BTreeMap::new();
+    for e in std::fs::read_dir(root.join(craft_anything_engine::asset_rebuild::REBUILD_DIR)).into_iter().flatten().flatten() {
+        let p = e.path();
+        let small = e.metadata().is_ok_and(|m| m.len() < 8 * 1024 * 1024);
+        if p.extension().is_some_and(|x| x == "json")
+            && small
+            && let Some(job) = p.file_stem().and_then(|s| s.to_str())
+            && let Ok(v) = std::fs::read(&p).map_err(|_| ()).and_then(|b| serde_json::from_slice::<Value>(&b).map_err(|_| ()))
+            && let Some(style) = v["style"].as_str().filter(|s| !s.trim().is_empty())
+        {
+            out.insert(job.to_string(), style.to_string());
+        }
+    }
+    out
 }
 
 /// Where the list stands.
@@ -235,6 +262,7 @@ struct ViewKey {
     query: String,
     show_unreadable: bool,
     generation: u64,
+    phase: Option<Phase>,
 }
 
 /// An item the scan couldn't take out of the original: there's no file and no picture of it,
@@ -248,6 +276,13 @@ pub fn unreadable(item: &Item) -> bool {
 fn order_key(item: &Item) -> (bool, bool, Kind, String) {
     let preview = item.thumb.is_some() && matches!(item.kind, Kind::Texture | Kind::Sprite | Kind::Model);
     (item.problem.is_some(), !preview, item.kind, item.name.to_lowercase())
+}
+
+/// Before (the originals) or After (the things with a new version), under a category.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Phase {
+    Before,
+    After,
 }
 
 /// The gallery's state: the project's items, the filters, the selection and the thumbnails.
@@ -314,6 +349,12 @@ pub struct Gallery {
     cat_things: BTreeMap<Category, usize>,
     /// Files of each category passing the other filters.
     cat_files: BTreeMap<Category, usize>,
+    /// Before or After under the category shown (none: all).
+    pub phase: Option<Phase>,
+    /// Things with a new version in each category.
+    cat_after: BTreeMap<Category, usize>,
+    /// Each rebuild job's style (from rebuild/<job>.json).
+    pub styles: BTreeMap<String, String>,
 }
 
 /// What the grid shows (category, source, kind, status, search, unreadable shown).
@@ -325,6 +366,7 @@ impl Gallery {
         if self.root.as_deref() != root {
             // The view (cards or files) is the person's, whatever the project.
             *self = Gallery { root: root.map(Path::to_path_buf), show_files: self.show_files, ..Default::default() };
+            self.phase = None;
         }
     }
 
@@ -348,6 +390,17 @@ impl Gallery {
     pub fn category_things(&mut self, category: Category) -> usize {
         self.refilter();
         self.cat_things.get(&category).copied().unwrap_or(0)
+    }
+
+    /// How many things of `category` have a new version, of the files passing the other filters.
+    pub fn category_after(&mut self, category: Category) -> usize {
+        self.refilter();
+        self.cat_after.get(&category).copied().unwrap_or(0)
+    }
+
+    /// The style a rebuild job used, when its list says.
+    pub fn style_of(&self, job: &str) -> Option<&str> {
+        self.styles.get(job).map(String::as_str)
     }
 
     /// The things of the files shown, models first.
@@ -394,6 +447,7 @@ impl Gallery {
             query: self.query.trim().to_lowercase(),
             show_unreadable: self.show_unreadable,
             generation: self.generation,
+            phase: self.phase,
         };
         if self.key.as_ref() == Some(&key) {
             return;
@@ -442,8 +496,16 @@ impl Gallery {
         use craft_anything_engine::asset_things;
         let (all, _) = asset_things::things(passing.iter().filter_map(|i| self.items.get(*i)), None);
         self.cat_things = asset_things::count_things(&all).into_iter().collect();
+        self.cat_after = asset_things::count_after(&all).into_iter().collect();
         self.cat_files = self.cats.clone().into_iter().collect();
-        self.things = asset_things::things(self.shown.iter().filter_map(|i| self.items.get(*i)), None).0;
+        let mut things = asset_things::things(self.shown.iter().filter_map(|i| self.items.get(*i)), None).0;
+        // After: only the things with a new version (and in the file grid, only their new files).
+        if key.phase == Some(Phase::After) {
+            things.retain(|t| t.after.is_some());
+            let items = &self.items;
+            self.shown.retain(|i| items.get(*i).is_some_and(|it| asset_things::new_version(it).is_some()));
+        }
+        self.things = things;
         self.key = Some(key);
     }
 
@@ -532,7 +594,7 @@ fn read_all(engine: &Engine, root: &Path, job: &crate::jobs::JobCtx) -> Result<L
             break;
         }
     }
-    Ok(Loaded { summary: summary.unwrap_or_else(|| Summary { root: root.to_path_buf(), ..Default::default() }), items })
+    Ok(Loaded { summary: summary.unwrap_or_else(|| Summary { root: root.to_path_buf(), ..Default::default() }), items, styles: job_styles(root) })
 }
 
 impl CraftApp {
@@ -694,6 +756,7 @@ impl CraftApp {
                     Ok(loaded) => {
                         self.assets.summary = Some(loaded.summary);
                         self.assets.items = loaded.items;
+                        self.assets.styles = loaded.styles;
                         self.assets.list = ListState::Ready;
                         self.assets.generation += 1;
                         let ids: BTreeSet<&str> = self.assets.items.iter().map(|i| i.id.as_str()).collect();

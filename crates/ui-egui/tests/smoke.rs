@@ -4383,5 +4383,154 @@ fn the_assets_card_counts_things_over_files() {
     assert!(wait(&mut h, |a| a.assets.summary.is_some()));
     h.run_steps(2);
     h.get_by_label("Enemies 2");
-    h.get_by_label("10 files");
+    h.get_by_label("0 rebuilt · 10 files");
+}
+
+/// A HUD with three icons: one made by local AI (its neon picture in generated/), one in the
+/// game, one being made; and one left as it was.
+fn hud_after_project(dir: &std::path::Path) -> craft_anything_engine::workspace::Workspace {
+    use craft_anything_engine::inventory::{self, Category, CategoryBy, INVENTORY_VERSION, Inventory, Item, Kind, RebuildMark, Source, Status};
+    use craft_anything_engine::tools::web_common::{Image, encode_png};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let ws = Workspace::create(dir, "Cave", "A cave game", TargetRef::None).unwrap();
+    let old = encode_png(&Image { width: 4, height: 4, rgba: vec![90; 64] }).unwrap();
+    let neon = encode_png(&Image { width: 8, height: 8, rgba: vec![250; 256] }).unwrap();
+    std::fs::create_dir_all(ws.root.join("reference/thumbs")).unwrap();
+    std::fs::create_dir_all(ws.root.join("generated/hud-1")).unwrap();
+    std::fs::create_dir_all(ws.root.join("rebuild")).unwrap();
+    std::fs::write(ws.root.join("rebuild/hud-1.json"), r#"{"version": 1, "style": "Sci-fi neon hologram", "items": []}"#).unwrap();
+    let mut items = Vec::new();
+    for (name, status, made) in [
+        ("Shield_icon", Status::Generated, true),
+        ("Ammo_icon", Status::Replaced, false),
+        ("Compass_icon", Status::NeedsReplacing, false),
+        ("Map_icon", Status::Original, false),
+    ] {
+        let mut i = Item::new(Source::Original, name, Kind::Texture, name, status);
+        i.id = name.to_ascii_lowercase();
+        i.category = Category::Hud;
+        i.category_by = CategoryBy::User;
+        std::fs::write(ws.root.join(format!("reference/thumbs/{}.png", i.id)), &old).unwrap();
+        i.thumb = Some(format!("reference/thumbs/{}.png", i.id));
+        if status != Status::Original {
+            let output = made.then(|| format!("generated/hud-1/{}.png", i.id));
+            if let Some(o) = &output {
+                std::fs::write(ws.root.join(o), &neon).unwrap();
+            }
+            i.rebuild = Some(RebuildMark { method: "local_ai".into(), requested_ms: 1, job: "hud-1".into(), output });
+        }
+        items.push(i);
+    }
+    let mut inv = Inventory { version: INVENTORY_VERSION, build_scanned_ms: Some(1), items, ..Default::default() };
+    craft_anything_engine::asset_categories::apply(&mut inv);
+    inventory::save(&ws.root, &inv).unwrap();
+    ws
+}
+
+/// The texts painted inside `rect`.
+fn painted_in(h: &Harness<'static, CraftApp>, rect: egui::Rect) -> Vec<String> {
+    h.output()
+        .shapes
+        .iter()
+        .filter_map(|cs| match &cs.shape {
+            egui::Shape::Text(t) if t.visual_bounding_rect().intersects(rect) => Some(t.galley.text().to_owned()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Under each category, Before and After: their counts are painted as announced, After shows
+/// the things with a new version (the new picture, a badge), and a thing opens with its before
+/// and after side by side, with the job and style.
+#[test]
+fn before_and_after_rows_filter_and_show_the_new_versions() {
+    use craft_anything_engine::inventory::Category;
+    use craft_anything_ui_egui::assets_ui::Phase;
+    let d = tempfile::tempdir().unwrap();
+    let ws = hud_after_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 4));
+    h.run_steps(2);
+    let before = h.get_by_label("HUD & menus Before 4").rect();
+    assert!(painted_in(&h, before).iter().any(|t| t == "4"), "{:?}", painted_in(&h, before));
+    let after = h.get_by_label("HUD & menus After 3").rect();
+    let painted = painted_in(&h, after);
+    assert!(painted.iter().any(|t| t == "3") && !painted.iter().any(|t| t == "4"), "{painted:?}");
+    h.get_by_label("HUD & menus After 3").click();
+    h.run_steps(2);
+    assert_eq!((h.state().assets.category, h.state().assets.phase), (Some(Category::Hud), Some(Phase::After)));
+    let names: Vec<String> = h.state_mut().assets.things().iter().map(|t| t.name.clone()).collect();
+    assert_eq!(names.len(), 3, "{names:?}");
+    assert!(!names.iter().any(|n| n.contains("Map")), "the untouched one isn't After");
+    // The made one shows its new (neon) picture, with its badge.
+    assert!(
+        wait(&mut h, |a| matches!(a.assets.thumb("after:shield_icon"), Some(craft_anything_ui_egui::project::Thumb::Ready(_)))),
+        "the generated picture loaded"
+    );
+    h.get_by_label_contains("Made");
+    h.get_by_label_contains("In the game");
+    h.get_by_label_contains("Being made");
+    // Before and after side by side, with the job and its style.
+    let key = h.state_mut().assets.things().iter().find(|t| t.name.contains("Shield")).map(|t| t.key.clone()).unwrap();
+    h.state_mut().assets.thing_focus = Some(key);
+    h.run_steps(3);
+    assert!(h.query_all_by_label("Before").count() >= 1 && h.query_all_by_label("After").count() >= 2, "the pair's captions (and the header's After)");
+    h.get_by_label("Job hud-1 · style Sci-fi neon hologram");
+    // The category row is "all" again.
+    h.get_by_label("HUD & menus 4").click();
+    h.run_steps(2);
+    assert_eq!(h.state().assets.phase, None);
+}
+
+/// The hammer is the strip's first button: it goes to the project page, where the same button,
+/// selected, is at the same place and brings the Workbench back as it was.
+#[test]
+fn the_hammer_toggles_between_the_workbench_and_the_project_page() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = hud_after_project(d.path());
+    let mut h = harness_sized(egui::vec2(1400.0, 900.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a.state.screen = Screen::Workbench;
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 4));
+    h.run_steps(2);
+    let hammer = h.get_by_label("Projects and builds").rect();
+    let first_rail = h.get_by_label(RailKind::ALL[0].title()).rect();
+    assert!(hammer.top() < first_rail.top(), "the hammer is at the top, above {hammer:?} {first_rail:?}");
+    h.get_by_label("Projects and builds").click();
+    h.run_steps(3);
+    assert_eq!(h.state().state.screen, Screen::Project);
+    let back = h.get_by_label("Back to the Workbench");
+    assert!((back.rect().center() - hammer.center()).length() < 12.0, "the same place: {:?} {hammer:?}", back.rect());
+    h.get_by_label("Back to the Workbench").click();
+    h.run_steps(3);
+    assert_eq!(h.state().state.screen, Screen::Workbench);
+    assert_eq!(h.state().state.rail, RailKind::Assets, "where the person was");
+}
+
+/// The Simple project page's Assets card: things, then how many are rebuilt.
+#[test]
+fn the_assets_card_says_how_many_are_rebuilt() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = hud_after_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Beginner, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.summary.is_some()));
+    h.run_steps(2);
+    h.get_by_label("HUD & menus 4");
+    h.get_by_label("3 rebuilt · 4 files");
 }

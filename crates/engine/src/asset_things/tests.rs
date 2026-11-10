@@ -221,3 +221,34 @@ fn stems_and_typos() {
     assert!(!same("dreadnought", "dreadnoughtrc"), "a word added isn't a typo");
     assert!(!same("grunt", "brunt") || allowed(5) == 1);
 }
+
+#[test]
+fn a_thing_with_a_new_version_says_where_it_stands_and_shows_the_new_picture() {
+    use crate::inventory::RebuildMark;
+    let mut items: Vec<Item> = ["Shield_icon", "Shield_icon_small", "Ammo_icon", "Map_icon", "Crate_Model"]
+        .iter()
+        .map(|n| item(n, if n.ends_with("Model") { Kind::Model } else { Kind::Texture }, Category::Hud))
+        .collect();
+    let mark = |output: Option<&str>| Some(RebuildMark { method: "local_ai".into(), requested_ms: 1, job: "hud-1".into(), output: output.map(str::to_string) });
+    items[0].status = Status::Generated;
+    items[0].rebuild = mark(Some("generated/hud-1/shield.png"));
+    items[1].status = Status::NeedsReplacing;
+    items[1].rebuild = mark(None);
+    items[2].status = Status::Replaced;
+    items[2].rebuild = mark(None);
+    items[4].status = Status::Generated;
+    items[4].rebuild = mark(Some("generated/props/crate.glb"));
+    assert_eq!(new_version(&items[1]), Some(NewVersion::BeingMade));
+    assert_eq!(new_version(&items[3]), None);
+    assert_eq!(new_picture(&items[4]).as_deref(), Some("generated/props/crate_preview.png"), "a model's preview beside it");
+    let inv = inv(items);
+    let (list, _) = things(inv.items.iter(), Some(Category::Hud));
+    let shield = list.iter().find(|t| t.name == "Shield").unwrap();
+    assert_eq!(shield.after, Some(NewVersion::Made), "the furthest of its files");
+    assert_eq!(shield.after_preview.as_deref(), Some("generated/hud-1/shield.png"));
+    assert_eq!(shield.jobs, ["hud-1"]);
+    assert_eq!(list.iter().find(|t| t.name == "Ammo").unwrap().after, Some(NewVersion::InTheGame));
+    assert_eq!(list.iter().find(|t| t.name == "Map").unwrap().after, None);
+    assert_eq!(count_after(&list).get(&Category::Hud), Some(&3), "Shield, Ammo, Crate");
+    assert_eq!(inv.counts()["after_by_category"]["hud"], 3);
+}

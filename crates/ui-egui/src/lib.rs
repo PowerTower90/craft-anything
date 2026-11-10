@@ -2047,6 +2047,15 @@ impl CraftApp {
         }
 
         if self.beginner() || self.state.screen != Screen::Workbench {
+            // Advanced mode: the Workbench's strip stays, with its hammer selected at the top, so
+            // the way back is where the way here was.
+            if !self.beginner() {
+                egui::Panel::left("wb-rail-icons")
+                    .exact_size(workbench::STRIP_W)
+                    .resizable(false)
+                    .frame(egui::Frame::new().fill(t.chrome).inner_margin(egui::Margin::symmetric(6, 10)))
+                    .show(ui, |ui| guard_ui(ui, "projects strip", |ui| workbench::projects_strip(self, ui)));
+            }
             egui::Panel::left("app-sidebar")
                 .exact_size(sidebar::width(self, &ctx))
                 .resizable(false)

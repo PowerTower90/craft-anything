@@ -1748,3 +1748,14 @@ pictures	图片
 effects	特效
 pieces of music	音乐
 things	对象
+After	之后
+Before	之前
+Job {job} · style {style}	任务 {job} · 风格 {style}
+Job {job}	任务 {job}
+{after} rebuilt · {n} files	已重做 {after} · {n} 个文件
+Being made	制作中
+Made	已制作
+In the game	已进游戏
+Back to the Workbench	回到工作台
+The original things	原始对象
+The things with a new version: being made, made, or in the game	有新版本的对象：制作中、已制作或已进游戏

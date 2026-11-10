@@ -1748,3 +1748,14 @@ pictures	картинок
 effects	эффектов
 pieces of music	музыки
 things	вещей
+After	После
+Before	До
+Job {job} · style {style}	Задание {job} · стиль {style}
+Job {job}	Задание {job}
+{after} rebuilt · {n} files	Пересобрано: {after} · файлов: {n}
+Being made	Делается
+Made	Сделано
+In the game	В игре
+Back to the Workbench	Назад в рабочую область
+The original things	Исходные вещи
+The things with a new version: being made, made, or in the game	Вещи с новой версией: делается, сделана или в игре

@@ -1739,3 +1739,14 @@ pictures	images
 effects	effets
 pieces of music	morceaux
 things	éléments
+After	Après
+Before	Avant
+Job {job} · style {style}	Tâche {job} · style {style}
+Job {job}	Tâche {job}
+{after} rebuilt · {n} files	{after} refaits · {n} fichiers
+Being made	En cours
+Made	Fait
+In the game	Dans le jeu
+Back to the Workbench	Retour à l'établi
+The original things	Les éléments d'origine
+The things with a new version: being made, made, or in the game	Les éléments avec une nouvelle version : en cours, faite ou dans le jeu

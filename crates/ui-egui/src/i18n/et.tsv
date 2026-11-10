@@ -1748,3 +1748,14 @@ pictures	pilti
 effects	efekti
 pieces of music	muusikapala
 things	asja
+After	Pärast
+Before	Enne
+Job {job} · style {style}	Töö {job} · stiil {style}
+Job {job}	Töö {job}
+{after} rebuilt · {n} files	{after} uuesti tehtud · {n} faili
+Being made	Valmimas
+Made	Valmis
+In the game	Mängus
+Back to the Workbench	Tagasi töölauale
+The original things	Algsed asjad
+The things with a new version: being made, made, or in the game	Uue versiooniga asjad: valmimas, valmis või mängus

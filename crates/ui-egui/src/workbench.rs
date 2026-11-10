@@ -97,16 +97,18 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     // The open project, if any, is what the Workbench shows (`wb_project`).
     app.follow_project();
+    // The icon strip first, the whole height: its hammer at the very top, where the project page
+    // has the same button.
+    egui::Panel::left("wb-rail-icons")
+        .exact_size(STRIP_W)
+        .resizable(false)
+        .frame(egui::Frame::new().fill(t.chrome).inner_margin(Margin::symmetric(6, 10)))
+        .show(ui, |ui| rail_icons(app, ui));
     if app.follow.on() {
         egui::Panel::top("wb-project")
             .frame(egui::Frame::new().fill(t.chrome).inner_margin(Margin::symmetric(10, 6)))
             .show(ui, |ui| crate::guard_ui(ui, "project bar", |ui| wb_project::header(app, ui)));
     }
-    egui::Panel::left("wb-rail-icons")
-        .exact_size(48.0)
-        .resizable(false)
-        .frame(egui::Frame::new().fill(t.chrome).inner_margin(Margin::symmetric(6, 10)))
-        .show(ui, |ui| rail_icons(app, ui));
     egui::Panel::left("wb-rail")
         .default_size(290.0)
         .size_range(200.0..=520.0)
@@ -144,8 +146,41 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
         .show(ui, |ui| crate::guard_ui(ui, "centre", |ui| center(app, ui)));
 }
 
+/// The icon strip's width (the Workbench's, and the project page's in Advanced mode).
+pub const STRIP_W: f32 = 48.0;
+
+/// The hammer at the top of the strip: on the Workbench it goes to the project page (projects
+/// and their builds); there, shown selected, it comes back to the Workbench as it was. A dot when
+/// a build needs an answer.
+pub fn hammer(app: &mut CraftApp, ui: &mut Ui, on_projects: bool) {
+    let tip = if on_projects { "Back to the Workbench" } else { "Projects and builds" };
+    let r = icons::button(ui, "hammer", 34.0, on_projects, tip);
+    if !app.asking.is_empty() {
+        let t = Tokens::get(ui.ctx());
+        ui.painter().circle_filled(r.rect.right_top() + egui::vec2(-7.0, 7.0), 4.5, t.warning);
+    }
+    if r.clicked() {
+        app.state.screen = if on_projects {
+            crate::state::Screen::Workbench
+        } else if app.workspace.is_some() {
+            crate::state::Screen::Project
+        } else {
+            crate::state::Screen::Home
+        };
+    }
+}
+
+/// The project page's strip in Advanced mode: the hammer, selected, at the same place.
+pub fn projects_strip(app: &mut CraftApp, ui: &mut Ui) {
+    ui.vertical_centered(|ui| hammer(app, ui, true));
+}
+
 fn rail_icons(app: &mut CraftApp, ui: &mut Ui) {
     ui.vertical_centered(|ui| {
+        hammer(app, ui, false);
+        ui.add_space(6.0);
+        ui.separator();
+        ui.add_space(4.0);
         for k in RailKind::ALL {
             let on = app.state.rail == k;
             if icons::button(ui, k.icon(), 34.0, on, k.title()).clicked() && !on {
@@ -158,15 +193,6 @@ fn rail_icons(app: &mut CraftApp, ui: &mut Ui) {
         ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
             if icons::button(ui, "search", 34.0, app.state.palette.open, "Command palette (Ctrl/⌘ K)").clicked() {
                 app.state.palette.open = true;
-            }
-            // Projects and their builds; a dot when one needs an answer.
-            let r = icons::button(ui, "hammer", 34.0, false, "Projects and builds");
-            if !app.asking.is_empty() {
-                let t = Tokens::get(ui.ctx());
-                ui.painter().circle_filled(r.rect.right_top() + egui::vec2(-7.0, 7.0), 4.5, t.warning);
-            }
-            if r.clicked() {
-                app.state.screen = if app.workspace.is_some() { crate::state::Screen::Project } else { crate::state::Screen::Home };
             }
         });
     });
