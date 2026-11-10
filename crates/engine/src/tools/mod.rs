@@ -76,7 +76,9 @@ pub mod interaction_tools;
 pub mod blender_tools;
 pub mod inventory_tools;
 pub mod local_gen_tools;
+// Talking with Craft Anything by voice: the local voice service.
 pub mod project_tools;
+pub mod voice_tools;
 // Pinned builds: kept copies of a project's build, and what they started.
 pub mod pin_tools;
 pub mod setup_tools;
@@ -130,6 +132,7 @@ pub fn all() -> Vec<crate::ToolSpec> {
     v.extend(project_tools::specs());
     v.extend(inventory_tools::specs());
     v.extend(local_gen_tools::specs());
+    v.extend(voice_tools::specs());
     v.extend(blender_tools::specs());
     v.extend(pin_tools::specs());
     v.extend(setup_tools::specs());

@@ -12,7 +12,8 @@ form is the CLI command.
   `runtime`, `adb`, `frida`, `engines`, `settings`, `plugins`, `setup`, `local` (generation on
   this computer's graphics cards: `local_generation_status`), `asset` (one asset made locally:
   `asset_generate_image`; `assets` is the paid provider's), `blender` (headless Blender:
-  `blender_run`, `blender_inspect`, `blender_render`) (the list is `registry::AREAS`).
+  `blender_run`, `blender_inspect`, `blender_render`), `voice` (talking with the app by voice through
+  the local voice service: `voice_status`, `voice_speak`) (the list is `registry::AREAS`).
 - **object**: what it works on, plural for collections (`functions`, `page`, `feed`, `inbox`).
 - **action**: a plain verb (`list`, `show`, `open`, `capture`, `compare`, `start`, `answer`).
 
