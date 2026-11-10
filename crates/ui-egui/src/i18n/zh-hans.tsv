@@ -1766,3 +1766,8 @@ Asset work only	仅限资源工作
 A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	本地模型只做资源工作：描述、分类和查看模型。你交代的事由 Claude 完成。
 Not used for your tasks	不用于你的任务
 Every task you give goes to Claude (Claude Code or the Anthropic API).	你交代的每项任务都交给 Claude（Claude Code 或 Anthropic API）。
+Check voice	检查语音
+Start voice	启动语音
+Stop voice	停止语音
+Speak aloud	朗读出来
+Set up voice	设置语音

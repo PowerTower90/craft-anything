@@ -1766,3 +1766,8 @@ Asset work only	에셋 작업 전용
 A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	로컬 모델은 에셋 작업(설명, 분류, 모델 확인)만 합니다. 요청한 일은 Claude가 합니다.
 Not used for your tasks	작업에 사용되지 않음
 Every task you give goes to Claude (Claude Code or the Anthropic API).	맡기는 모든 작업은 Claude(Claude Code 또는 Anthropic API)가 합니다.
+Check voice	음성 확인
+Start voice	음성 시작
+Stop voice	음성 중지
+Speak aloud	소리 내어 말하기
+Set up voice	음성 설정

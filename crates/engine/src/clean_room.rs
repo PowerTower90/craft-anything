@@ -95,6 +95,12 @@ pub const TOOLS: &[&str] = &[
     "blender_run",
     "blender_inspect",
     "blender_render",
+    // Talking by voice: the local voice service never looks at a target.
+    "voice_status",
+    "voice_start",
+    "voice_stop",
+    "voice_speak",
+    "voice_config",
     "ai_backend_status",
     "ai_backend_start",
     "rebuild_start",

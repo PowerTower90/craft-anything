@@ -1766,3 +1766,8 @@ Asset work only	Yalnızca varlık işi
 A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Yerel model yalnızca varlık işini yapar: tanımlama, sıralama ve modellere bakma. İstediğin işi Claude yapar.
 Not used for your tasks	Görevlerin için kullanılmaz
 Every task you give goes to Claude (Claude Code or the Anthropic API).	Verdiğin her görev Claude'a gider (Claude Code veya Anthropic API).
+Check voice	Sesi denetle
+Start voice	Sesi başlat
+Stop voice	Sesi durdur
+Speak aloud	Sesli söyle
+Set up voice	Sesi ayarla

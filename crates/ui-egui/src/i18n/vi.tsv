@@ -1766,3 +1766,8 @@ Asset work only	Chỉ làm việc tài nguyên
 A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Mô hình cục bộ chỉ làm việc tài nguyên: mô tả, sắp xếp và xem mô hình. Việc bạn yêu cầu do Claude làm.
 Not used for your tasks	Không dùng cho việc của bạn
 Every task you give goes to Claude (Claude Code or the Anthropic API).	Mọi việc bạn giao đều do Claude làm (Claude Code hoặc Anthropic API).
+Check voice	Kiểm tra giọng nói
+Start voice	Bật giọng nói
+Stop voice	Tắt giọng nói
+Speak aloud	Nói thành tiếng
+Set up voice	Thiết lập giọng nói

@@ -1766,3 +1766,8 @@ Asset work only	მხოლოდ ასეტებზე მუშაობ�
 A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	ლოკალური მოდელი მხოლოდ ასეტებზე მუშაობს: აღწერს, ახარისხებს და ათვალიერებს მოდელებს. რასაც ითხოვ, Claude აკეთებს.
 Not used for your tasks	შენი დავალებებისთვის არ გამოიყენება
 Every task you give goes to Claude (Claude Code or the Anthropic API).	ყველა დავალება, რომელსაც აძლევ, Claude-ს გადაეცემა (Claude Code ან Anthropic API).
+Check voice	ხმის შემოწმება
+Start voice	ხმის გაშვება
+Stop voice	ხმის გაჩერება
+Speak aloud	ხმამაღლა თქმა
+Set up voice	ხმის დაყენება

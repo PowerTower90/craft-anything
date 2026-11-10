@@ -496,6 +496,9 @@ pub fn with_setting(settings: &Settings, key: &str, value: Value) -> Result<Sett
     if parts.iter().any(|p| p.is_empty()) || parts.first() == Some(&"version") {
         return Err(ToolError::invalid(format!("{key:?} isn't a setting you can change.")).with_remediation("Use a dotted key from settings_show."));
     }
+    if parts == ["voice", "confirm_public_actions"] {
+        return Err(ToolError::invalid("Public actions (posting, sending, buying) are always confirmed; that can't be turned off."));
+    }
     let mut doc = serde_json::to_value(settings).map_err(|e| ToolError::internal(e.to_string()))?;
     let mut pointer = String::new();
     for (i, part) in parts.iter().enumerate() {
@@ -546,6 +549,8 @@ mod tests {
         assert!(with_setting(&s, "version", json!(9)).is_err());
         assert!(with_setting(&s, "auto_mode.inner", json!(1)).is_err());
         assert!(with_setting(&s, "", json!(1)).is_err());
+        assert_eq!(with_setting(&s, "voice.listen_mode", json!("always")).unwrap().voice.listen_mode, craft_anything_engines::voice::ListenMode::Always);
+        assert!(with_setting(&s, "voice.confirm_public_actions", json!(false)).is_err(), "public actions are always confirmed");
     }
 
     #[test]

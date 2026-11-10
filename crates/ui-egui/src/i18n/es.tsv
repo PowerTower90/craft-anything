@@ -1766,3 +1766,8 @@ Asset work only	Solo trabajo de assets
 A local model only does the asset work: describing, sorting and looking at models. What you ask is done by Claude.	Un modelo local solo hace el trabajo de assets: describir, ordenar y revisar modelos. Lo que pides lo hace Claude.
 Not used for your tasks	No se usa para tus tareas
 Every task you give goes to Claude (Claude Code or the Anthropic API).	Cada tarea que das va a Claude (Claude Code o la API de Anthropic).
+Check voice	Comprobar la voz
+Start voice	Iniciar la voz
+Stop voice	Detener la voz
+Speak aloud	Decir en voz alta
+Set up voice	Configurar la voz

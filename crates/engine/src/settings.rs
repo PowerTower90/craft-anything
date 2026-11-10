@@ -134,6 +134,105 @@ pub struct Settings {
     pub build: BuildSettings,
     /// Generating pictures and 3D models on this computer's graphics cards (`[local_gen]`).
     pub local_gen: LocalGenSettings,
+    /// Talking with Craft Anything by voice, on this computer (`[voice]`).
+    pub voice: VoiceSettings,
+}
+
+/// Talking with Craft Anything by voice: the local voice service and how it listens and speaks.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VoiceSettings {
+    /// The Python that has the voice service's packages; none: `local_gen.voice_python` when that
+    /// is set, else voice isn't set up.
+    pub python: Option<PathBuf>,
+    /// The loopback port the service listens on.
+    pub port: u16,
+    /// Where speech to text and speech run: `cuda:0` (the first graphics card) or `cpu`.
+    pub device: String,
+    /// When it listens: only while the push-to-talk key is held, after the wake word, or always.
+    pub listen_mode: craft_anything_engines::voice::ListenMode,
+    pub wake_word: String,
+    /// How alike an utterance must be to the enrolled voice (0–1) to be acted on.
+    pub speaker_threshold: f32,
+    /// The assistant's voice: a reference clip and what it says; none: the service's own voice.
+    pub assistant_voice_ref_audio: Option<PathBuf>,
+    pub assistant_voice_ref_text: String,
+    /// The working folder for tasks given by voice; none: the person's home folder.
+    pub task_folder: Option<PathBuf>,
+    /// The push-to-talk key (`F9`).
+    pub push_to_talk_key: String,
+    /// Start the voice service when the app starts.
+    pub auto_start: bool,
+    /// Public and outward actions (posting, sending, buying) are always confirmed. Always true:
+    /// a config.toml can't turn it off, and neither can `settings_set`.
+    #[serde(deserialize_with = "always_true")]
+    pub confirm_public_actions: bool,
+    /// Where the service keeps its models; none: `<config dir>/voice/models`.
+    pub models_dir: Option<PathBuf>,
+    /// The microphone and speakers by name; none: the system's defaults.
+    pub input_device: Option<String>,
+    pub output_device: Option<String>,
+    /// The spoken language (`en`).
+    pub language: String,
+    /// Silence that ends an utterance, in milliseconds.
+    pub vad_silence_ms: u32,
+}
+
+impl Default for VoiceSettings {
+    fn default() -> Self {
+        VoiceSettings {
+            python: None,
+            port: craft_anything_engines::voice::DEFAULT_PORT,
+            device: "cuda:0".into(),
+            listen_mode: craft_anything_engines::voice::ListenMode::PushToTalk,
+            wake_word: "hey craft".into(),
+            speaker_threshold: 0.55,
+            assistant_voice_ref_audio: None,
+            assistant_voice_ref_text: String::new(),
+            task_folder: None,
+            push_to_talk_key: "F9".into(),
+            auto_start: false,
+            confirm_public_actions: true,
+            models_dir: None,
+            input_device: None,
+            output_device: None,
+            language: "en".into(),
+            vad_silence_ms: 700,
+        }
+    }
+}
+
+impl VoiceSettings {
+    /// The folder voice tasks run in: the one set, else the person's home folder.
+    pub fn task_folder(&self) -> PathBuf {
+        self.task_folder.clone().filter(|p| !p.as_os_str().is_empty()).or_else(dirs::home_dir).unwrap_or_else(|| PathBuf::from("."))
+    }
+
+    /// What the service is told to apply (`{"cmd":"config",…}`).
+    pub fn service_config(&self) -> craft_anything_engines::voice::VoiceConfig {
+        let tts_voice = self
+            .assistant_voice_ref_audio
+            .clone()
+            .filter(|p| !p.as_os_str().is_empty())
+            .map(|ref_audio| craft_anything_engines::voice::TtsVoice { ref_audio, ref_text: self.assistant_voice_ref_text.clone() });
+        let named = |d: &Option<String>| d.as_deref().map(str::trim).filter(|d| !d.is_empty()).map(str::to_string);
+        craft_anything_engines::voice::VoiceConfig {
+            listen_mode: self.listen_mode,
+            wake_word: self.wake_word.clone(),
+            input_device: named(&self.input_device),
+            output_device: named(&self.output_device),
+            speaker_threshold: if self.speaker_threshold.is_finite() { self.speaker_threshold.clamp(0.0, 1.0) } else { 0.55 },
+            language: if self.language.trim().is_empty() { "en".into() } else { self.language.trim().to_string() },
+            tts_voice,
+            vad_silence_ms: self.vad_silence_ms.clamp(100, 5000),
+        }
+    }
+}
+
+/// Whatever a config.toml says, the answer is true (the person's safety, not a preference).
+fn always_true<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
+    serde::de::IgnoredAny::deserialize(d)?;
+    Ok(true)
 }
 
 /// Where the local generation servers and helpers are.
@@ -256,6 +355,7 @@ impl Default for Settings {
             existing_files: None,
             assets: AssetSettings::default(),
             local_gen: LocalGenSettings::default(),
+            voice: VoiceSettings::default(),
             plugins: crate::plugins::PluginSettings::default(),
             build: BuildSettings::default(),
         }
@@ -769,6 +869,37 @@ default = "Claude Code"
         assert_eq!(Settings::load_from(&path), s);
         let odd: Settings = toml::from_str("[assets]\nbudget_usd = -3.0\n").unwrap();
         assert_eq!(odd.assets.budget(), 5.0, "a negative budget isn't used");
+    }
+
+    #[test]
+    fn voice_settings_have_defaults_round_trip_and_always_confirm_public_actions() {
+        use craft_anything_engines::voice::ListenMode;
+        let old = read_settings("version = 3\nauto_mode = true\n").unwrap();
+        assert_eq!(old.voice, VoiceSettings::default(), "a config without [voice] gets the defaults");
+        let v = &old.voice;
+        assert_eq!((v.port, v.device.as_str(), v.listen_mode, v.push_to_talk_key.as_str()), (8191, "cuda:0", ListenMode::PushToTalk, "F9"));
+        assert_eq!((v.speaker_threshold, v.auto_start, v.confirm_public_actions, v.python.as_ref()), (0.55, false, true, None));
+        // Saved and read back.
+        let mut s = Settings::default();
+        s.voice.listen_mode = ListenMode::WakeWord;
+        s.voice.speaker_threshold = 0.7;
+        s.voice.task_folder = Some(PathBuf::from("/work/voice"));
+        let text = toml::to_string_pretty(&s).unwrap();
+        assert!(text.contains("[voice]") && text.contains("listen_mode = \"wake_word\""), "{text}");
+        assert_eq!(read_settings(&text).unwrap().voice, s.voice);
+        // A config.toml can't turn confirming public actions off.
+        let off = read_settings("[voice]\nconfirm_public_actions = false\nport = 9000\n").unwrap();
+        assert!(off.voice.confirm_public_actions);
+        assert_eq!(off.voice.port, 9000);
+        assert!(read_settings("[voice]\nconfirm_public_actions = \"no\"\n").unwrap().voice.confirm_public_actions);
+        // What the service is told: the voice only with its clip, odd values kept in range.
+        let mut v = VoiceSettings { speaker_threshold: 7.0, vad_silence_ms: 1, input_device: Some("  ".into()), ..VoiceSettings::default() };
+        let c = v.service_config();
+        assert_eq!((c.speaker_threshold, c.vad_silence_ms, c.input_device, c.tts_voice), (1.0, 100, None, None));
+        v.assistant_voice_ref_audio = Some(PathBuf::from("voice.wav"));
+        v.assistant_voice_ref_text = "Hello.".into();
+        assert_eq!(v.service_config().tts_voice.map(|t| t.ref_text), Some("Hello.".into()));
+        assert_eq!(VoiceSettings { task_folder: Some(PathBuf::from("/t")), ..VoiceSettings::default() }.task_folder(), PathBuf::from("/t"));
     }
 
     #[test]

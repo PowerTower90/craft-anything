@@ -22,6 +22,7 @@ pub mod local_gen;
 pub mod mcp_client;
 pub mod rizin;
 pub mod table;
+pub mod voice;
 #[cfg(feature = "wasm-plugins")]
 pub mod wasm_plugin;
 
