@@ -364,6 +364,28 @@ def test_state_reports_model_loading_steps(svc):
     c.close()
 
 
+def test_wake_word_checks_are_silent_until_the_wake_word(svc):
+    """Sounds that aren't the wake word mustn't show as capturing or chime (the chime used to set
+    off the next wake-word check: the orb flickered on and off by itself)."""
+    c = Client(svc.port)
+    c.send(cmd="config", listen_mode="wake_word", wake_word="hey craft", input_device="Fake Microphone", sounds=True)
+    c.wait("config_ok")
+    time.sleep(0.3)
+    svc.audio.reset_played()
+    seen = []
+    svc.audio.feed(np.concatenate([silence(0.3), tone(220, 1.0), silence(1.0), tone(260, 0.8), silence(1.0)]))
+    t_end = time.time() + 4.0
+    while time.time() < t_end:
+        try:
+            e = c.wait("state", timeout=0.5)
+            seen.append(e["capturing"])
+        except Exception:
+            pass
+    assert not any(seen), f"a wake-word check showed as capturing: {seen}"
+    assert svc.audio.played_audio().size == 0, "no chime for sounds that aren't the wake word"
+    c.close()
+
+
 def test_chimes_play_quietly_and_can_be_turned_off(svc):
     c = Client(svc.port)
     c.send(cmd="config", listen_mode="push_to_talk", input_device="Fake Microphone", sounds=True)

@@ -1151,8 +1151,15 @@ class VoiceService:
             ev["id"] = id
         self.emit(ev)
 
+    def capturing_visibly(self):
+        """Taking down what the person says. A wake-word check (a "kws" capture still looking for
+        the wake word) isn't: it runs on every sound in wake-word mode, so showing it, or chiming
+        for it, made the orb flicker and the chime set off the next check (a feedback loop)."""
+        cap = self.capture
+        return cap is not None and not cap.done and (cap.kind != "kws" or cap.wake_found)
+
     def state(self):
-        return {"listening": bool(self.listening), "capturing": self.capture is not None and not self.capture.done,
+        return {"listening": bool(self.listening), "capturing": self.capturing_visibly(),
                 "speaking": bool(self.speaking), "mode": self.cfg["listen_mode"], "enrolled": self.profile is not None,
                 "enrolling": bool(self.enrolling), "models_ready": bool(self.models_ready), "loading": self.loading,
                 "load_step": int(self.load_step), "load_steps": LOAD_STEPS}
@@ -1715,6 +1722,7 @@ class VoiceService:
                 if not cap.wake_found:
                     cap.wake_found = True
                     self.emit({"type": "wake", "word": self.cfg["wake_word"], "score": 1.0})
+                    self.push_state()       # now it shows (and chimes) as taking down what's said
                 text = rest
             if text and text != cap.last_partial_text:
                 cap.last_partial_text = text
