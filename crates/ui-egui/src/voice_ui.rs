@@ -78,6 +78,8 @@ pub struct VoiceConfig {
     pub assistant_voice: Option<AssistantVoice>,
     /// Start the voice service when the app opens.
     pub auto_start: bool,
+    /// Short chimes when listening starts and stops, a job is done, or something waits.
+    pub sounds: bool,
 }
 
 impl Default for VoiceConfig {
@@ -91,7 +93,8 @@ impl Default for VoiceConfig {
             speaker_threshold: 0.55,
             task_folder: None,
             assistant_voice: None,
-            auto_start: false,
+            auto_start: true,
+            sounds: true,
         }
     }
 }
@@ -255,6 +258,15 @@ pub struct VoiceView {
     /// How many times something needed the person's enrolled voice (an instruction before
     /// enrolment): each new one opens the enrolment.
     pub enrol_asked: u64,
+    /// The speech models are loaded: talking works.
+    pub ready: bool,
+    /// While the models load: step `.0` of `.1`, and what's loading.
+    pub loading: Option<(u32, u32, String)>,
+    /// How loud the microphone and the speakers are now (0–1).
+    pub level_in: f32,
+    pub level_out: f32,
+    /// The local model is deciding what was just said.
+    pub thinking: bool,
 }
 
 /// What the person asks of the voice parts.
@@ -341,6 +353,19 @@ pub struct Voice {
     waker_set: bool,
     /// The last [`VoiceView::enrol_asked`] acted on.
     enrol_seen: u64,
+    /// Start voice when the app opens, if the settings say so (off for headless apps and tests).
+    pub auto_start_allowed: bool,
+    auto_started: bool,
+    /// The "voice starts with the app" notice was shown once (kept in the app's preferences).
+    pub auto_start_noticed: bool,
+    /// The push-to-talk key went down while voice was off: talk once it's ready, if still held.
+    key_waiting: bool,
+    was_ready: bool,
+    was_capturing: bool,
+    lines_seen: usize,
+    error_seen: Option<String>,
+    /// What the voice orb animates from.
+    pub orb: crate::voice_orb::OrbAnim,
 }
 
 impl Voice {
@@ -357,6 +382,15 @@ impl Voice {
             ptt_held: false,
             waker_set: false,
             enrol_seen: 0,
+            auto_start_allowed: true,
+            auto_started: false,
+            auto_start_noticed: false,
+            key_waiting: false,
+            was_ready: false,
+            was_capturing: false,
+            lines_seen: 0,
+            error_seen: None,
+            orb: Default::default(),
         }
     }
 
@@ -366,6 +400,15 @@ impl Voice {
         self.waker_set = false;
         self.ptt_held = false;
         self.refresh();
+    }
+
+    /// Start voice (if it's off) and say so at once: nothing the person does with voice off is a
+    /// dead end.
+    pub fn start(&mut self) {
+        if !self.view.running && !self.view.starting {
+            self.act(VoiceAction::Start);
+            self.orb.notice(tr("Starting voice…"));
+        }
     }
 
     /// Ask the voice parts for something, and show the result at once.
@@ -476,6 +519,18 @@ pub fn tick(app: &mut CraftApp, ctx: &egui::Context) {
         voice.waker_set = true;
     }
     voice.refresh();
+    // Voice starts with the app when the settings say so (the first time, with a notice).
+    if !voice.auto_started {
+        voice.auto_started = true;
+        if voice.auto_start_allowed && voice.view.config.auto_start {
+            voice.start();
+            if !voice.auto_start_noticed {
+                voice.auto_start_noticed = true;
+                voice.orb.notice(tr("Voice starts with Craft Anything. You can change that in Settings → Voice."));
+            }
+        }
+    }
+    observe(voice);
     // An instruction before enrolment: open the enrolment (the assistant has said why).
     if voice.view.enrol_asked != voice.enrol_seen {
         voice.enrol_seen = voice.view.enrol_asked;
@@ -498,12 +553,27 @@ pub fn tick(app: &mut CraftApp, ctx: &egui::Context) {
             .collect()
     });
     for down in presses {
-        if down && !app.voice.view.running {
-            app.toast(tr("Voice is off. Start it with the microphone in the title bar."), false);
+        let voice = &mut app.voice;
+        if voice.view.running && voice.view.ready && !voice.key_waiting {
+            voice.ptt(down);
+        } else if down {
+            // Voice is off or still loading: start it, and talk once it's ready if the key is
+            // still held then.
+            voice.key_waiting = true;
+            voice.start();
         } else {
-            app.voice.ptt(down);
+            voice.key_waiting = false;
+            if voice.ptt_held {
+                voice.ptt(false);
+            }
         }
     }
+    let voice = &mut app.voice;
+    if voice.key_waiting && voice.view.running && voice.view.ready {
+        voice.key_waiting = false;
+        voice.ptt(true);
+    }
+    crate::voice_orb::history(&mut app.voice);
     // Events redraw through the waker; only the clocks and the pulse need a timer.
     let v = &app.voice.view;
     if v.capturing {
@@ -513,11 +583,42 @@ pub fn tick(app: &mut CraftApp, ctx: &egui::Context) {
     }
 }
 
+/// What changed since the last frame, for the orb's flashes and notices: capturing started, a
+/// line in someone else's voice, a new problem, voice became ready.
+fn observe(voice: &mut Voice) {
+    let v = &voice.view;
+    let now = Instant::now();
+    if v.capturing && !voice.was_capturing {
+        voice.orb.flash_at = Some(now);
+    }
+    voice.was_capturing = v.capturing;
+    if v.lines.len() < voice.lines_seen {
+        voice.lines_seen = 0;
+    }
+    if v.lines[voice.lines_seen..].iter().any(|l| l.speaker == Speaker::NotYou) {
+        voice.orb.shake_at = Some(now);
+    }
+    voice.lines_seen = v.lines.len();
+    if v.error != voice.error_seen {
+        voice.error_seen = v.error.clone();
+        voice.orb.error_at = v.error.as_ref().map(|_| now);
+    }
+    let ready = v.running && v.ready;
+    if ready && !voice.was_ready && !voice.key_waiting {
+        let how = match v.config.listen_mode {
+            ListenMode::WakeWord => trf("Voice is on — hold {key} or say “{word}”", &[("key", &v.config.push_to_talk_key), ("word", &v.config.wake_word)]),
+            _ => trf("Voice is on — hold {key} and talk", &[("key", &v.config.push_to_talk_key)]),
+        };
+        voice.orb.notice(how);
+    }
+    voice.was_ready = ready;
+}
+
 /// The microphone button was pressed: start the voice, or talk, or stop the assistant speaking.
 fn mic_clicked(app: &mut CraftApp) {
     match app.voice.mic_state() {
         MicState::Off => {
-            app.voice.act(VoiceAction::Start);
+            app.voice.start();
             show_conversation(app);
         }
         MicState::Starting => show_conversation(app),
@@ -557,12 +658,21 @@ pub fn mic_button(app: &mut CraftApp, ui: &mut Ui, s: f32, height: f32) {
     let edge = if state == MicState::Off { Color32::TRANSPARENT } else { col.gamma_multiply(0.5) };
     ui.painter().rect(rect, t.radius, fill, egui::Stroke::new(s, edge), egui::StrokeKind::Inside);
     let icon_at = if label.is_some() { egui::pos2(rect.left() + 15.0 * s, rect.center().y) } else { rect.center() };
-    if state == MicState::Capturing {
-        // A soft pulse behind the microphone while it hears the person.
-        let now = ui.input(|i| i.time);
-        let pulse = (now * 4.0).sin() as f32 * 0.5 + 0.5;
-        ui.painter().circle_filled(icon_at, (8.0 + 3.0 * pulse) * s, col.gamma_multiply(0.18 + 0.12 * pulse));
-        widgets::animate(ui, widgets::FRAME);
+    // The same life as the orb: the voice's loudness while hearing or speaking, a slow breath
+    // while listening.
+    let now = ui.input(|i| i.time);
+    match state {
+        MicState::Capturing | MicState::Speaking => {
+            let level = if state == MicState::Capturing { app.voice.view.level_in } else { app.voice.view.level_out };
+            ui.painter().circle_filled(icon_at, (7.0 + 7.0 * level) * s, col.gamma_multiply(0.14 + 0.22 * level));
+            widgets::animate(ui, widgets::FRAME);
+        }
+        MicState::Listening | MicState::Working | MicState::Starting => {
+            let breath = crate::voice_orb::breath(now);
+            ui.painter().circle_stroke(icon_at, (8.0 + 2.0 * breath) * s, egui::Stroke::new(s, col.gamma_multiply(0.15 + 0.25 * breath)));
+            widgets::animate(ui, std::time::Duration::from_millis(100));
+        }
+        MicState::Off => {}
     }
     icons::paint(ui, egui::Rect::from_center_size(icon_at, Vec2::splat(16.0 * s)), icon, 15.0 * s, col);
     if let Some(g) = label {
@@ -719,7 +829,7 @@ fn lines(ui: &mut Ui, t: &Tokens, v: &VoiceView) {
     });
 }
 
-fn approval_card(ui: &mut Ui, t: &Tokens, a: &VoiceApproval, actions: &mut Vec<VoiceAction>) {
+pub(crate) fn approval_card(ui: &mut Ui, t: &Tokens, a: &VoiceApproval, actions: &mut Vec<VoiceAction>) {
     egui::Frame::new()
         .fill(t.card)
         .stroke(egui::Stroke::new(1.0, t.warning.gamma_multiply(0.6)))
@@ -1025,6 +1135,9 @@ pub fn settings(app: &mut CraftApp, ui: &mut Ui, path_field: fn(&mut Ui, &mut Op
     });
     settings_row(ui, &tr("Start with the app"), "", |ui| {
         widgets::toggle(ui, &mut config.auto_start, "Start voice when Craft Anything opens");
+    });
+    settings_row(ui, &tr("Sounds"), "", |ui| {
+        widgets::toggle(ui, &mut config.sounds, "Short chimes when it starts and stops listening, finishes a job or asks you something");
     });
     ui.horizontal(|ui| {
         icons::show(ui, "lock", 14.0, t.text_faint);

@@ -89,6 +89,13 @@ pub struct VoiceConfig {
     pub tts_voice: Option<TtsVoice>,
     /// Silence that ends an utterance (ms).
     pub vad_silence_ms: u32,
+    /// Short chimes when capturing starts and ends (and for [`VoiceCommand::Chime`]).
+    #[serde(default = "sounds_on")]
+    pub sounds: bool,
+}
+
+fn sounds_on() -> bool {
+    true
 }
 
 impl Default for VoiceConfig {
@@ -102,6 +109,7 @@ impl Default for VoiceConfig {
             language: "en".into(),
             tts_voice: None,
             vad_silence_ms: 700,
+            sounds: true,
         }
     }
 }
@@ -139,6 +147,11 @@ pub enum VoiceCommand {
     Status,
     /// End the service.
     Shutdown,
+    /// A short, quiet tone: `done` (a job finished) or `ask` (something waits for an answer);
+    /// `start` and `end` are played by the service itself around each capture.
+    Chime {
+        kind: String,
+    },
     /// Tests only: feed a WAV in as if spoken into the microphone (`ptt`: hold push-to-talk around
     /// it; none: the service decides). Refused unless the service was started with
     /// [`super::VoiceSetup::allow_inject`]; answered with [`VoiceEvent::Injected`].
@@ -172,6 +185,19 @@ pub enum VoiceEvent {
         speaking: bool,
         mode: String,
         enrolled: bool,
+        /// The speech models are loaded (a service that doesn't say counts as loaded).
+        models_ready: bool,
+        /// What is loading, in words ("speech recognition"); empty when nothing is.
+        loading: String,
+        /// How far loading has got: `load_step` of `load_steps`.
+        load_step: u32,
+        load_steps: u32,
+    },
+    /// How loud the microphone (`input`) and the speakers (`output`) are, 0–1, about 20 times a
+    /// second while there is sound.
+    Level {
+        input: f32,
+        output: f32,
     },
     Wake {
         word: String,
@@ -254,7 +280,18 @@ impl VoiceEvent {
         };
         Some(match v.get("type")?.as_str()? {
             "state" => {
-                VoiceEvent::State { listening: b("listening"), capturing: b("capturing"), speaking: b("speaking"), mode: s("mode"), enrolled: b("enrolled") }
+                let n = |k: &str| v.get(k).and_then(Value::as_u64).map_or(0, |x| x.min(1000) as u32);
+                VoiceEvent::State {
+                    listening: b("listening"),
+                    capturing: b("capturing"),
+                    speaking: b("speaking"),
+                    mode: s("mode"),
+                    enrolled: b("enrolled"),
+                    models_ready: v.get("models_ready").and_then(Value::as_bool).unwrap_or(true),
+                    loading: s("loading"),
+                    load_step: n("load_step"),
+                    load_steps: n("load_steps"),
+                }
             }
             "wake" => VoiceEvent::Wake { word: s("word"), score: f("score") },
             "partial" => VoiceEvent::Partial { text: s("text") },
@@ -273,6 +310,7 @@ impl VoiceEvent {
             "devices" => VoiceEvent::Devices { inputs: names("inputs"), outputs: names("outputs") },
             "error" => VoiceEvent::Error { message: s("message"), fatal: b("fatal") },
             "config_ok" => VoiceEvent::ConfigOk,
+            "level" => VoiceEvent::Level { input: f("in").clamp(0.0, 1.0), output: f("out").clamp(0.0, 1.0) },
             "injected" => VoiceEvent::Injected { seconds: f("seconds") },
             "status" => {
                 let mut state = v.clone();

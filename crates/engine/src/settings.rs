@@ -161,8 +161,12 @@ pub struct VoiceSettings {
     pub task_folder: Option<PathBuf>,
     /// The push-to-talk key (`F9`).
     pub push_to_talk_key: String,
-    /// Start the voice service when the app starts.
+    /// Start the voice service when the app starts (on for new settings; a config.toml that says
+    /// otherwise keeps its choice).
     pub auto_start: bool,
+    /// Short chimes when the microphone starts and stops listening, when a job is done and when
+    /// something waits for an answer.
+    pub sounds: bool,
     /// Public and outward actions (posting, sending, buying) are always confirmed. Always true:
     /// a config.toml can't turn it off, and neither can `settings_set`.
     #[serde(deserialize_with = "always_true")]
@@ -191,7 +195,8 @@ impl Default for VoiceSettings {
             assistant_voice_ref_text: String::new(),
             task_folder: None,
             push_to_talk_key: "F9".into(),
-            auto_start: false,
+            auto_start: true,
+            sounds: true,
             confirm_public_actions: true,
             models_dir: None,
             input_device: None,
@@ -225,6 +230,7 @@ impl VoiceSettings {
             language: if self.language.trim().is_empty() { "en".into() } else { self.language.trim().to_string() },
             tts_voice,
             vad_silence_ms: self.vad_silence_ms.clamp(100, 5000),
+            sounds: self.sounds,
         }
     }
 }
@@ -878,7 +884,10 @@ default = "Claude Code"
         assert_eq!(old.voice, VoiceSettings::default(), "a config without [voice] gets the defaults");
         let v = &old.voice;
         assert_eq!((v.port, v.device.as_str(), v.listen_mode, v.push_to_talk_key.as_str()), (8191, "cuda:0", ListenMode::PushToTalk, "F9"));
-        assert_eq!((v.speaker_threshold, v.auto_start, v.confirm_public_actions, v.python.as_ref()), (0.55, false, true, None));
+        assert_eq!((v.speaker_threshold, v.auto_start, v.sounds, v.confirm_public_actions, v.python.as_ref()), (0.55, true, true, true, None));
+        let kept = read_settings("[voice]\nauto_start = false\n").unwrap();
+        assert!(!kept.voice.auto_start, "a config that turned it off keeps it off");
+        assert!(kept.voice.sounds);
         // Saved and read back.
         let mut s = Settings::default();
         s.voice.listen_mode = ListenMode::WakeWord;

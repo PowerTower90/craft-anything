@@ -1872,3 +1872,17 @@ Running on this computer	Đang chạy trên máy này
 The voice service stopped as soon as it started.	Dịch vụ giọng nói dừng ngay sau khi khởi động.
 Voice isn't running. Start it with the microphone in the title bar.	Giọng nói đang tắt. Bật bằng micro trên thanh tiêu đề.
 Your voice is enrolled	Giọng của bạn đã được đăng ký
+Hearing you…	Đang nghe bạn…
+Listening · hold {key} or say “{word}”	Đang nghe · giữ {key} hoặc nói “{word}”
+Listening · just talk	Đang nghe · cứ nói
+Opus is working on: {task} · {time}	Opus đang làm: {task} · {time}
+Ready · hold {key} to talk	Sẵn sàng · giữ {key} để nói
+Short chimes when it starts and stops listening, finishes a job or asks you something	Âm thanh ngắn khi bắt đầu và dừng nghe, khi xong việc hoặc khi hỏi bạn
+Speaking · tap or press {key} to interrupt	Đang nói · chạm hoặc nhấn {key} để ngắt
+Starting voice…	Đang khởi động giọng nói…
+Starting voice… loading models {n} of {total}	Đang khởi động giọng nói… tải mô hình {n}/{total}
+Thinking…	Đang suy nghĩ…
+Voice is on — hold {key} and talk	Giọng nói đã bật — giữ {key} rồi nói
+Voice is on — hold {key} or say “{word}”	Giọng nói đã bật — giữ {key} hoặc nói “{word}”
+Voice starts with Craft Anything. You can change that in Settings → Voice.	Giọng nói khởi động cùng Craft Anything. Bạn có thể đổi trong Cài đặt → Giọng nói.
+Waiting for your yes or no	Đang chờ bạn trả lời có hoặc không

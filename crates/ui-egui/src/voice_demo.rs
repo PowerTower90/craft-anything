@@ -25,6 +25,8 @@ struct State {
     actions: Vec<VoiceAction>,
     wake: Option<Arc<dyn Fn() + Send + Sync>>,
     next_job: u64,
+    /// A start takes this many more looks before the service is ready (0: at once).
+    start_views: u32,
 }
 
 /// The stand-in voice parts. See the module docs.
@@ -37,7 +39,7 @@ impl DemoVoice {
     fn new(simulated: bool) -> Self {
         let parts = if simulated { stopped_parts(false, ListenMode::PushToTalk) } else { VoiceParts::default() };
         let view = VoiceView { parts, ..Default::default() };
-        DemoVoice { state: Arc::new(Mutex::new(State { view, simulated, actions: Vec::new(), wake: None, next_job: 1 })) }
+        DemoVoice { state: Arc::new(Mutex::new(State { view, simulated, actions: Vec::new(), wake: None, next_job: 1, start_views: 0 })) }
     }
 
     /// Not connected to anything: Start explains that voice isn't in this build yet.
@@ -77,6 +79,14 @@ impl DemoVoice {
             v.approvals = vec![sample_approval("ask-1")];
         });
         d.lock(|s| s.actions.clear());
+        d
+    }
+
+    /// A simulated service whose start takes `views` looks (frames) before it's ready, loading its
+    /// models meanwhile, as the real one does.
+    pub fn slow_start(views: u32) -> Self {
+        let d = Self::simulated();
+        d.lock(|s| s.start_views = views);
         d
     }
 
@@ -136,14 +146,21 @@ fn running_parts(enrolled: bool, mode: ListenMode) -> VoiceParts {
 fn simulate(s: &mut State, action: &VoiceAction) {
     let v = &mut s.view;
     match action {
+        VoiceAction::Start if s.start_views > 0 => {
+            v.starting = true;
+            v.error = None;
+            v.loading = Some((0, 5, "speech recognition".into()));
+        }
         VoiceAction::Start => {
             v.running = true;
+            v.ready = true;
             v.listening = v.config.listen_mode != ListenMode::PushToTalk;
             v.error = None;
             v.parts = running_parts(v.enrolled, v.config.listen_mode);
         }
         VoiceAction::Stop => {
             v.running = false;
+            v.ready = false;
             v.listening = false;
             v.capturing = false;
             v.speaking = false;
@@ -153,10 +170,12 @@ fn simulate(s: &mut State, action: &VoiceAction) {
         VoiceAction::PushToTalk { down: true } if v.running => {
             v.capturing = true;
             v.speaking = false;
+            v.level_in = 0.6;
             v.partial = "open the trailer fol".into();
         }
         VoiceAction::PushToTalk { down: false } if v.capturing => {
             v.capturing = false;
+            v.level_in = 0.0;
             v.partial.clear();
             if let Enrolment::Recording { seconds, .. } = &mut v.enrolment {
                 *seconds += 5.0;
@@ -234,7 +253,21 @@ pub fn sample_approval(id: &str) -> VoiceApproval {
 
 impl VoiceBackend for DemoVoice {
     fn view(&mut self) -> VoiceView {
-        self.lock(|s| s.view.clone())
+        self.lock(|s| {
+            // A slow start loads its models a step per look, then is ready.
+            if s.view.starting {
+                s.start_views = s.start_views.saturating_sub(1);
+                if let Some((step, steps, _)) = &mut s.view.loading {
+                    *step = (*step + 1).min(*steps);
+                }
+                if s.start_views == 0 {
+                    let v = &mut s.view;
+                    (v.starting, v.running, v.ready, v.loading) = (false, true, true, None);
+                    v.parts = running_parts(v.enrolled, v.config.listen_mode);
+                }
+            }
+            s.view.clone()
+        })
     }
 
     fn act(&mut self, action: VoiceAction) {

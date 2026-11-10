@@ -1872,3 +1872,17 @@ Running on this computer	Běží na tomto počítači
 The voice service stopped as soon as it started.	Hlasová služba se hned po spuštění zastavila.
 Voice isn't running. Start it with the microphone in the title bar.	Hlas neběží. Spusťte ho mikrofonem v záhlaví.
 Your voice is enrolled	Váš hlas je zaregistrován
+Hearing you…	Poslouchám vás…
+Listening · hold {key} or say “{word}”	Poslouchám · podržte {key} nebo řekněte „{word}“
+Listening · just talk	Poslouchám · prostě mluvte
+Opus is working on: {task} · {time}	Opus pracuje na: {task} · {time}
+Ready · hold {key} to talk	Připraveno · podržte {key} a mluvte
+Short chimes when it starts and stops listening, finishes a job or asks you something	Krátké zvuky při začátku a konci poslechu, dokončení úkolu nebo otázce
+Speaking · tap or press {key} to interrupt	Mluví · klepněte nebo stiskněte {key} pro přerušení
+Starting voice…	Spouštím hlas…
+Starting voice… loading models {n} of {total}	Spouštím hlas… načítám modely {n} z {total}
+Thinking…	Přemýšlím…
+Voice is on — hold {key} and talk	Hlas je zapnutý — podržte {key} a mluvte
+Voice is on — hold {key} or say “{word}”	Hlas je zapnutý — podržte {key} nebo řekněte „{word}“
+Voice starts with Craft Anything. You can change that in Settings → Voice.	Hlas se spouští s Craft Anything. Můžete to změnit v Nastavení → Hlas.
+Waiting for your yes or no	Čekám na vaše ano nebo ne

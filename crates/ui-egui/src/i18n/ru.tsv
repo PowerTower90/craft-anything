@@ -1872,3 +1872,17 @@ Running on this computer	Работает на этом компьютере
 The voice service stopped as soon as it started.	Голосовая служба остановилась сразу после запуска.
 Voice isn't running. Start it with the microphone in the title bar.	Голос выключен. Запустите его микрофоном в заголовке окна.
 Your voice is enrolled	Ваш голос записан
+Hearing you…	Слушаю вас…
+Listening · hold {key} or say “{word}”	Слушаю · удерживайте {key} или скажите «{word}»
+Listening · just talk	Слушаю · просто говорите
+Opus is working on: {task} · {time}	Opus работает над: {task} · {time}
+Ready · hold {key} to talk	Готово · удерживайте {key}, чтобы говорить
+Short chimes when it starts and stops listening, finishes a job or asks you something	Короткие звуки, когда прослушивание начинается и заканчивается, задача готова или вам задают вопрос
+Speaking · tap or press {key} to interrupt	Говорит · нажмите или нажмите {key}, чтобы прервать
+Starting voice…	Голос запускается…
+Starting voice… loading models {n} of {total}	Голос запускается… загрузка моделей {n} из {total}
+Thinking…	Думаю…
+Voice is on — hold {key} and talk	Голос включён — удерживайте {key} и говорите
+Voice is on — hold {key} or say “{word}”	Голос включён — удерживайте {key} или скажите «{word}»
+Voice starts with Craft Anything. You can change that in Settings → Voice.	Голос запускается вместе с Craft Anything. Это можно изменить в Настройки → Голос.
+Waiting for your yes or no	Жду вашего «да» или «нет»

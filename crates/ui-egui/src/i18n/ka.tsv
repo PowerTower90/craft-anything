@@ -1872,3 +1872,17 @@ Running on this computer	მუშაობს ამ კომპიუტე�
 The voice service stopped as soon as it started.	ხმის სერვისი გაშვებისთანავე გაჩერდა.
 Voice isn't running. Start it with the microphone in the title bar.	ხმა გამორთულია. ჩართე სათაურის ზოლის მიკროფონით.
 Your voice is enrolled	შენი ხმა დარეგისტრირებულია
+Hearing you…	გისმენ…
+Listening · hold {key} or say “{word}”	ვუსმენ · დააჭირე {key} ან თქვი „{word}“
+Listening · just talk	ვუსმენ · უბრალოდ ილაპარაკე
+Opus is working on: {task} · {time}	Opus მუშაობს: {task} · {time}
+Ready · hold {key} to talk	მზადაა · ლაპარაკისთვის დააჭირე {key}
+Short chimes when it starts and stops listening, finishes a job or asks you something	მოკლე ხმები, როცა მოსმენა იწყება და მთავრდება, საქმე სრულდება ან რამეს გეკითხება
+Speaking · tap or press {key} to interrupt	ლაპარაკობს · შესაწყვეტად შეეხე ან დააჭირე {key}
+Starting voice…	ხმა ირთვება…
+Starting voice… loading models {n} of {total}	ხმა ირთვება… მოდელები იტვირთება {n} / {total}
+Thinking…	ფიქრობს…
+Voice is on — hold {key} and talk	ხმა ჩართულია — დააჭირე {key} და ილაპარაკე
+Voice is on — hold {key} or say “{word}”	ხმა ჩართულია — დააჭირე {key} ან თქვი „{word}“
+Voice starts with Craft Anything. You can change that in Settings → Voice.	ხმა Craft Anything-თან ერთად ირთვება. შეცვლა შეგიძლია: პარამეტრები → ხმა.
+Waiting for your yes or no	ელოდება შენს „კი“-ს ან „არა“-ს

@@ -1860,3 +1860,17 @@ Running on this computer	En marche sur cet ordinateur
 The voice service stopped as soon as it started.	Le service vocal s'est arrêté dès son démarrage.
 Voice isn't running. Start it with the microphone in the title bar.	La voix n'est pas lancée. Démarrez-la avec le micro dans la barre de titre.
 Your voice is enrolled	Votre voix est enregistrée
+Hearing you…	Je vous écoute…
+Listening · hold {key} or say “{word}”	À l'écoute · maintenez {key} ou dites « {word} »
+Listening · just talk	À l'écoute · parlez simplement
+Opus is working on: {task} · {time}	Opus travaille sur : {task} · {time}
+Ready · hold {key} to talk	Prêt · maintenez {key} pour parler
+Short chimes when it starts and stops listening, finishes a job or asks you something	Petits sons quand l'écoute commence et s'arrête, quand une tâche est finie ou qu'une question vous est posée
+Speaking · tap or press {key} to interrupt	Parle · touchez ou appuyez sur {key} pour interrompre
+Starting voice…	Démarrage de la voix…
+Starting voice… loading models {n} of {total}	Démarrage de la voix… chargement des modèles {n} sur {total}
+Thinking…	Réflexion…
+Voice is on — hold {key} and talk	La voix est active — maintenez {key} et parlez
+Voice is on — hold {key} or say “{word}”	La voix est active — maintenez {key} ou dites « {word} »
+Voice starts with Craft Anything. You can change that in Settings → Voice.	La voix démarre avec Craft Anything. Vous pouvez changer cela dans Paramètres → Voix.
+Waiting for your yes or no	En attente de votre oui ou non

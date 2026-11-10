@@ -1872,3 +1872,17 @@ Running on this computer	正在这台电脑上运行
 The voice service stopped as soon as it started.	语音服务刚启动就停止了。
 Voice isn't running. Start it with the microphone in the title bar.	语音未开启。请用标题栏中的麦克风启动。
 Your voice is enrolled	你的声音已录入
+Hearing you…	正在听你说…
+Listening · hold {key} or say “{word}”	聆听中 · 按住 {key} 或说“{word}”
+Listening · just talk	聆听中 · 直接说
+Opus is working on: {task} · {time}	Opus 正在处理：{task} · {time}
+Ready · hold {key} to talk	就绪 · 按住 {key} 说话
+Short chimes when it starts and stops listening, finishes a job or asks you something	开始和停止聆听、任务完成或向你提问时发出简短提示音
+Speaking · tap or press {key} to interrupt	正在说话 · 点按或按 {key} 打断
+Starting voice…	正在启动语音…
+Starting voice… loading models {n} of {total}	正在启动语音… 加载模型 {n}/{total}
+Thinking…	思考中…
+Voice is on — hold {key} and talk	语音已开启 — 按住 {key} 说话
+Voice is on — hold {key} or say “{word}”	语音已开启 — 按住 {key} 或说“{word}”
+Voice starts with Craft Anything. You can change that in Settings → Voice.	语音会随 Craft Anything 一起启动。可在 设置 → 语音 中更改。
+Waiting for your yes or no	等待你回答是或否

@@ -24,6 +24,7 @@ import heapq
 import itertools
 import json
 import logging
+import math
 import os
 import re
 import sys
@@ -42,6 +43,9 @@ VAD_ON, VAD_OFF = 0.5, 0.35
 MAX_CAPTURE_S = 60.0
 WAKE_WAIT_S = 6.0        # after a wake word, how long to wait for the command to start
 ECHO_HOLDOFF_S = 0.35    # after playback ends, ignore speech starts this long (room echo)
+LEVEL_EVERY_S = 0.05     # `level` events at ~20 Hz while capturing, speaking or playing a sound...
+LEVEL_IDLE_EVERY_S = 0.5  # ...and at 2 Hz while only listening (a room's own noise isn't news)
+LOAD_STEPS = 5           # vad, speech recognition, speaker verification, speech synthesis, warm-up
 PARTIAL_EVERY_S = 0.5
 ENROLL_NEEDED_S = 20.0
 ENROLL_MIN_S = 6.0
@@ -200,6 +204,7 @@ class Player:
         self.pending_samples = 0
         self.epoch = 0                  # bumped by clear(), so a stale producer can't refill
         self.last_audio_t = 0.0         # wall time the last non-silent sample was handed out
+        self.last_rms = 0.0             # loudness of what was last handed to the speakers
 
     def push(self, x, epoch=None):
         x = np.asarray(x, dtype=np.float32)
@@ -227,6 +232,7 @@ class Player:
             self.pending_samples -= got
             if got:
                 self.last_audio_t = time.monotonic()
+        self.last_rms = float(np.sqrt(np.mean(out * out))) if n else 0.0
         return out
 
     def clear(self):
@@ -1068,6 +1074,8 @@ class Capture:
 
 class VoiceService:
     def __init__(self, models_dir, device="cuda:0", audio=None, stub_models=False, allow_inject=False):
+        self.level_in = 0.0               # the microphone's loudness, 0..1 (smoothed)
+        self.load_step = 0
         self.models_dir = os.path.abspath(models_dir)
         # tests only: a WAV may be fed in as if spoken into the microphone (--allow-inject)
         self.allow_inject = allow_inject
@@ -1080,7 +1088,7 @@ class VoiceService:
         self.lock = threading.RLock()
         self.cfg = {"listen_mode": "push_to_talk", "wake_word": "hey craft", "input_device": None,
                     "output_device": None, "speaker_threshold": 0.55, "language": "en", "tts_voice": None,
-                    "vad_silence_ms": 700}
+                    "vad_silence_ms": 700, "sounds": True}
         # models
         self.vad = self.stt = self.speaker = self.tts = self.wake = None
         self.wake_engine = None            # "openwakeword" | "whisper" | None
@@ -1122,7 +1130,7 @@ class VoiceService:
         self._last_state = None
         self._load_profile()
         self.threads = []
-        for target, name in ((self._audio_loop, "audio"), (self._stt_loop, "stt"), (self._speak_loop, "speak")):
+        for target, name in ((self._audio_loop, "audio"), (self._stt_loop, "stt"), (self._speak_loop, "speak"), (self._level_loop, "level")):
             t = threading.Thread(target=target, name=name, daemon=True)
             t.start()
             self.threads.append(t)
@@ -1146,13 +1154,65 @@ class VoiceService:
     def state(self):
         return {"listening": bool(self.listening), "capturing": self.capture is not None and not self.capture.done,
                 "speaking": bool(self.speaking), "mode": self.cfg["listen_mode"], "enrolled": self.profile is not None,
-                "enrolling": bool(self.enrolling), "models_ready": bool(self.models_ready), "loading": self.loading}
+                "enrolling": bool(self.enrolling), "models_ready": bool(self.models_ready), "loading": self.loading,
+                "load_step": int(self.load_step), "load_steps": LOAD_STEPS}
 
     def push_state(self, force=False):
         st = self.state()
         if force or st != self._last_state:
+            before = self._last_state
             self._last_state = st
             self.emit(dict(type="state", **st))
+            # A short chime when the microphone starts and stops taking down what's said.
+            if before is not None and before["capturing"] != st["capturing"] and not st["enrolling"]:
+                self.chime("start" if st["capturing"] else "end")
+
+    # ----- levels and chimes -------------------------------------------------------------------
+    @staticmethod
+    def loudness(rms):
+        """RMS to 0..1 on a dB scale: -60 dB (quiet room) is 0, -10 dB (loud speech) is 1."""
+        if rms <= 1e-6:
+            return 0.0
+        return float(min(1.0, max(0.0, (20.0 * math.log10(rms) + 60.0) / 50.0)))
+
+    def _level_loop(self):
+        """`level` events: ~20 Hz while capturing, speaking or playing a sound, 2 Hz while only
+        listening, none while the microphone is closed and nothing is playing."""
+        last_sent = 0.0
+        out_level = 0.0
+        while not self.stopping.wait(LEVEL_EVERY_S):
+            player = getattr(self.audio, "player", None)
+            playing = player is not None and time.monotonic() - player.last_audio_t < 0.15
+            out_now = self.loudness(player.last_rms) if playing else 0.0
+            out_level = max(out_now, out_level * 0.7)
+            self.level_in *= 0.8 if not self.listening else 1.0
+            capturing = self.capture is not None and not self.capture.done
+            active = self.listening or capturing or self.speaking or playing
+            if not active:
+                continue
+            loud = capturing or self.speaking or playing or out_level > 0.02
+            now = time.monotonic()
+            if loud or now - last_sent >= LEVEL_IDLE_EVERY_S:
+                last_sent = now
+                self.emit({"type": "level", "in": round(self.level_in, 3), "out": round(out_level, 3)})
+
+    def chime(self, kind):
+        """A short, quiet tone (when `sounds` is on): capture start and end, a job done, a question."""
+        if not self.cfg.get("sounds", True) or self.audio is None or getattr(self.audio, "player", None) is None:
+            return
+        notes = {"start": (880, 1320), "end": (1320, 880), "done": (660, 880, 1320), "ask": (740, 740)}.get(kind)
+        if notes is None:
+            self.error(f"unknown chime {kind!r}")
+            return
+        sr = self.audio.player.sr
+        t = np.arange(int(sr * 0.075)) / sr
+        env = np.minimum(1.0, t / 0.008) * np.exp(-t * 28.0)
+        tone = np.concatenate([np.concatenate([0.10 * np.sin(2 * np.pi * f * t) * env, np.zeros(int(sr * 0.02))]) for f in notes])
+        self.audio.player.push(tone.astype(np.float32))
+        try:
+            self.audio.ensure_output()
+        except Exception:
+            pass
 
     def status(self):
         st = {"type": "status", "version": VERSION, "state": self.state(), "models": dict(self.models),
@@ -1201,14 +1261,17 @@ class VoiceService:
                 self._set_model(k, "ready")
         else:
             self.loading = "vad"
+            self.load_step += 1
             self.push_state()
             self.vad = SileroVAD()
             self._set_model("vad", "ready")
             self.loading = "speech recognition"
+            self.load_step += 1
             self.push_state()
             self.stt = WhisperSTT(self.models_dir, self.device)
             self._set_model("stt", "ready")
             self.loading = "speaker verification"
+            self.load_step += 1
             self.push_state()
             try:
                 self.speaker = EcapaSpeaker(self.models_dir, "cpu")
@@ -1226,11 +1289,13 @@ class VoiceService:
                     log.exception("default voice design failed")
                     self.error(f"the default assistant voice could not be designed: {e}")
             self.loading = "speech synthesis"
+            self.load_step += 1
             self.push_state()
             self.tts = QwenTTS(self.models_dir, self.device)
             self._set_model("tts", "ready")
         self._apply_voice()
         self.loading = "warming up"
+        self.load_step = LOAD_STEPS
         self.push_state()
         self._warmup()
         self._setup_wake()
@@ -1330,6 +1395,8 @@ class VoiceService:
         for k in ("wake_word", "language"):
             if k in c:
                 self.cfg[k] = c[k]
+        if "sounds" in c:
+            self.cfg["sounds"] = bool(c["sounds"])
         if "speaker_threshold" in c:
             try:
                 self.cfg["speaker_threshold"] = min(1.0, max(-1.0, float(c["speaker_threshold"])))
@@ -1404,6 +1471,8 @@ class VoiceService:
     def _on_block(self, block, injected=False):
         if self.injecting and not injected:
             return                      # the microphone is muted while a test WAV is fed in
+        rms = float(np.sqrt(np.mean(np.square(block)))) if len(block) else 0.0
+        self.level_in = max(self.loudness(rms), self.level_in * 0.85)
         self.in_q.append(block)
         self.in_evt.set()
 
@@ -1968,6 +2037,8 @@ class Server:
                 self.reply({"type": "devices", "inputs": ins, "outputs": outs}, rid)
             elif cmd == "status":
                 self.reply(svc.status(), rid)
+            elif cmd == "chime":
+                svc.chime(str(msg.get("kind") or ""))
             elif cmd == "inject_wav":
                 svc.inject_wav(str(msg.get("path") or ""), msg.get("ptt"), rid)
             elif cmd == "shutdown":

@@ -49,6 +49,7 @@ pub mod titlebar;
 pub mod usage;
 pub mod voice_demo;
 pub mod voice_live;
+pub mod voice_orb;
 pub mod voice_ui;
 pub mod wb_project;
 pub mod widgets;
@@ -538,6 +539,9 @@ pub struct Prefs {
     /// What was typed in each project's box and not sent yet, by project folder.
     #[serde(default)]
     pub unsent: std::collections::BTreeMap<PathBuf, String>,
+    /// The "voice starts with Craft Anything" notice was shown.
+    #[serde(default)]
+    pub voice_auto_start_noticed: bool,
 }
 
 pub const PREFS_KEY: &str = "craft-anything-ui";
@@ -828,6 +832,7 @@ impl CraftApp {
         let Ok(p) = serde_json::from_str::<Prefs>(&text) else { return };
         self.state.purpose = p.purpose;
         self.state.backend = p.backend;
+        self.voice.auto_start_noticed = p.voice_auto_start_noticed;
         if let Some(v) = p.explain_new {
             self.state.explain_new = v;
         }
@@ -866,6 +871,7 @@ impl CraftApp {
         Prefs {
             make,
             unsent,
+            voice_auto_start_noticed: self.voice.auto_start_noticed,
             sidebar_folded: self.state.sidebar_folded,
             pins_collapsed: self.state.pins_collapsed,
             purpose: self.state.purpose,
@@ -1995,9 +2001,6 @@ impl CraftApp {
                 if !self.settings.first_run_done {
                     self.detect_backends();
                 }
-                if self.voice.view.config.auto_start {
-                    self.voice.act(voice_ui::VoiceAction::Start);
-                }
             }
         }
         let want = (self.theme_kind(), self.beginner());
@@ -2103,6 +2106,8 @@ impl CraftApp {
         settings_ui::show(self, &ctx);
         home::modals(self, &ctx);
         asset_plan::plan_modal(self, &ctx);
+        // The voice orb: on every screen while voice is on.
+        guard("voice orb", || voice_orb::show(self, &ctx));
         self.toasts(&ctx);
         self.drop_overlay(&ctx);
         titlebar::window_edge(&ctx);

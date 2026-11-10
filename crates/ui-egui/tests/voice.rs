@@ -7,7 +7,7 @@ use craft_anything_ui_egui::voice_demo::{DemoVoice, sample_approval};
 use craft_anything_ui_egui::voice_ui::{Enrolment, JobState, ListenMode, OpusJob, Speaker, VoiceAction, VoiceLine};
 use craft_anything_ui_egui::{CraftApp, demo, theme};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use std::time::Instant;
 
 fn harness(mode: Mode, voice: &DemoVoice) -> Harness<'static, CraftApp> {
@@ -89,19 +89,14 @@ fn the_microphone_button_shows_each_state() {
 }
 
 /// F9 down starts capturing and up ends it; held repeats send nothing more; another key can be
-/// chosen; while voice is off the key only says how to start it.
+/// chosen.
 #[test]
 fn the_push_to_talk_key_captures_while_held() {
     let voice = DemoVoice::simulated();
     let mut h = harness(Mode::Experienced, &voice);
     h.run_steps(3);
-    h.key_down(egui::Key::F9);
-    h.run_steps(2);
-    h.key_up(egui::Key::F9);
-    h.run_steps(2);
-    assert!(voice.actions().is_empty(), "voice is off: {:?}", voice.actions());
-    assert!(h.state().state.toasts.iter().any(|(t, _)| t.contains("Voice is off")));
     h.state_mut().voice.act(VoiceAction::Start);
+    h.run_steps(2);
     h.key_down(egui::Key::F9);
     h.run_steps(2);
     assert!(h.state().voice.view.capturing);
@@ -274,13 +269,13 @@ fn settings_voice_shows_the_parts_and_enrols() {
 
     // Enrol: four sentences, progress, too little, then enough.
     h.get_by_label("Enrol my voice").scroll_to_me();
-    h.run();
+    h.run_steps(8);
     h.get_by_label("Enrol my voice").click();
     h.run_steps(3);
     h.get_by_label_contains("1. Craft Anything, please open my newest project");
     h.get_by_label_contains("4. Seven green bottles");
     h.get_by_label("Start recording").scroll_to_me();
-    h.run();
+    h.run_steps(8);
     h.get_by_label("Start recording").click();
     h.run_steps(3);
     assert_eq!(voice.actions().last(), Some(&VoiceAction::EnrolStart));
@@ -301,15 +296,15 @@ fn settings_voice_shows_the_parts_and_enrols() {
     assert!(h.state().voice.view.enrolled);
     h.get_by_label("Done. Your voice is enrolled.");
     h.get_by_label("Speaker profile").scroll_to_me();
-    h.run();
+    h.run_steps(8);
     let profile = h.get_by_label("Speaker profile").rect();
     assert!(painted_on_row(&h, profile).iter().any(|t| t == "Ready"));
 
     // Design the assistant's voice: describe, preview, keep.
     h.get_by_label("Describe the voice").scroll_to_me();
-    h.run();
+    h.run_steps(8);
     h.get_by_label("Describe the voice").click();
-    h.run();
+    h.run_steps(8);
     h.get_by_label("Describe the voice").type_text("A calm, deep voice");
     h.run_steps(3);
     h.get_by_label("Preview").click();
@@ -331,4 +326,214 @@ fn the_unconnected_stand_in_says_voice_is_not_here_yet() {
     h.run_steps(5);
     assert!(!h.state().voice.view.running);
     h.get_by_label_contains("Voice isn't connected in this build yet");
+}
+
+// ---- Never a dead end, auto-start and the voice orb ----
+
+fn harness_with(mode: Mode, voice: &DemoVoice, auto_start: bool) -> Harness<'static, CraftApp> {
+    let voice = voice.clone();
+    Harness::builder().with_size(egui::vec2(1280.0, 1000.0)).with_max_steps(32).build_eframe(move |cc| {
+        CraftApp::setup_context(&cc.egui_ctx);
+        let mut app = demo::app(demo::engine(mode, true));
+        app.voice.set_backend(Box::new(voice));
+        app.voice.auto_start_allowed = auto_start;
+        app
+    })
+}
+
+/// The orb's label ("Voice: …") and the text painted on it.
+fn orb(h: &Harness<'static, CraftApp>) -> Option<(String, Vec<String>)> {
+    let found = h
+        .query_all_by_label_contains("Voice: ")
+        .filter(|n| n.rect().bottom() > 900.0)
+        .map(|n| (n.accesskit_node().label().unwrap_or_default().to_string(), n.rect()))
+        .next();
+    found.map(|(label, rect)| (label, painted_in(h, rect)))
+}
+
+fn orb_rect(h: &Harness<'static, CraftApp>) -> egui::Rect {
+    h.query_all_by_label_contains("Voice: ").map(|n| n.rect()).find(|r| r.bottom() > 900.0).expect("the orb")
+}
+
+/// Pressing F9 while voice is off starts it and says so at once; held until it's ready, it talks.
+#[test]
+fn f9_while_voice_is_off_starts_it_and_talks_once_ready() {
+    let voice = DemoVoice::slow_start(4);
+    let mut h = harness_with(Mode::Experienced, &voice, false);
+    h.run_steps(3);
+    assert!(orb(&h).is_none(), "voice is off: no orb");
+    h.key_down(egui::Key::F9);
+    h.run_steps(1);
+    assert_eq!(voice.actions(), vec![VoiceAction::Start]);
+    // (A floating area is laid out unseen on its first frame.)
+    h.run_steps(1);
+    let (label, painted) = orb(&h).expect("the orb shows at once");
+    assert!(label.starts_with("Voice: Starting voice"), "{label}");
+    assert!(painted.iter().any(|t| t.starts_with("Starting voice")), "{painted:?}");
+    assert!(painted_in(&h, egui::Rect::EVERYTHING).iter().any(|t| t == "Starting voice…"), "the notice says so");
+    // Loading, then ready: the key is still held, so it captures.
+    h.run_steps(6);
+    assert!(h.state().voice.view.capturing, "{:?}", voice.actions());
+    assert_eq!(voice.actions(), vec![VoiceAction::Start, VoiceAction::PushToTalk { down: true }]);
+    h.key_up(egui::Key::F9);
+    h.run_steps(2);
+    assert_eq!(voice.actions().last(), Some(&VoiceAction::PushToTalk { down: false }));
+}
+
+/// A tap while off starts voice; once ready it says how to talk, and doesn't capture.
+#[test]
+fn a_tap_while_off_starts_voice_and_says_how_to_talk() {
+    let voice = DemoVoice::slow_start(3);
+    let mut h = harness_with(Mode::Beginner, &voice, false);
+    h.run_steps(3);
+    h.key_down(egui::Key::F9);
+    h.run_steps(1);
+    h.key_up(egui::Key::F9);
+    h.run_steps(6);
+    assert_eq!(voice.actions(), vec![VoiceAction::Start], "no talking without the key");
+    assert!(h.state().voice.view.running);
+    assert!(painted_in(&h, egui::Rect::EVERYTHING).iter().any(|t| t == "Voice is on — hold F9 and talk"), "it says how");
+    let (label, _) = orb(&h).unwrap();
+    assert_eq!(label, "Voice: Ready · hold F9 to talk");
+}
+
+/// F9 isn't a text key: it talks even while a text box has the keyboard.
+#[test]
+fn f9_talks_while_a_text_box_is_focused() {
+    let voice = DemoVoice::simulated();
+    let mut h = harness_with(Mode::Beginner, &voice, false);
+    h.run_steps(3);
+    h.state_mut().voice.act(VoiceAction::Start);
+    h.state_mut().state.screen = craft_anything_ui_egui::state::Screen::Ask;
+    h.run_steps(3);
+    let field = h.query_all_by_role(egui::accesskit::Role::TextInput).next().or_else(|| h.query_all_by_role(egui::accesskit::Role::MultilineTextInput).next());
+    field.expect("a text box").focus();
+    h.run_steps(2);
+    assert!(h.ctx.memory(|m| m.focused().is_some()), "the text box has the keyboard");
+    h.key_down(egui::Key::F9);
+    h.run_steps(2);
+    assert!(h.state().voice.view.capturing);
+    h.key_up(egui::Key::F9);
+    h.run_steps(2);
+    assert!(!h.state().voice.view.capturing);
+}
+
+/// Voice starts with the app when the settings say so, with a notice the first time; not when
+/// they don't.
+#[test]
+fn voice_starts_with_the_app_when_set_to() {
+    let voice = DemoVoice::simulated();
+    let mut h = harness_with(Mode::Beginner, &voice, true);
+    h.run_steps(4);
+    assert_eq!(voice.actions(), vec![VoiceAction::Start]);
+    assert!(h.state().voice.auto_start_noticed);
+    assert!(painted_in(&h, egui::Rect::EVERYTHING).iter().any(|t| t.starts_with("Voice starts with Craft Anything")));
+    assert!(h.state().prefs().voice_auto_start_noticed, "remembered for next time");
+    let off = DemoVoice::simulated();
+    off.with(|v| v.config.auto_start = false);
+    let mut h = harness_with(Mode::Beginner, &off, true);
+    h.run_steps(4);
+    assert!(off.actions().is_empty());
+    assert!(orb(&h).is_none());
+}
+
+/// The total height of the upright bars painted in `rect` (the orb's level bars).
+fn bars_height(h: &Harness<'static, CraftApp>, rect: egui::Rect) -> f32 {
+    fn walk(s: &egui::Shape, rect: egui::Rect, sum: &mut f32) {
+        match s {
+            egui::Shape::LineSegment { points, .. } if rect.contains(points[0]) && (points[0].x - points[1].x).abs() < 0.1 => {
+                *sum += (points[0].y - points[1].y).abs();
+            }
+            egui::Shape::Vec(v) => v.iter().for_each(|x| walk(x, rect, sum)),
+            _ => {}
+        }
+    }
+    let mut sum = 0.0;
+    for cs in &h.output().shapes {
+        walk(&cs.shape, rect, &mut sum);
+    }
+    sum
+}
+
+/// Each state of the orb is painted with its words, and its bars follow the real loudness.
+#[test]
+fn the_orb_shows_each_state() {
+    let voice = DemoVoice::simulated();
+    let mut h = harness_with(Mode::Beginner, &voice, false);
+    h.run_steps(3);
+    h.state_mut().voice.act(VoiceAction::Start);
+    h.run_steps(3);
+    let says = |h: &Harness<'static, CraftApp>, words: &str| {
+        let (label, painted) = orb(h).expect("the orb");
+        assert_eq!(label, format!("Voice: {words}"));
+        assert!(painted.iter().any(|t| t == words), "painted {words:?}: {painted:?}");
+    };
+    says(&h, "Ready · hold F9 to talk");
+    // Hearing: the partial text, and bars that grow with the microphone's level.
+    voice.with(|v| {
+        v.capturing = true;
+        v.partial = "make the music louder".into();
+        v.level_in = 0.05;
+    });
+    h.run_steps(2);
+    says(&h, "make the music louder");
+    // Past the flash that marks the start of hearing.
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    h.run_steps(30);
+    let quiet = bars_height(&h, orb_rect(&h));
+    voice.with(|v| v.level_in = 0.95);
+    h.run_steps(30);
+    let loud = bars_height(&h, orb_rect(&h));
+    assert!(quiet > 0.0 && loud > quiet * 1.8, "the bars follow the level: {quiet} → {loud}");
+    // Thinking, Opus working, speaking.
+    voice.with(|v| {
+        v.capturing = false;
+        v.partial.clear();
+        v.thinking = true;
+    });
+    h.run_steps(2);
+    says(&h, "Thinking…");
+    voice.with(|v| {
+        v.thinking = false;
+        v.jobs.push(OpusJob {
+            id: "j1".into(),
+            task: "Cut the trailer".into(),
+            progress: None,
+            latest: String::new(),
+            started: Instant::now(),
+            state: JobState::Running,
+        });
+    });
+    h.run_steps(2);
+    let (label, _) = orb(&h).unwrap();
+    assert!(label.starts_with("Voice: Opus is working on: Cut the trailer · 0:0"), "{label}");
+    voice.with(|v| {
+        v.speaking = true;
+        v.level_out = 0.8;
+    });
+    h.run_steps(2);
+    says(&h, "Speaking · tap or press F9 to interrupt");
+    // A click interrupts.
+    h.get_by_label("Voice: Speaking · tap or press F9 to interrupt").click();
+    h.run_steps(2);
+    assert_eq!(voice.actions().last(), Some(&VoiceAction::StopSpeaking));
+    // A question: the card above the orb, with Yes and No.
+    voice.with(|v| {
+        v.speaking = false;
+        v.approvals.push(sample_approval("a1"));
+    });
+    h.run_steps(2);
+    says(&h, "Waiting for your yes or no");
+    h.get_by_label("Opus wants to delete 3 files in Downloads. Yes or no?");
+    h.get_by_label("No").click();
+    h.run_steps(2);
+    assert_eq!(voice.actions().last(), Some(&VoiceAction::Answer { id: "a1".into(), yes: false }));
+    // Someone else's voice: a grey shake.
+    voice.with(|v| v.lines.push(VoiceLine { speaker: Speaker::NotYou, text: "delete it".into(), speaker_score: Some(0.1) }));
+    h.run_steps(2);
+    says(&h, "Not your voice");
+    // A problem: red, with the message.
+    voice.with(|v| v.error = Some("The microphone is unavailable".into()));
+    h.run_steps(2);
+    says(&h, "The microphone is unavailable");
 }

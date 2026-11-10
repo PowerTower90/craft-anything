@@ -45,6 +45,9 @@ pub struct LiveVoice {
     tx: Sender<Done>,
     rx: Receiver<Done>,
     wake: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// The parts were looked at once: when the screens first draw (they set the waker), not when
+    /// made, as a look holds the session for a moment and an app being built or closed mustn't.
+    checked: bool,
 }
 
 impl LiveVoice {
@@ -53,9 +56,7 @@ impl LiveVoice {
         let (tx, rx) = mpsc::channel();
         let config = engine.try_session().map(|s| config_of(&s.settings.voice)).unwrap_or_default();
         let view = VoiceView { config, parts: VoiceParts::default(), ..Default::default() };
-        let v = LiveVoice { engine, view, link: None, tx, rx, wake: None };
-        v.check_status();
-        v
+        LiveVoice { engine, view, link: None, tx, rx, wake: None, checked: false }
     }
 
     fn call_in_background(&self, what: &'static str, f: impl FnOnce(&Engine) -> Done + Send + 'static) {
@@ -159,7 +160,9 @@ impl LiveVoice {
     fn fold_voice(&mut self, e: VoiceEvent) {
         let v = &mut self.view;
         match e {
-            VoiceEvent::State { listening, capturing, speaking, enrolled, .. } => {
+            VoiceEvent::State { listening, capturing, speaking, enrolled, models_ready, loading, load_step, load_steps, .. } => {
+                v.ready = models_ready;
+                v.loading = (!models_ready).then_some((load_step, load_steps, loading));
                 (v.listening, v.capturing, v.speaking, v.enrolled) = (listening, capturing, speaking, enrolled);
                 v.running = true;
                 v.parts.speaker_profile = if enrolled {
@@ -169,7 +172,13 @@ impl LiveVoice {
                 };
             }
             VoiceEvent::Partial { text } => v.partial = text,
-            VoiceEvent::Utterance { .. } => v.partial.clear(),
+            VoiceEvent::Utterance { .. } => {
+                // The local model decides what it was; the brain's next words end the thinking.
+                v.partial.clear();
+                v.thinking = true;
+                v.level_in = 0.0;
+            }
+            VoiceEvent::Level { input, output } => (v.level_in, v.level_out) = (input, output),
             VoiceEvent::EnrollProgress { seconds, needed } => v.enrolment = Enrolment::Recording { seconds, needed },
             VoiceEvent::Enrolled { ok } => {
                 v.enrolment = Enrolment::Finished { ok };
@@ -187,7 +196,8 @@ impl LiveVoice {
                 }
             }
             VoiceEvent::Disconnected => {
-                (v.running, v.listening, v.capturing, v.speaking) = (false, false, false, false);
+                (v.running, v.listening, v.capturing, v.speaking, v.ready, v.thinking) = (false, false, false, false, false, false);
+                (v.level_in, v.level_out) = (0.0, 0.0);
                 v.partial.clear();
             }
             _ => {}
@@ -195,6 +205,28 @@ impl LiveVoice {
     }
 
     fn fold_brain(&mut self, e: BrainEvent) {
+        // Anything the brain says, does or shows ends its thinking about what was heard.
+        if matches!(
+            e,
+            BrainEvent::Say { .. }
+                | BrainEvent::JobStarted { .. }
+                | BrainEvent::ApprovalResolved { .. }
+                | BrainEvent::EnrolmentNeeded
+                | BrainEvent::Transcript(craft_anything_ai::voice::TranscriptLine { speaker: craft_anything_ai::voice::Speaker::NotUser, .. })
+        ) {
+            self.view.thinking = false;
+        }
+        // A short chime when a job is done or something waits for an answer.
+        let chime = match &e {
+            BrainEvent::JobDone { .. } => Some("done"),
+            BrainEvent::ApprovalNeeded { .. } => Some("ask"),
+            _ => None,
+        };
+        if let (Some(kind), true) = (chime, self.view.config.sounds)
+            && let Some(c) = self.client()
+        {
+            let _ = c.send(craft_anything_engines::voice::VoiceCommand::Chime { kind: kind.into() });
+        }
         let v = &mut self.view;
         match e {
             BrainEvent::Transcript(line) => {
@@ -314,6 +346,10 @@ impl VoiceBackend for LiveVoice {
     }
 
     fn set_waker(&mut self, wake: Arc<dyn Fn() + Send + Sync>) {
+        if !self.checked {
+            self.checked = true;
+            self.check_status();
+        }
         if let Some(l) = &self.link {
             l.set_waker(wake.clone());
         }
@@ -362,6 +398,7 @@ fn config_of(v: &craft_anything_engine::settings::VoiceSettings) -> VoiceConfig 
         task_folder: v.task_folder.clone(),
         assistant_voice: v.assistant_voice_ref_audio.clone().map(|ref_audio| AssistantVoice { ref_audio, ref_text: v.assistant_voice_ref_text.clone() }),
         auto_start: v.auto_start,
+        sounds: v.sounds,
     }
 }
 
@@ -379,6 +416,7 @@ fn config_params(c: &VoiceConfig) -> Value {
         "assistant_voice_ref_audio": c.assistant_voice.as_ref().map(|a| a.ref_audio.display().to_string()).unwrap_or_default(),
         "assistant_voice_ref_text": c.assistant_voice.as_ref().map(|a| a.ref_text.clone()).unwrap_or_default(),
         "auto_start": c.auto_start,
+        "sounds": c.sounds,
     })
 }
 
@@ -441,7 +479,24 @@ mod tests {
     fn brain_and_service_events_make_the_picture() {
         let engine = Arc::new(Engine::new(craft_anything_engine::testing::session()));
         let mut v = LiveVoice::new(engine);
-        v.fold(LinkEvent::Voice(VoiceEvent::State { listening: true, capturing: true, speaking: false, mode: "push_to_talk".into(), enrolled: false }));
+        v.fold(LinkEvent::Voice(VoiceEvent::State {
+            listening: true,
+            capturing: true,
+            speaking: false,
+            mode: "push_to_talk".into(),
+            enrolled: false,
+            models_ready: false,
+            loading: "speech recognition".into(),
+            load_step: 2,
+            load_steps: 5,
+        }));
+        assert_eq!((v.view.ready, v.view.loading.clone()), (false, Some((2, 5, "speech recognition".to_string()))));
+        v.fold(LinkEvent::Voice(VoiceEvent::Level { input: 0.7, output: 0.1 }));
+        assert_eq!((v.view.level_in, v.view.level_out), (0.7, 0.1));
+        v.fold(LinkEvent::Voice(VoiceEvent::Utterance { text: "hi".into(), speaker_ok: true, speaker_score: 0.8, duration_s: 1.0, verified: true }));
+        assert!(v.view.thinking, "the model is deciding");
+        v.fold(LinkEvent::Brain(BrainEvent::Say { id: "v1".into(), text: "Hello!".into() }));
+        assert!(!v.view.thinking);
         v.fold(LinkEvent::Voice(VoiceEvent::Partial { text: "create a fi".into() }));
         assert!(v.view.running && v.view.capturing && v.view.partial == "create a fi");
         assert_eq!(v.view.parts.speaker_profile.state, PartState::NotSetUp);

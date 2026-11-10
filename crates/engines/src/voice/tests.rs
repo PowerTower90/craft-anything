@@ -20,7 +20,8 @@ fn next_non_state(rx: &Receiver<VoiceEvent>) -> VoiceEvent {
     loop {
         let left = WAIT.saturating_sub(t0.elapsed());
         let ev = rx.recv_timeout(left).unwrap_or_else(|_| panic!("no event within {WAIT:?}"));
-        if !matches!(ev, VoiceEvent::State { .. }) {
+        // States and loudness come all the time; the rest is what a test waits for.
+        if !matches!(ev, VoiceEvent::State { .. } | VoiceEvent::Level { .. }) {
             return ev;
         }
     }
@@ -46,7 +47,17 @@ fn events_are_read_leniently() {
     let p = VoiceEvent::parse;
     assert_eq!(
         p(r#"{"type":"state","listening":true,"capturing":false,"speaking":true,"mode":"push_to_talk","enrolled":true,"extra":{"x":1}}"#),
-        Some(VoiceEvent::State { listening: true, capturing: false, speaking: true, mode: "push_to_talk".into(), enrolled: true })
+        Some(VoiceEvent::State {
+            listening: true,
+            capturing: false,
+            speaking: true,
+            mode: "push_to_talk".into(),
+            enrolled: true,
+            models_ready: true,
+            loading: String::new(),
+            load_step: 0,
+            load_steps: 0
+        })
     );
     assert_eq!(p(r#"{"type":"wake","word":"hey craft","score":0.8}"#), Some(VoiceEvent::Wake { word: "hey craft".into(), score: 0.8 }));
     assert_eq!(p(r#"{"type":"partial","text":"open the tra","t":12}"#), Some(VoiceEvent::Partial { text: "open the tra".into() }));
@@ -108,7 +119,7 @@ fn commands_are_written_as_the_protocol_says() {
     assert_eq!(
         j(VoiceCommand::Config(VoiceConfig::default())),
         json!({"cmd": "config", "listen_mode": "push_to_talk", "wake_word": "hey craft", "input_device": null, "output_device": null,
-               "speaker_threshold": 0.55, "language": "en", "tts_voice": null, "vad_silence_ms": 700})
+               "speaker_threshold": 0.55, "language": "en", "tts_voice": null, "vad_silence_ms": 700, "sounds": true})
     );
     let voice = VoiceConfig {
         listen_mode: ListenMode::WakeWord,
@@ -463,6 +474,35 @@ fn the_start_command_is_the_contracts() {
     let test = VoiceSetup { allow_inject: true, ..setup.clone() };
     let args: Vec<String> = test.command().unwrap().args.iter().map(|a| a.to_string_lossy().into_owned()).collect();
     assert_eq!(args.last().map(String::as_str), Some("--allow-inject"));
+}
+
+/// Levels, loading progress and chimes are read and written.
+#[test]
+fn levels_loading_and_chimes_are_read_and_written() {
+    assert_eq!(VoiceEvent::parse(r#"{"type":"level","in":0.42,"out":1.7}"#), Some(VoiceEvent::Level { input: 0.42, output: 1.0 }), "clamped to 0..1");
+    let st = VoiceEvent::parse(r#"{"type":"state","listening":true,"models_ready":false,"loading":"speech recognition","load_step":2,"load_steps":5}"#);
+    assert!(
+        matches!(st, Some(VoiceEvent::State { models_ready: false, load_step: 2, load_steps: 5, ref loading, .. }) if loading == "speech recognition"),
+        "{st:?}"
+    );
+    let j: Value = serde_json::from_str(&VoiceCommand::Chime { kind: "done".into() }.to_json().unwrap()).unwrap();
+    assert_eq!(j, json!({"cmd": "chime", "kind": "done"}));
+    let c: Value = serde_json::from_str(&VoiceCommand::Config(VoiceConfig::default()).to_json().unwrap()).unwrap();
+    assert_eq!(c["sounds"], true);
+}
+
+/// The stand-in says how loud it is while push-to-talk is held, and goes quiet after.
+#[test]
+fn the_stand_in_reports_levels_while_capturing() {
+    let svc = standin::StandInService::start(vec![]).unwrap();
+    let client = VoiceClient::connect(svc.port()).unwrap();
+    let rx = client.events();
+    client.ptt(true).unwrap();
+    let up = wait_for(&rx, |e| matches!(e, VoiceEvent::Level { input, .. } if *input > 0.3));
+    assert!(matches!(up, VoiceEvent::Level { .. }));
+    client.ptt(false).unwrap();
+    let down = wait_for(&rx, |e| matches!(e, VoiceEvent::Level { input, .. } if *input == 0.0));
+    assert!(matches!(down, VoiceEvent::Level { .. }));
 }
 
 /// Before enrolment the service says `verified: false`; test audio goes in as `inject_wav`.

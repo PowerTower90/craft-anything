@@ -327,3 +327,66 @@ def test_command_line_accepts_allow_inject(tmp_models):
         assert info["port"] > 0
     finally:
         p.kill()
+
+
+# ----- levels and chimes ---------------------------------------------------------------------------
+
+def test_level_events_follow_the_microphone_and_the_speakers(svc):
+    c = Client(svc.port)
+    c.send(cmd="config", listen_mode="push_to_talk", input_device="Fake Microphone", sounds=False)
+    c.wait("config_ok")
+    time.sleep(1.2)
+    quiet = [e["in"] for e in c.of("level")]
+    assert quiet, "levels while listening, even to silence"
+    assert max(quiet) < 0.15, quiet
+    assert len(quiet) <= 5, f"only ~2 Hz while just listening: {len(quiet)} in 1.2 s"
+    t = time.perf_counter()
+    c.send(cmd="ptt", down=True)
+    svc.audio.feed(tone(200, 1.5))
+    time.sleep(1.2)
+    loud = [e["in"] for e in c.of("level", t)]
+    assert max(loud) > 0.5, loud
+    assert len(loud) >= 10, f"~20 Hz while capturing: {len(loud)} in 1.2 s"
+    c.send(cmd="ptt", down=False)
+    c.wait("utterance", timeout=10)
+    t = time.perf_counter()
+    c.send(cmd="speak", id="s1", text="Hello there, this is a test of the speakers.")
+    c.wait("spoken", lambda e: e["id"] == "s1", timeout=20)
+    outs = [e["out"] for e in c.of("level", t)]
+    assert max(outs) > 0.3, outs
+    c.close()
+
+
+def test_state_reports_model_loading_steps(svc):
+    c = Client(svc.port)
+    st = c.wait("state")
+    assert st["load_steps"] == 5 and st["load_step"] == 5 and st["models_ready"] is True, st
+    c.close()
+
+
+def test_chimes_play_quietly_and_can_be_turned_off(svc):
+    c = Client(svc.port)
+    c.send(cmd="config", listen_mode="push_to_talk", input_device="Fake Microphone", sounds=True)
+    c.wait("config_ok")
+    svc.audio.reset_played()
+    c.send(cmd="chime", kind="done")
+    time.sleep(0.6)
+    played = svc.audio.played_audio()
+    assert played.size > 0 and np.max(np.abs(played)) <= 0.12, "a quiet tone was played"
+    # Capture start and end chime by themselves.
+    svc.audio.reset_played()
+    c.send(cmd="ptt", down=True)
+    c.wait("state", lambda e: e["capturing"])
+    time.sleep(0.4)
+    assert svc.audio.played_audio().size > 0, "capture start chimed"
+    c.send(cmd="ptt", down=False)
+    # Off: nothing.
+    c.send(cmd="config", sounds=False)
+    c.wait("config_ok")
+    time.sleep(0.5)
+    svc.audio.reset_played()
+    c.send(cmd="chime", kind="ask")
+    time.sleep(0.5)
+    assert svc.audio.played_audio().size == 0
+    c.send(cmd="chime", id="x", kind="nope")
+    c.close()

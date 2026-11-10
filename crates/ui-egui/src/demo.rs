@@ -133,6 +133,8 @@ pub fn app(engine: Arc<Engine>) -> CraftApp {
     let mut app = CraftApp::new(engine, hub);
     app.persist = false;
     app.headless = true;
+    // Voice never starts by itself in a headless app (tests turn it on when they want it).
+    app.voice.auto_start_allowed = false;
     app.backends = vec![BackendConfig {
         name: "Claude".into(),
         kind: BackendKind::Anthropic,

@@ -67,6 +67,7 @@ utterance id of the `spoken` event.
 | `{"cmd":"design_voice","description":"...","sample_text":"..."}` | Design a new assistant voice with Qwen3-TTS VoiceDesign; replies `voice_designed`. It is not applied until a `config` sets `tts_voice`. |
 | `{"cmd":"devices"}` | Replies `devices`. |
 | `{"cmd":"status"}` | Replies `status`. |
+| `{"cmd":"chime","kind":"start"\|"end"\|"done"\|"ask"}` | Play a short, quiet tone (when `sounds` is on): `done` when a job finished, `ask` when something waits for the user. `start` and `end` are played by the service itself when capturing starts and ends (not while enrolling). |
 | `{"cmd":"shutdown"}` | Exit. |
 
 `config` fields:
@@ -80,12 +81,14 @@ utterance id of the `spoken` event.
 | `language` | `"en"` | Whisper language code; `null` or `""` = detect per utterance. Also picks the TTS language. |
 | `tts_voice` | `null` | `{"ref_audio":path,"ref_text":str}` = the assistant voice (a `voice_designed` result); `null` = the default voice |
 | `vad_silence_ms` | `700` | Silence that ends an utterance (200-5000) |
+| `sounds` | `true` | Short chimes: capture start and end, and the `chime` command |
 
 ### Events (service → client)
 
 | Event | When |
 |---|---|
-| `{"type":"state","listening":bool,"capturing":bool,"speaking":bool,"mode":"...","enrolled":bool,"enrolling":bool,"models_ready":bool,"loading":"..."}` | On every change, and to a newly connected client |
+| `{"type":"state","listening":bool,"capturing":bool,"speaking":bool,"mode":"...","enrolled":bool,"enrolling":bool,"models_ready":bool,"loading":"...","load_step":3,"load_steps":5}` | On every change, and to a newly connected client. `load_step` of `load_steps` says how far the models have loaded. |
+| `{"type":"level","in":0.42,"out":0.0}` | How loud the microphone (`in`) and the speakers (`out`) are, 0..1 on a dB scale (-60 dB is 0, -10 dB is 1), smoothed. About 20 times a second while capturing, speaking or playing a sound, twice a second while only listening (a room's own noise isn't news), never while the microphone is closed and nothing is playing. |
 | `{"type":"wake","word":"hey craft","score":0.8}` | The wake word was heard |
 | `{"type":"partial","text":"open the tra"}` | While capturing, at most every 500 ms, only when the text changed |
 | `{"type":"utterance","text":"...","speaker_ok":true,"speaker_score":0.71,"duration_s":2.4,"lang":"en","verified":true,"latency_ms":180}` | A finished utterance |
@@ -99,8 +102,9 @@ utterance id of the `spoken` event.
 | `{"type":"status","version":1,"state":{...},"models":{...},"device":"cuda:0","wake_engine":"whisper","wake_word":"...","config":{...},"voice":{...},"speaker_threshold":0.55,"queue":0,"vram_mb":{"allocated":..,"peak":..,"reserved":..}}` | Reply to `status`; also sent once when the models are ready |
 | `{"type":"error","message":"...","fatal":false}` | Something failed; `fatal:true` only when the models could not load |
 
-Fields beyond the contract (`enrolling`, `models_ready`, `loading`, `verified`, `latency_ms`,
-`seconds`, `message`) are additive; clients may ignore them.
+Fields and events beyond the contract (`enrolling`, `models_ready`, `loading`, `load_step`,
+`load_steps`, `verified`, `latency_ms`, `seconds`, `message`, `level`, `chime`, `sounds`) are
+additive; clients may ignore them.
 
 ## Listening
 

@@ -263,9 +263,13 @@ fn answer(st: &Inner, cmd: &Value) -> Vec<Value> {
             vec![with_id(json!({"type": "config_ok"})), state_event(st)]
         }
         "ptt" => {
-            st.capturing.store(cmd.get("down").and_then(Value::as_bool).unwrap_or(false), Ordering::SeqCst);
-            vec![state_event(st)]
+            let down = cmd.get("down").and_then(Value::as_bool).unwrap_or(false);
+            st.capturing.store(down, Ordering::SeqCst);
+            // A made-up microphone level: someone talking while the key is down, quiet after.
+            let level = if down { 0.6 } else { 0.0 };
+            vec![state_event(st), json!({"type": "level", "in": level, "out": 0.0})]
         }
+        "chime" => vec![],
         "speak" => vec![json!({"type": "spoken", "id": cmd.get("id").and_then(Value::as_str).unwrap_or_default(), "interrupted": false})],
         "stop_speaking" => vec![state_event(st)],
         "enroll_start" => vec![with_id(json!({"type": "enroll_progress", "seconds": 0.0, "needed": 20.0}))],

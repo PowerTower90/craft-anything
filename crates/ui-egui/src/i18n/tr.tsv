@@ -1872,3 +1872,17 @@ Running on this computer	Bu bilgisayarda çalışıyor
 The voice service stopped as soon as it started.	Ses hizmeti başlar başlamaz durdu.
 Voice isn't running. Start it with the microphone in the title bar.	Ses kapalı. Başlık çubuğundaki mikrofonla başlat.
 Your voice is enrolled	Sesin kaydedildi
+Hearing you…	Seni dinliyorum…
+Listening · hold {key} or say “{word}”	Dinliyor · {key} tuşunu basılı tut ya da “{word}” de
+Listening · just talk	Dinliyor · konuşman yeterli
+Opus is working on: {task} · {time}	Opus şunun üzerinde çalışıyor: {task} · {time}
+Ready · hold {key} to talk	Hazır · konuşmak için {key} tuşunu basılı tut
+Short chimes when it starts and stops listening, finishes a job or asks you something	Dinleme başlayıp bittiğinde, bir iş bittiğinde ya da sana bir şey sorulduğunda kısa sesler
+Speaking · tap or press {key} to interrupt	Konuşuyor · kesmek için dokun ya da {key} tuşuna bas
+Starting voice…	Ses başlatılıyor…
+Starting voice… loading models {n} of {total}	Ses başlatılıyor… modeller yükleniyor {n}/{total}
+Thinking…	Düşünüyor…
+Voice is on — hold {key} and talk	Ses açık — {key} tuşunu basılı tutup konuş
+Voice is on — hold {key} or say “{word}”	Ses açık — {key} tuşunu basılı tut ya da “{word}” de
+Voice starts with Craft Anything. You can change that in Settings → Voice.	Ses, Craft Anything ile birlikte başlar. Bunu Ayarlar → Ses bölümünden değiştirebilirsin.
+Waiting for your yes or no	Evet ya da hayır yanıtını bekliyor

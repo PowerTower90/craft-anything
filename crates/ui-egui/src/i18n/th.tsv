@@ -1872,3 +1872,17 @@ Running on this computer	กำลังทำงานบนคอมพิว�
 The voice service stopped as soon as it started.	บริการเสียงหยุดทันทีหลังเริ่ม
 Voice isn't running. Start it with the microphone in the title bar.	เสียงปิดอยู่ เริ่มได้ด้วยไมโครโฟนในแถบชื่อเรื่อง
 Your voice is enrolled	ลงทะเบียนเสียงของคุณแล้ว
+Hearing you…	กำลังฟังคุณ…
+Listening · hold {key} or say “{word}”	กำลังฟัง · กด {key} ค้างไว้หรือพูดว่า “{word}”
+Listening · just talk	กำลังฟัง · พูดได้เลย
+Opus is working on: {task} · {time}	Opus กำลังทำ: {task} · {time}
+Ready · hold {key} to talk	พร้อม · กด {key} ค้างไว้เพื่อพูด
+Short chimes when it starts and stops listening, finishes a job or asks you something	เสียงสั้น ๆ เมื่อเริ่มและหยุดฟัง งานเสร็จ หรือมีคำถามถึงคุณ
+Speaking · tap or press {key} to interrupt	กำลังพูด · แตะหรือกด {key} เพื่อขัดจังหวะ
+Starting voice…	กำลังเริ่มเสียง…
+Starting voice… loading models {n} of {total}	กำลังเริ่มเสียง… โหลดโมเดล {n} จาก {total}
+Thinking…	กำลังคิด…
+Voice is on — hold {key} and talk	เปิดเสียงแล้ว — กด {key} ค้างไว้แล้วพูด
+Voice is on — hold {key} or say “{word}”	เปิดเสียงแล้ว — กด {key} ค้างไว้หรือพูดว่า “{word}”
+Voice starts with Craft Anything. You can change that in Settings → Voice.	เสียงเริ่มพร้อม Craft Anything เปลี่ยนได้ที่ การตั้งค่า → เสียง
+Waiting for your yes or no	รอคำตอบใช่หรือไม่ของคุณ

@@ -1872,3 +1872,17 @@ Running on this computer	이 컴퓨터에서 실행 중
 The voice service stopped as soon as it started.	음성 서비스가 시작하자마자 멈췄습니다.
 Voice isn't running. Start it with the microphone in the title bar.	음성이 꺼져 있습니다. 제목 표시줄의 마이크로 시작하세요.
 Your voice is enrolled	목소리가 등록되었습니다
+Hearing you…	듣고 있어요…
+Listening · hold {key} or say “{word}”	듣는 중 · {key}를 누르고 있거나 “{word}”라고 말하세요
+Listening · just talk	듣는 중 · 그냥 말하세요
+Opus is working on: {task} · {time}	Opus 작업 중: {task} · {time}
+Ready · hold {key} to talk	준비됨 · 말하려면 {key}를 누르고 있으세요
+Short chimes when it starts and stops listening, finishes a job or asks you something	듣기 시작과 끝, 작업 완료, 질문할 때 짧은 소리를 냅니다
+Speaking · tap or press {key} to interrupt	말하는 중 · 탭하거나 {key}를 눌러 끊기
+Starting voice…	음성을 시작하는 중…
+Starting voice… loading models {n} of {total}	음성을 시작하는 중… 모델 불러오는 중 {n}/{total}
+Thinking…	생각 중…
+Voice is on — hold {key} and talk	음성 켜짐 — {key}를 누르고 말하세요
+Voice is on — hold {key} or say “{word}”	음성 켜짐 — {key}를 누르고 있거나 “{word}”라고 말하세요
+Voice starts with Craft Anything. You can change that in Settings → Voice.	음성은 Craft Anything과 함께 시작됩니다. 설정 → 음성에서 바꿀 수 있습니다.
+Waiting for your yes or no	예 또는 아니요를 기다리는 중

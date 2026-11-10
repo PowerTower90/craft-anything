@@ -1872,3 +1872,17 @@ Running on this computer	Töötab selles arvutis
 The voice service stopped as soon as it started.	Hääleteenus peatus kohe pärast käivitamist.
 Voice isn't running. Start it with the microphone in the title bar.	Hääl ei tööta. Käivita see tiitliriba mikrofoniga.
 Your voice is enrolled	Sinu hääl on registreeritud
+Hearing you…	Kuulan sind…
+Listening · hold {key} or say “{word}”	Kuulab · hoia {key} või ütle „{word}“
+Listening · just talk	Kuulab · lihtsalt räägi
+Opus is working on: {task} · {time}	Opus töötab: {task} · {time}
+Ready · hold {key} to talk	Valmis · hoia rääkimiseks {key}
+Short chimes when it starts and stops listening, finishes a job or asks you something	Lühikesed helid, kui kuulamine algab ja lõpeb, töö saab valmis või sinult küsitakse
+Speaking · tap or press {key} to interrupt	Räägib · puuduta või vajuta katkestamiseks {key}
+Starting voice…	Hääl käivitub…
+Starting voice… loading models {n} of {total}	Hääl käivitub… mudelite laadimine {n}/{total}
+Thinking…	Mõtleb…
+Voice is on — hold {key} and talk	Hääl on sees — hoia {key} ja räägi
+Voice is on — hold {key} or say “{word}”	Hääl on sees — hoia {key} või ütle „{word}“
+Voice starts with Craft Anything. You can change that in Settings → Voice.	Hääl käivitub koos Craft Anythingiga. Seda saab muuta: Seaded → Hääl.
+Waiting for your yes or no	Ootab sinu jah- või ei-vastust

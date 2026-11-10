@@ -1299,3 +1299,17 @@ Running on this computer	このコンピューターで実行中
 The voice service stopped as soon as it started.	音声サービスは起動直後に停止しました。
 Voice isn't running. Start it with the microphone in the title bar.	音声はオフです。タイトルバーのマイクで開始してください。
 Your voice is enrolled	あなたの声は登録済みです
+Hearing you…	聞いています…
+Listening · hold {key} or say “{word}”	待機中 · {key} を押し続けるか「{word}」と言ってください
+Listening · just talk	待機中 · そのまま話してください
+Opus is working on: {task} · {time}	Opus が作業中：{task} · {time}
+Ready · hold {key} to talk	準備完了 · {key} を押し続けて話してください
+Short chimes when it starts and stops listening, finishes a job or asks you something	聞き取りの開始・終了、作業の完了、質問のときに短い音を鳴らします
+Speaking · tap or press {key} to interrupt	話しています · タップするか {key} で中断
+Starting voice…	音声を起動中…
+Starting voice… loading models {n} of {total}	音声を起動中… モデルを読み込み中 {n}/{total}
+Thinking…	考え中…
+Voice is on — hold {key} and talk	音声オン — {key} を押し続けて話してください
+Voice is on — hold {key} or say “{word}”	音声オン — {key} を押し続けるか「{word}」と言ってください
+Voice starts with Craft Anything. You can change that in Settings → Voice.	音声は Craft Anything と一緒に起動します。設定 → 音声 で変更できます。
+Waiting for your yes or no	はい／いいえの返事を待っています
