@@ -5,6 +5,7 @@
 
 pub mod categories;
 pub mod original;
+pub mod things;
 
 use crate::inbox::now_ms;
 use crate::inventory::{self, Inventory, Item, Kind, Source, Status, Thumbs};
@@ -60,6 +61,7 @@ pub fn specs() -> Vec<ToolSpec> {
         },
     ];
     v.extend(categories::specs());
+    v.extend(things::specs());
     v
 }
 

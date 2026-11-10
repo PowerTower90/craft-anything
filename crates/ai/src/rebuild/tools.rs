@@ -158,6 +158,9 @@ pub struct AssetRebuildParams {
     /// The style for the items made with local AI (e.g. "Pixel art"); default: the project's last one.
     #[serde(default)]
     pub style: Option<String>,
+    /// Every outfit or version of each thing; default: only each thing's main one.
+    #[serde(default)]
+    pub outfits: bool,
     /// Hand it to the builder now (default true); false only writes the list and marks the items.
     #[serde(default = "d_true")]
     pub send: bool,
@@ -166,7 +169,7 @@ pub struct AssetRebuildParams {
 fn project_inventory_rebuild(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
     use craft_anything_engine::tools::inventory_tools::categories::{PlanParams, start_plan};
     let p: AssetRebuildParams = parse_params(params)?;
-    let plan = PlanParams { project: p.project, category: p.category, ids: p.ids, methods: p.methods, style: p.style };
+    let plan = PlanParams { project: p.project, category: p.category, ids: p.ids, methods: p.methods, style: p.style, outfits: p.outfits };
     let (ws, started, mut out) = start_plan(ctx, &plan)?;
     if !p.send || started.items == 0 {
         out["sent"] = json!(false);

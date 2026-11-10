@@ -76,6 +76,8 @@ pub const TOOLS: &[&str] = &[
     "project_inventory_category_rules",
     "project_inventory_unsorted_terms",
     "project_inventory_rebuild_plan",
+    "project_inventory_things",
+    "project_inventory_thing_set",
     "project_inventory_rebuild",
     // Making new assets on this computer's graphics cards never looks inside the original.
     "local_generation_status",
@@ -88,6 +90,7 @@ pub const TOOLS: &[&str] = &[
     // The asset AI and Blender: the originals' files are left out in Clean room (each tool checks).
     "asset_describe",
     "project_inventory_sort_with_agent",
+    "project_inventory_check_grouping",
     "project_inventory_render_models",
     "blender_run",
     "blender_inspect",
@@ -197,7 +200,7 @@ mod tests {
         let r = crate::Registry::with_all_tools();
         let higher_layers = ["rebuild_", "assets_key_", "ai_", "setup_"];
         // The AI layer's tools named for what they act on (they hand work to a builder).
-        let higher_layer_tools = ["project_inventory_rebuild", "asset_describe", "project_inventory_sort_with_agent"];
+        let higher_layer_tools = ["project_inventory_rebuild", "asset_describe", "project_inventory_sort_with_agent", "project_inventory_check_grouping"];
         for id in TOOLS {
             assert!(r.get(id).is_some() || higher_layers.iter().any(|p| id.starts_with(p)) || higher_layer_tools.contains(id), "{id} isn't a tool");
             assert_eq!(TOOLS.iter().filter(|t| *t == id).count(), 1, "{id} is listed twice");

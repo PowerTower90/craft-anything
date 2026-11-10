@@ -72,6 +72,9 @@ pub const STYLES: &[&str] = &[
     "Match the original's mood",
 ];
 
+/// The method of the files that come with a thing's new model (maps, masks, animation data).
+pub const WITH_MODEL: &str = "with_model";
+
 /// The local AI method's id.
 pub const LOCAL_AI: &str = "local_ai";
 /// Why local AI can't be used, when it can't.
@@ -175,14 +178,93 @@ pub struct Plan {
     pub ready: Ready,
     /// The style every local AI generation in this job uses.
     pub style: Option<String>,
+    /// Every outfit or version of a thing; else only each thing's main one (the one with the
+    /// most files).
+    pub outfits: bool,
+    /// What the items add up to: things, sounds, files made with a model.
+    pub things: ThingSummary,
+}
+
+/// A plan's items as things: how many things (with a model), their sounds, the files that come
+/// with a model (normal maps, masks, alpha, animation data, effect meshes), and the files of
+/// outfits or versions other than each thing's main one.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThingSummary {
+    pub things: usize,
+    pub with_model: usize,
+    pub sounds: usize,
+    pub made_with_model: usize,
+    pub other_versions: usize,
+    pub noun: &'static str,
+}
+
+/// Each thing's main version: the variant with the most files among `items` (none counts too).
+pub fn main_versions(items: &[&Item]) -> BTreeMap<String, Option<String>> {
+    let mut seen: BTreeMap<String, BTreeMap<Option<String>, usize>> = BTreeMap::new();
+    for i in items {
+        if let Some(t) = &i.thing {
+            *seen.entry(t.key.clone()).or_default().entry(t.variant.clone()).or_default() += 1;
+        }
+    }
+    seen.into_iter()
+        .map(|(k, v)| {
+            // The base (no variant) when there are only files without one; else the biggest outfit.
+            let named: Vec<(&Option<String>, &usize)> = v.iter().filter(|(k, _)| k.is_some()).collect();
+            let main = named.iter().max_by_key(|(_, n)| **n).map(|(k, _)| (*k).clone()).unwrap_or(None);
+            (k, main)
+        })
+        .collect()
+}
+
+/// Whether an item is left out for being another outfit or version of its thing.
+fn other_version(i: &Item, main: &BTreeMap<String, Option<String>>) -> bool {
+    match (&i.thing, i.thing.as_ref().and_then(|t| main.get(&t.key))) {
+        (Some(t), Some(m)) => t.variant.is_some() && m.is_some() && t.variant != *m,
+        _ => false,
+    }
+}
+
+fn role(i: &Item) -> crate::asset_things::Role {
+    i.role.unwrap_or_else(|| crate::asset_things::role_of(i))
+}
+
+impl ThingSummary {
+    pub fn of(items: &[&Item], category: Option<Category>, outfits: bool) -> ThingSummary {
+        let main = main_versions(items);
+        let mut keys = std::collections::BTreeSet::new();
+        let mut with_model = std::collections::BTreeSet::new();
+        let mut s = ThingSummary { noun: category.map_or("things", crate::asset_things::noun), ..Default::default() };
+        for i in items {
+            let r = role(i);
+            if !outfits && other_version(i, &main) {
+                s.other_versions += 1;
+                continue;
+            }
+            if r.technical() {
+                s.made_with_model += 1;
+            } else if r.audio() {
+                s.sounds += 1;
+            }
+            if let Some(t) = i.thing.as_ref().filter(|t| !t.sounds_only) {
+                keys.insert(t.key.clone());
+                if matches!(r, crate::asset_things::Role::Model | crate::asset_things::Role::ModelPart) {
+                    with_model.insert(t.key.clone());
+                }
+            }
+        }
+        s.things = keys.len();
+        s.with_model = with_model.len();
+        s
+    }
 }
 
 impl Plan {
     /// The plan for `items` (all in `category`, if given), each kind with `chosen` methods
     /// (kind id → method id) or its default. A method the kind doesn't offer is refused.
     pub fn new(items: &[&Item], category: Option<Category>, chosen: &BTreeMap<String, String>, ready: Ready) -> Result<Plan, ToolError> {
+        // Files made with a model (normal maps, masks, animation data…) aren't rebuilt on their own.
         let mut by_kind: BTreeMap<Kind, usize> = BTreeMap::new();
-        for i in items {
+        for i in items.iter().filter(|i| !role(i).technical()) {
             *by_kind.entry(i.kind).or_default() += 1;
         }
         let common = category.or_else(|| items.first().map(|i| i.category).filter(|c| items.iter().all(|i| i.category == *c)));
@@ -200,7 +282,8 @@ impl Plan {
             let not_ready = ready.why_not(method, kind);
             rows.push(Row { kind, count, method, options: offered, not_ready });
         }
-        Ok(Plan { category: common, ids: items.iter().map(|i| i.id.clone()).collect(), rows, ready, style: None })
+        let things = ThingSummary::of(items, common, false);
+        Ok(Plan { category: common, ids: items.iter().map(|i| i.id.clone()).collect(), rows, ready, style: None, outfits: false, things })
     }
 
     /// Whether any row is made with local AI (the style matters then).
@@ -235,6 +318,11 @@ impl Plan {
             "total": "Free",
             "uses_local_ai": self.uses_local_ai(),
             "style": self.style,
+            "outfits": self.outfits,
+            "things": {
+                "things": self.things.things, "with_model": self.things.with_model, "sounds": self.things.sounds,
+                "made_with_model": self.things.made_with_model, "other_versions": self.things.other_versions, "noun": self.things.noun,
+            },
         })
     }
 }
@@ -286,18 +374,56 @@ pub fn start(ws: &Workspace, inv: &mut Inventory, plan: &Plan, now_ms: u64) -> R
             None => {}
         }
     }
+    // Each thing once: its main version (unless every outfit is wanted); the files that come with
+    // a model are listed with it, not made on their own.
+    let main = {
+        let in_plan: Vec<&Item> = inv.items.iter().filter(|i| plan.ids.contains(&i.id)).collect();
+        main_versions(&in_plan)
+    };
     let mut listed = Vec::new();
+    let mut things: BTreeMap<String, (String, Option<String>, Vec<Value>)> = BTreeMap::new();
+    let mut other_versions = 0;
     for item in inv.items.iter_mut().filter(|i| plan.ids.contains(&i.id)) {
-        let Some(m) = going.get(&item.kind) else { continue };
+        if !plan.outfits && other_version(item, &main) {
+            other_versions += 1;
+            continue;
+        }
+        let r = role(item);
+        let m: &str = if r.technical() {
+            WITH_MODEL
+        } else {
+            let Some(m) = going.get(&item.kind) else { continue };
+            m
+        };
+        // A map whose thing isn't being remade stays as it is.
+        if r.technical() && item.thing.as_ref().is_none_or(|t| !going.contains_key(&Kind::Model) || t.sounds_only) {
+            continue;
+        }
         item.status = Status::NeedsReplacing;
         item.marked_ms = Some(now_ms);
         item.rebuild = Some(RebuildMark { method: m.to_string(), requested_ms: now_ms, job: job.clone(), output: None });
-        listed.push(json!({
+        let entry = json!({
             "id": item.id, "name": item.name, "kind": item.kind, "category": item.category,
             "path": item.path, "origin": item.origin, "method": m,
-            "description": item.description, "role": item.role,
-        }));
+            "description": item.description, "role": r, "thing": item.thing.as_ref().map(|t| t.key.clone()),
+            "variant": item.thing.as_ref().and_then(|t| t.variant.clone()), "part": item.thing.as_ref().and_then(|t| t.part.clone()),
+        });
+        if let Some(t) = item.thing.as_ref() {
+            let slot = things.entry(t.key.clone()).or_insert_with(|| (t.name.clone(), main.get(&t.key).cloned().flatten(), Vec::new()));
+            slot.2.push(json!({"id": item.id, "role": r, "method": m}));
+        }
+        listed.push(entry);
     }
+    if other_versions > 0 {
+        skipped.push((
+            Kind::Other,
+            "keep",
+            format!("{other_versions} files of other outfits or versions (only each thing's main one is remade)"),
+            other_versions,
+        ));
+    }
+    let things_list: Vec<Value> =
+        things.into_iter().map(|(key, (name, variant, files))| json!({"key": key, "name": name, "version": variant, "files": files})).collect();
     if listed.is_empty() {
         return Ok(Started { list: path, items: 0, skipped, brief: String::new() });
     }
@@ -309,6 +435,7 @@ pub fn start(ws: &Workspace, inv: &mut Inventory, plan: &Plan, now_ms: u64) -> R
         "project": ws.root.display().to_string(),
         "methods": going.iter().map(|(k, m)| (k.id().to_string(), json!(m))).collect::<serde_json::Map<String, Value>>(),
         "items": listed,
+        "things": things_list,
         "skipped": skipped.iter().map(|(k, m, why, n)| json!({"kind": k, "method": m, "why": why, "count": n})).collect::<Vec<_>>(),
     });
     std::fs::create_dir_all(ws.root.join(REBUILD_DIR)).map_err(|e| ToolError::io(ws.root.join(REBUILD_DIR).display(), e))?;
@@ -321,7 +448,17 @@ pub fn start(ws: &Workspace, inv: &mut Inventory, plan: &Plan, now_ms: u64) -> R
     inventory::save(&ws.root, inv)?;
     let count = listed.len();
     let style = plan.style.as_deref().filter(|s| !s.trim().is_empty());
-    Ok(Started { brief: brief(plan.category, count, &going, &rel, &job, style), list: path, items: count, skipped })
+    let mut text = brief(plan.category, count, &going, &rel, &job, style);
+    if !things_list.is_empty() {
+        text.push_str(&format!(
+            " Work per thing: the list's `things` ({} of them) groups the files of each one (an enemy, a character with its outfits, a voice group). \
+             Make one new model per thing (its parts together for a character), from its description; its colour textures, normal maps, masks, alpha \
+             and animation data come with the new model (method {WITH_MODEL}): never generate those files on their own. Then its sounds or voice lines, \
+             and replace the thing's files in the game together.",
+            things_list.len()
+        ));
+    }
+    Ok(Started { brief: text, list: path, items: count, skipped })
 }
 
 /// The builder's brief for a started rebuild. Fixed English: it's for the agent.

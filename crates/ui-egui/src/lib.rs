@@ -44,6 +44,7 @@ pub mod sidebar;
 pub mod slash;
 pub mod state;
 pub mod theme;
+pub mod things_ui;
 pub mod titlebar;
 pub mod usage;
 pub mod wb_project;
@@ -1210,9 +1211,15 @@ impl CraftApp {
             ("project_rename" | "project_duplicate" | "project_delete", r) => self.managed(tool, r),
             (craft_anything_engine::tools::inventory_tools::SCAN_TOOL, r) => self.assets_scanned(r),
             ("local_generation_status" | "local_generation_start", r) => self.local_generation_done(tool, r),
-            ("ai_backend_status" | "ai_backend_start" | "project_inventory_render_models" | "project_inventory_sort_with_agent" | "asset_describe", r) => {
-                self.local_model_done(tool, r)
-            }
+            (
+                "ai_backend_status"
+                | "ai_backend_start"
+                | "project_inventory_render_models"
+                | "project_inventory_sort_with_agent"
+                | "asset_describe"
+                | "project_inventory_check_grouping",
+                r,
+            ) => self.local_model_done(tool, r),
             // The tool changed the session's plugin list; take it, so saving settings keeps it.
             ("plugins_add" | "plugins_remove", Ok(_)) => {
                 if let Some(s) = self.engine.try_session() {

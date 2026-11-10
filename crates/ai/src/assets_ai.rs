@@ -40,7 +40,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "asset_describe",
             title: "Describe assets with the AI",
-            summary: "Write a short plain description of what each inventory item shows and what it's for in the game, by the Assets role's AI (a local model when one is set up; or `backend`): it looks at the item's thumbnail or model preview with its name, kind, category and technical role (taken from the name: colour, normal map, mask, vertex animation data…; never guessed by the model). Sounds and music are described from their name and length. Stored in the inventory (description, described_by, role), used by rebuilds instead of writing new ones. `ids` or one `category`; items already described are skipped unless `force`. Two at a time, with progress; resumable.",
+            summary: "Write a short plain description of what each inventory item shows and what it's for in the game, by the Assets role's AI (a local model when one is set up; or `backend`): it looks at the item's thumbnail or model preview with its name, kind, category and technical role (taken from the name: colour, normal map, mask, vertex animation data…; never guessed by the model). Sounds and music are described from their name and length. Stored in the inventory (description, described_by), used by rebuilds instead of writing new ones. `ids` or one `category`; items already described are skipped unless `force`. Two at a time, with progress; resumable.",
             beginner: "Writes a short description of each asset, so remaking them follows what they are.",
             toolset: Toolset::Core,
             effects: Effects::WRITES_FILESYSTEM.union(Effects::ACCESSES_NETWORK),
@@ -58,6 +58,17 @@ pub fn specs() -> Vec<ToolSpec> {
             requires: Requires::Nothing,
             input_schema: schema_of::<SortParams>,
             run: project_inventory_sort_with_agent,
+        },
+        ToolSpec {
+            id: "project_inventory_check_grouping",
+            title: "Check the grouping with the AI",
+            summary: "Ask the Assets role's AI (a local model when one is set up; or `backend`) to review how the project's files are grouped into things (project_inventory_things) in one `category`: the files in no thing, and things of one file, with a few previews. It proposes moves into things and merges, applied as an agent's choices (project_inventory_thing_set, by: agent; the person's own choices are never changed). Returns what it changed (`apply` false: only what it proposes).",
+            beginner: "Lets the AI check which files belong together.",
+            toolset: Toolset::Core,
+            effects: Effects::WRITES_FILESYSTEM.union(Effects::ACCESSES_NETWORK),
+            requires: Requires::Nothing,
+            input_schema: schema_of::<CheckParams>,
+            run: project_inventory_check_grouping,
         },
         ToolSpec {
             id: "ai_backend_status",
@@ -288,11 +299,14 @@ fn store(root: &Path, done: &[(String, String, Option<&'static str>)], by: &str)
     if inv.is_newer() {
         return Ok(());
     }
-    for (id, text, role) in done {
+    // The role is the rules' (asset_things); the description is the model's.
+    for (id, text, _) in done {
         if let Some(i) = inv.items.iter_mut().find(|i| &i.id == id) {
             i.description = Some(text.clone());
             i.described_by = Some(by.to_string());
-            i.role = role.map(str::to_string);
+            if i.role.is_none() {
+                i.role = Some(craft_anything_engine::asset_things::role_of(i));
+            }
         }
     }
     inventory::save(root, &inv)
@@ -470,6 +484,149 @@ fn project_inventory_sort_with_agent(ctx: &mut Ctx<'_>, params: Value) -> Result
         };
         Ok(ToolOutput::Value(json!({
             "added": rules, "applied": p.apply && !rules.is_empty(), "by_category": counts, "backend": model.name,
+            "seconds": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0,
+        })))
+    });
+    Ok(ToolOutput::Value(Value::Null))
+}
+
+// ---- Checking the grouping ----
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CheckParams {
+    /// The project's folder.
+    pub project: PathBuf,
+    /// The category to check.
+    pub category: Category,
+    /// Apply what it proposes (default true).
+    #[serde(default = "d_true")]
+    pub apply: bool,
+    /// The AI backend to use (default: the Assets role's).
+    #[serde(default)]
+    pub backend: Option<String>,
+}
+
+pub const CHECK_SYSTEM: &str = "You check how a game's asset files are grouped into things (an enemy, a character, a weapon). You get the things, and files that look misplaced: in no thing, or alone in a thing. Names can have typos and extra words (LOD, Mat, Base, Normal, numbers). Answer with JSON only: {\"moves\": [{\"file\": \"<file id>\", \"thing\": \"<thing key>\"}], \"merges\": [{\"thing\": \"<thing key>\", \"into\": \"<thing key>\"}]}. Use only the given ids and keys. Leave out anything you aren't sure about.";
+
+/// The moves and merges the model proposed, keeping only given files and keys.
+/// Pairs of ids: (file, thing) for moves, (thing, into) for merges.
+pub type Pairs = Vec<(String, String)>;
+
+pub fn parse_grouping(answer: &str, files: &[String], keys: &[String]) -> (Pairs, Pairs) {
+    let v = answer.find('{').zip(answer.rfind('}')).filter(|(a, b)| a < b).and_then(|(a, b)| serde_json::from_str::<Value>(&answer[a..=b]).ok());
+    let Some(v) = v else { return (Vec::new(), Vec::new()) };
+    let pair = |x: &Value, a: &str, b: &str| Some((x[a].as_str()?.to_string(), x[b].as_str()?.to_string()));
+    let moves =
+        v["moves"].as_array().into_iter().flatten().filter_map(|m| pair(m, "file", "thing")).filter(|(f, t)| files.contains(f) && keys.contains(t)).collect();
+    let merges = v["merges"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|m| pair(m, "thing", "into"))
+        .filter(|(a, b)| a != b && keys.contains(a) && keys.contains(b))
+        .collect();
+    (moves, merges)
+}
+
+fn project_inventory_check_grouping(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    use craft_anything_engine::asset_things;
+    let p: CheckParams = parse_params(params)?;
+    let ws = open(&p.project)?;
+    let entry = assets_backend(ctx.session, p.backend.as_deref())?;
+    let model = AssetModel::of(&entry)?;
+    let clean = ctx.session.clean_room();
+    let inv = inventory::load(&ws.root)?;
+    let see = |i: &&Item| (!clean || i.source != inventory::Source::Original) && i.category == p.category;
+    let (things, _) = asset_things::things(inv.items.iter().filter(see), Some(p.category));
+    let keys: Vec<String> = things.iter().map(|t| t.key.clone()).collect();
+    let lonely: Vec<&str> = things.iter().filter(|t| t.files == 1).map(|t| t.key.as_str()).collect();
+    let odd: Vec<&Item> = inv
+        .items
+        .iter()
+        .filter(see)
+        .filter(|i| {
+            i.thing.as_ref().is_none_or(|t| lonely.contains(&t.key.as_str())) && i.thing_by != craft_anything_engine::asset_categories::CategoryBy::User
+        })
+        .take(150)
+        .collect();
+    if odd.is_empty() {
+        return Ok(ToolOutput::Value(json!({"moved": 0, "merged": 0, "note": "Every file is in a thing with others."})));
+    }
+    let files: Vec<String> = odd.iter().map(|i| i.id.clone()).collect();
+    let list_things: Vec<String> = things.iter().take(200).map(|t| format!("- {} ({}): {} files", t.key, t.name, t.files)).collect();
+    let list_files: Vec<String> = odd
+        .iter()
+        .map(|i| {
+            format!(
+                "- {} {:?} ({}, {}) now in {}",
+                i.id,
+                i.name,
+                i.kind.id(),
+                i.role.map_or("?", |r| r.id()),
+                i.thing.as_ref().map_or("no thing", |t| t.key.as_str())
+            )
+        })
+        .collect();
+    let question = format!("Things in {}:\n{}\n\nFiles to check:\n{}", p.category.title(), list_things.join("\n"), list_files.join("\n"));
+    let pictures: Vec<(String, PathBuf)> =
+        odd.iter().filter_map(|i| Some((i.name.clone(), ws.root.join(i.thumb.as_deref()?)))).filter(|(_, f)| f.is_file()).take(4).collect();
+    let category = p.category;
+    ctx.after_unlocking_reporting(move |cancel, progress| {
+        let t0 = Instant::now();
+        progress(Progress { fraction: None, message: format!("{} is checking {} files", model.name, files.len()) });
+        let mut seen = Vec::new();
+        for (name, f) in &pictures {
+            cancel.check()?;
+            if let Ok(a) = model.ask("Say in a few words what this game asset shows.", &format!("This is {name}. What is it?"), Some(f), 40) {
+                seen.push(format!("{name}: {a}"));
+            }
+        }
+        let question = if seen.is_empty() { question } else { format!("{question}\n\nA few of them look like this:\n{}", seen.join("\n")) };
+        cancel.check()?;
+        let answer = model.ask(CHECK_SYSTEM, &question, None, 2000)?;
+        let (moves, merges) = parse_grouping(&answer, &files, &keys);
+        let (mut moved, mut merged) = (0usize, 0usize);
+        if p.apply {
+            let base = |thing: String| craft_anything_engine::tools::inventory_tools::things::ThingSetParams {
+                project: ws.root.clone(),
+                thing,
+                ids: Vec::new(),
+                variant: None,
+                part: None,
+                role: None,
+                name: None,
+                merge_into: None,
+                by: craft_anything_engine::tools::inventory_tools::categories::By::Agent,
+            };
+            let mut by_thing: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+            for (f, t) in &moves {
+                by_thing.entry(t.clone()).or_default().push(f.clone());
+            }
+            for (t, ids) in by_thing {
+                let r = craft_anything_engine::tools::inventory_tools::things::set_thing(
+                    &ws,
+                    &craft_anything_engine::tools::inventory_tools::things::ThingSetParams { ids, ..base(t) },
+                    clean,
+                )?;
+                moved += r["changed"].as_u64().unwrap_or(0) as usize;
+            }
+            for (a, b) in &merges {
+                craft_anything_engine::tools::inventory_tools::things::set_thing(
+                    &ws,
+                    &craft_anything_engine::tools::inventory_tools::things::ThingSetParams { merge_into: Some(b.clone()), ..base(a.clone()) },
+                    clean,
+                )?;
+                merged += 1;
+            }
+        }
+        let inv = inventory::load(&ws.root)?;
+        let counts = asset_things::counts(&inv, |i| !clean || i.source != inventory::Source::Original);
+        Ok(ToolOutput::Value(json!({
+            "category": category, "checked": files.len(), "moves": moves.iter().map(|(f, t)| json!({"file": f, "thing": t})).collect::<Vec<_>>(),
+            "merges": merges.iter().map(|(a, b)| json!({"thing": a, "into": b})).collect::<Vec<_>>(),
+            "moved": moved, "merged": merged, "applied": p.apply,
+            "things_now": counts.get(&category).map(|c| c.0), "backend": model.name,
             "seconds": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0,
         })))
     });

@@ -14,6 +14,7 @@ pub mod clean_room;
 pub const AGENT_APP_PREAPPROVED_TOOLS: &[&str] = &["rebuild_start"];
 pub mod asset_categories;
 pub mod asset_rebuild;
+pub mod asset_things;
 pub mod feed;
 pub mod inbox;
 pub mod inventory;

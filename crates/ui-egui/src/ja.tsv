@@ -1135,3 +1135,46 @@ a script that starts the server (full path)	サーバーを起動するスクリ
 This one describes, sorts and looks at models. Click to choose automatically again.	これがモデルを説明・分類・確認します。クリックすると自動選択に戻ります。
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	モデルの説明・分類・確認のために自動で選ばれました（このコンピューターのモデルが優先）。
 Describe, sort and look at models with this one.	これでモデルを説明・分類・確認します。
+Check the grouping	グループ分けを確認
+Every outfit, not only each one's main look	主な見た目だけでなく、すべての衣装
+Group assets into a thing	素材を一つのものにまとめる
+List a project's things	プロジェクトのものを一覧
+Made with the model, not on their own.	モデルと一緒に作られ、単独では作りません。
+No things here	ここにはありません
+Outfits: {list}	衣装：{list}
+Rebuild this…	これを作り直す…
+Show individual files to see every file.	「個別のファイルを表示」で全ファイルを見られます。
+Show individual files	個別のファイルを表示
+The AI looks at files in no thing, or alone, and moves them where they belong.	AI が、どのものにも属さないファイルや単独のファイルを見て、正しい場所へ移します。
+The AI moved {moved} files and merged {merged} things.	AI が {moved} 個のファイルを移し、{merged} 個のものをまとめました。
+{category} · {n} {things} · {files} files	{category} · {things} {n} · ファイル {files}
+{n} files of other outfits are left as they are.	ほかの衣装のファイル {n} 個はそのままです。
+{n} files	ファイル {n} 個
+{n} normal maps, masks and animation files are made with the models, not on their own.	法線マップ、マスク、アニメーションのファイル {n} 個はモデルと一緒に作られ、単独では作りません。
+{n} {things}: one new model each; their textures and maps come from the new model.	{things} {n}：それぞれ新しいモデルを一つ。テクスチャとマップは新しいモデルから。
+{n} outfits	衣装 {n}
+{n} models	モデル {n}
+{n} parts	パーツ {n}
+{n} textures	テクスチャ {n}
+{n} animation	アニメーション {n}
+{n} sounds	効果音 {n}
+{n} voice lines	セリフ {n}
+Model parts	モデルのパーツ
+Colour textures	カラーテクスチャ
+Normal maps	法線マップ
+Masks	マスク
+Alpha masks	アルファマスク
+Animation data	アニメーションデータ
+Effect meshes	エフェクトメッシュ
+Icons and interface art	アイコンとインターフェースの絵
+Voice lines	セリフ
+characters	キャラクター
+enemies	敵
+weapons	武器
+items	アイテム
+machines	マシン
+pieces	パーツ
+pictures	画像
+effects	エフェクト
+pieces of music	曲
+things	もの

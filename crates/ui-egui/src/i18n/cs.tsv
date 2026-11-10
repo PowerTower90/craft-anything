@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	skript, který spouští server (cel
 This one describes, sorts and looks at models. Click to choose automatically again.	Tento popisuje, třídí a prohlíží modely. Kliknutím zvolíte znovu automaticky.
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Zvolen automaticky k popisu, třídění a prohlížení modelů (nejdřív model na tomto počítači).
 Describe, sort and look at models with this one.	Popisovat, třídit a prohlížet modely tímto.
+Check the grouping	Zkontrolovat seskupení
+Every outfit, not only each one's main look	Každý oblek, nejen hlavní vzhled
+Group assets into a thing	Seskupit assety do věci
+List a project's things	Vypsat věci projektu
+Made with the model, not on their own.	Vznikají s modelem, ne samostatně.
+No things here	Žádné věci
+Outfits: {list}	Obleky: {list}
+Rebuild this…	Přestavět tohle…
+Show individual files to see every file.	„Zobrazit jednotlivé soubory“ ukáže každý soubor.
+Show individual files	Zobrazit jednotlivé soubory
+The AI looks at files in no thing, or alone, and moves them where they belong.	AI projde soubory bez věci nebo osamocené a přesune je, kam patří.
+The AI moved {moved} files and merged {merged} things.	AI přesunula {moved} souborů a sloučila {merged} věcí.
+{category} · {n} {things} · {files} files	{category} · {n} {things} · {files} souborů
+{n} files of other outfits are left as they are.	{n} souborů jiných obleků zůstane, jak je.
+{n} files	{n} souborů
+{n} normal maps, masks and animation files are made with the models, not on their own.	{n} normálových map, masek a animačních souborů vznikne s modely, ne samostatně.
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} {things}: každý nový model; textury a mapy přijdou z nového modelu.
+{n} outfits	{n} obleků
+{n} models	{n} modelů
+{n} parts	{n} částí
+{n} textures	{n} textur
+{n} animation	{n} animace
+{n} sounds	{n} zvuků
+{n} voice lines	{n} replik
+Model parts	Části modelu
+Colour textures	Barevné textury
+Normal maps	Normálové mapy
+Masks	Masky
+Alpha masks	Alfa masky
+Animation data	Animační data
+Effect meshes	Efektové sítě
+Icons and interface art	Ikony a grafika rozhraní
+Voice lines	Repliky
+characters	postav
+enemies	nepřátel
+weapons	zbraní
+items	předmětů
+machines	strojů
+pieces	dílů
+pictures	obrázků
+effects	efektů
+pieces of music	skladeb
+things	věcí

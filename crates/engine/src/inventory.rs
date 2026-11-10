@@ -220,9 +220,19 @@ pub struct Item {
     /// Who wrote the description: the AI backend's name, or "person".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub described_by: Option<String>,
-    /// Its technical role when its name says (colour, normal map, mask, vertex animation data…).
+    /// What it is, technically: a model, a model part, a colour texture, a normal map, a mask,
+    /// animation data, a sound, a voice line… ([`crate::asset_things::Role`]).
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "lenient_role")]
+    pub role: Option<crate::asset_things::Role>,
+    /// Who chose the role: the rules, an agent or the person.
+    #[serde(default, skip_serializing_if = "is_rule")]
+    pub role_by: CategoryBy,
+    /// The thing it belongs to (an enemy, a character with its outfits, a voice group).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
+    pub thing: Option<crate::asset_things::ThingRef>,
+    /// Who chose the thing.
+    #[serde(default, skip_serializing_if = "is_rule")]
+    pub thing_by: CategoryBy,
 }
 
 /// An item's place in a rebuild: how it's to be remade, when it was asked for, and the rebuild's
@@ -263,6 +273,9 @@ impl Item {
             description: None,
             described_by: None,
             role: None,
+            role_by: CategoryBy::Rule,
+            thing: None,
+            thing_by: CategoryBy::Rule,
         }
     }
 }
@@ -300,6 +313,12 @@ pub struct Inventory {
     /// The style the person last chose for this project's local AI rebuilds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_style: Option<String>,
+    /// Things renamed by a person or an agent (thing key → name).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub thing_names: BTreeMap<String, String>,
+    /// Things merged into another (thing key → the key it went into).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub thing_merges: BTreeMap<String, String>,
 }
 
 impl Inventory {
@@ -347,6 +366,23 @@ impl Inventory {
                 keep_marks(item, prev);
             }
         }
+        // A thing or a role chosen meanwhile isn't lost either.
+        let grouped: HashMap<&str, &Item> =
+            disk.items.iter().filter(|i| i.thing_by != CategoryBy::Rule || i.role_by != CategoryBy::Rule).map(|i| (i.id.as_str(), i)).collect();
+        for item in &mut self.items {
+            if let Some(prev) = grouped.get(item.id.as_str()) {
+                if prev.thing_by != CategoryBy::Rule && item.thing_by == CategoryBy::Rule {
+                    (item.thing, item.thing_by) = (prev.thing.clone(), prev.thing_by);
+                }
+                if prev.role_by != CategoryBy::Rule && item.role_by == CategoryBy::Rule {
+                    (item.role, item.role_by) = (prev.role, prev.role_by);
+                }
+            }
+        }
+        if self.thing_names.is_empty() && self.thing_merges.is_empty() {
+            self.thing_names.clone_from(&disk.thing_names);
+            self.thing_merges.clone_from(&disk.thing_merges);
+        }
         // A category chosen meanwhile (a person, an agent) isn't lost either.
         let chosen: HashMap<&str, &Item> = disk.items.iter().filter(|i| i.category_by != CategoryBy::Rule).map(|i| (i.id.as_str(), i)).collect();
         for item in self.items.iter_mut().filter(|i| i.category_by == CategoryBy::Rule) {
@@ -381,6 +417,7 @@ impl Inventory {
             "by_kind": by_kind,
             "by_status": by_status,
             "by_category": by_category,
+            "things_by_category": crate::asset_things::counts(self, |_| true).into_iter().map(|(c, (t, _))| (c.id(), t)).collect::<BTreeMap<_, _>>(),
             "without_file": not_taken_out,
             "with_problem": problems,
         })
@@ -389,6 +426,12 @@ impl Inventory {
 
 fn keep_marks(item: &mut Item, prev: &Item) {
     keep_looks(item, prev);
+    if prev.thing_by != CategoryBy::Rule {
+        (item.thing, item.thing_by) = (prev.thing.clone(), prev.thing_by);
+    }
+    if prev.role_by != CategoryBy::Rule {
+        (item.role, item.role_by) = (prev.role, prev.role_by);
+    }
     if prev.marked_ms.is_some() {
         item.status = prev.status;
         item.note = prev.note.clone();
@@ -400,13 +443,22 @@ fn keep_marks(item: &mut Item, prev: &Item) {
     }
 }
 
+fn is_rule(by: &CategoryBy) -> bool {
+    *by == CategoryBy::Rule
+}
+
+/// A role as written: one this build knows, else none (an older build wrote words there).
+fn lenient_role<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<crate::asset_things::Role>, D::Error> {
+    let v: Option<Value> = Option::deserialize(d)?;
+    Ok(v.and_then(|v| v.as_str().and_then(crate::asset_things::Role::from_id)))
+}
+
 /// What a scan doesn't find out by itself: the description, and a model's rendered preview while
 /// its file is still there.
 fn keep_looks(item: &mut Item, prev: &Item) {
     if item.description.is_none() && prev.description.is_some() {
         item.description.clone_from(&prev.description);
         item.described_by.clone_from(&prev.described_by);
-        item.role.clone_from(&prev.role);
     }
     if item.thumb.is_none() && item.kind == Kind::Model && prev.thumb.is_some() && item.path.is_some() {
         item.thumb.clone_from(&prev.thumb);
@@ -430,8 +482,9 @@ pub fn parse(bytes: &[u8]) -> Result<Inventory, ToolError> {
         }
     }
     let mut inv: Inventory = serde_json::from_value(doc).map_err(|e| ToolError::invalid(format!("{INVENTORY} can't be read: {e}")))?;
-    // Written before categories: sort its items now (the rules, nothing chosen by anyone yet).
-    if found < 2 {
+    // Written before categories, or before roles and things: sort its items now (the rules;
+    // what people and agents chose is kept).
+    if found < 2 || inv.items.iter().any(|i| i.role.is_none()) {
         crate::asset_categories::apply(&mut inv);
     }
     Ok(inv)

@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	სკრიპტი, რომე�
 This one describes, sorts and looks at models. Click to choose automatically again.	ეს აღწერს, ახარისხებს და ათვალიერებს მოდელებს. დააწკაპეთ ავტომატურ არჩევანზე დასაბრუნებლად.
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	ავტომატურად არჩეული მოდელების აღსაწერად და დასახარისხებლად (ჯერ ამ კომპიუტერის მოდელი).
 Describe, sort and look at models with this one.	აღწერა, დახარისხება და მოდელების დათვალიერება ამით.
+Check the grouping	დაჯგუფების შემოწმება
+Every outfit, not only each one's main look	ყველა კოსტიუმი, არა მხოლოდ მთავარი
+Group assets into a thing	აქტივების ერთ ნივთად დაჯგუფება
+List a project's things	პროექტის ნივთების სია
+Made with the model, not on their own.	იქმნება მოდელთან ერთად, ცალკე არა.
+No things here	აქ ნივთები არ არის
+Outfits: {list}	კოსტიუმები: {list}
+Rebuild this…	ამის ხელახლა აწყობა…
+Show individual files to see every file.	„ცალკეული ფაილების ჩვენება“ ყველა ფაილს აჩვენებს.
+Show individual files	ცალკეული ფაილების ჩვენება
+The AI looks at files in no thing, or alone, and moves them where they belong.	AI ათვალიერებს უნივთო ან მარტო ფაილებს და ადგილზე ათავსებს.
+The AI moved {moved} files and merged {merged} things.	AI-მ გადაიტანა {moved} ფაილი და გააერთიანა {merged} ნივთი.
+{category} · {n} {things} · {files} files	{category} · {n} {things} · {files} ფაილი
+{n} files of other outfits are left as they are.	სხვა კოსტიუმების {n} ფაილი რჩება, როგორც არის.
+{n} files	{n} ფაილი
+{n} normal maps, masks and animation files are made with the models, not on their own.	{n} ნორმალური რუკა, ნიღაბი და ანიმაციის ფაილი იქმნება მოდელებთან ერთად.
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} {things}: თითოეულს ახალი მოდელი; ტექსტურები და რუკები ახალი მოდელიდან.
+{n} outfits	{n} კოსტიუმი
+{n} models	{n} მოდელი
+{n} parts	{n} ნაწილი
+{n} textures	{n} ტექსტურა
+{n} animation	{n} ანიმაცია
+{n} sounds	{n} ხმა
+{n} voice lines	{n} რეპლიკა
+Model parts	მოდელის ნაწილები
+Colour textures	ფერის ტექსტურები
+Normal maps	ნორმალური რუკები
+Masks	ნიღბები
+Alpha masks	ალფა ნიღბები
+Animation data	ანიმაციის მონაცემები
+Effect meshes	ეფექტის ბადეები
+Icons and interface art	ხატულები და ინტერფეისის გრაფიკა
+Voice lines	რეპლიკები
+characters	პერსონაჟი
+enemies	მტერი
+weapons	იარაღი
+items	ნივთი
+machines	მანქანა
+pieces	ნაწილი
+pictures	სურათი
+effects	ეფექტი
+pieces of music	მუსიკა
+things	ნივთი

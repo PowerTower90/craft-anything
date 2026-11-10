@@ -103,6 +103,7 @@ const ACTIONS: &[Action] = &[
     a("check_local_generation", "whether this computer can make pictures, 3D models, sounds and voices itself", Tool(&["local_generation_status"])),
     a("start_local_generation", "start the local generation servers", Tool(&["local_generation_start"])),
     a("sort_unsorted_with_agent", "sort the unsorted assets with the Assets AI (or ask the builder)", Tool(&["project_inventory_sort_with_agent", "project_inventory_unsorted_terms", "project_inventory_category_rules"])),
+    a("check_grouping",      "let the Assets AI check how a category's files are grouped into things", Tool(&["project_inventory_check_grouping"])),
     a("render_model_previews", "render previews of the project's models in Blender", Tool(&["project_inventory_render_models"])),
     a("check_local_models",  "whether the model servers on this computer are running", Tool(&["ai_backend_status"])),
     a("start_local_model",   "start a model server on this computer",          Tool(&["ai_backend_start"])),

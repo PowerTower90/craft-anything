@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	skript, mis serveri käivitab (täie
 This one describes, sorts and looks at models. Click to choose automatically again.	See kirjeldab, sordib ja vaatab mudeleid. Klõpsa, et valida taas automaatselt.
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Valitud automaatselt mudelite kirjeldamiseks, sortimiseks ja vaatamiseks (esmalt selle arvuti mudel).
 Describe, sort and look at models with this one.	Kirjelda, sordi ja vaata mudeleid sellega.
+Check the grouping	Kontrolli rühmitust
+Every outfit, not only each one's main look	Iga riietus, mitte ainult põhivälimus
+Group assets into a thing	Rühmita varad üheks asjaks
+List a project's things	Projekti asjade loend
+Made with the model, not on their own.	Tehakse koos mudeliga, mitte eraldi.
+No things here	Siin pole asju
+Outfits: {list}	Riietused: {list}
+Rebuild this…	Ehita see uuesti…
+Show individual files to see every file.	„Näita üksikuid faile“ näitab iga faili.
+Show individual files	Näita üksikuid faile
+The AI looks at files in no thing, or alone, and moves them where they belong.	Tehisaru vaatab faile, millel pole asja või mis on üksi, ja paneb need õigesse kohta.
+The AI moved {moved} files and merged {merged} things.	Tehisaru liigutas {moved} faili ja ühendas {merged} asja.
+{category} · {n} {things} · {files} files	{category} · {n} {things} · {files} faili
+{n} files of other outfits are left as they are.	{n} teiste riietuste faili jääb nii, nagu on.
+{n} files	{n} faili
+{n} normal maps, masks and animation files are made with the models, not on their own.	{n} normaalkaarti, maski ja animatsioonifaili tehakse koos mudelitega, mitte eraldi.
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} {things}: igaüks uus mudel; tekstuurid ja kaardid tulevad uuelt mudelilt.
+{n} outfits	{n} riietust
+{n} models	{n} mudelit
+{n} parts	{n} osa
+{n} textures	{n} tekstuuri
+{n} animation	{n} animatsiooni
+{n} sounds	{n} heli
+{n} voice lines	{n} repliiki
+Model parts	Mudeli osad
+Colour textures	Värvitekstuurid
+Normal maps	Normaalkaardid
+Masks	Maskid
+Alpha masks	Alfamaskid
+Animation data	Animatsiooniandmed
+Effect meshes	Efektivõrgud
+Icons and interface art	Ikoonid ja liidesegraafika
+Voice lines	Repliigid
+characters	tegelast
+enemies	vaenlast
+weapons	relva
+items	eset
+machines	masinat
+pieces	tükki
+pictures	pilti
+effects	efekti
+pieces of music	muusikapala
+things	asja

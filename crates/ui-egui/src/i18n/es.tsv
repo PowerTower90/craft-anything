@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	un script que inicia el servidor (ru
 This one describes, sorts and looks at models. Click to choose automatically again.	Este describe, clasifica y examina modelos. Haz clic para volver a elegir automáticamente.
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Elegido automáticamente para describir, clasificar y examinar modelos (primero un modelo en este ordenador).
 Describe, sort and look at models with this one.	Describir, clasificar y examinar modelos con este.
+Check the grouping	Revisar la agrupación
+Every outfit, not only each one's main look	Cada atuendo, no solo el aspecto principal
+Group assets into a thing	Agrupar assets en una cosa
+List a project's things	Listar las cosas de un proyecto
+Made with the model, not on their own.	Hechos con el modelo, no por separado.
+No things here	No hay cosas aquí
+Outfits: {list}	Atuendos: {list}
+Rebuild this…	Reconstruir esto…
+Show individual files to see every file.	«Mostrar archivos uno a uno» muestra cada archivo.
+Show individual files	Mostrar archivos uno a uno
+The AI looks at files in no thing, or alone, and moves them where they belong.	La IA revisa archivos sin cosa o solos y los coloca donde van.
+The AI moved {moved} files and merged {merged} things.	La IA movió {moved} archivos y unió {merged} cosas.
+{category} · {n} {things} · {files} files	{category} · {n} {things} · {files} archivos
+{n} files of other outfits are left as they are.	{n} archivos de otros atuendos quedan como están.
+{n} files	{n} archivos
+{n} normal maps, masks and animation files are made with the models, not on their own.	{n} mapas normales, máscaras y archivos de animación se hacen con los modelos, no por separado.
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} {things}: un modelo nuevo cada uno; texturas y mapas salen del modelo nuevo.
+{n} outfits	{n} atuendos
+{n} models	{n} modelos
+{n} parts	{n} partes
+{n} textures	{n} texturas
+{n} animation	{n} animación
+{n} sounds	{n} sonidos
+{n} voice lines	{n} líneas de voz
+Model parts	Partes de modelo
+Colour textures	Texturas de color
+Normal maps	Mapas normales
+Masks	Máscaras
+Alpha masks	Máscaras alfa
+Animation data	Datos de animación
+Effect meshes	Mallas de efecto
+Icons and interface art	Iconos y arte de interfaz
+Voice lines	Líneas de voz
+characters	personajes
+enemies	enemigos
+weapons	armas
+items	objetos
+machines	máquinas
+pieces	piezas
+pictures	imágenes
+effects	efectos
+pieces of music	piezas musicales
+things	cosas

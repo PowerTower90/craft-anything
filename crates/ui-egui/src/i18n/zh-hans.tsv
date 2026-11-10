@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	启动服务器的脚本（完整路
 This one describes, sorts and looks at models. Click to choose automatically again.	它负责描述、整理和查看模型。点击可恢复自动选择。
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	自动选中来描述、整理和查看模型（优先本机模型）。
 Describe, sort and look at models with this one.	用它描述、整理和查看模型。
+Check the grouping	检查分组
+Every outfit, not only each one's main look	每套服装，而不只是主要造型
+Group assets into a thing	把素材归为一个对象
+List a project's things	列出项目的对象
+Made with the model, not on their own.	随模型一起做，不单独做。
+No things here	这里没有对象
+Outfits: {list}	服装：{list}
+Rebuild this…	重做这个…
+Show individual files to see every file.	打开“显示单个文件”可看到每个文件。
+Show individual files	显示单个文件
+The AI looks at files in no thing, or alone, and moves them where they belong.	AI 查看不属于任何对象或单独的文件，并把它们移到该去的地方。
+The AI moved {moved} files and merged {merged} things.	AI 移动了 {moved} 个文件，合并了 {merged} 个对象。
+{category} · {n} {things} · {files} files	{category} · {n} 个{things} · {files} 个文件
+{n} files of other outfits are left as they are.	其他服装的 {n} 个文件保持不变。
+{n} files	{n} 个文件
+{n} normal maps, masks and animation files are made with the models, not on their own.	{n} 个法线贴图、遮罩和动画文件随模型一起做，不单独做。
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} 个{things}：每个一个新模型；纹理和贴图来自新模型。
+{n} outfits	{n} 套服装
+{n} models	{n} 个模型
+{n} parts	{n} 个部件
+{n} textures	{n} 张纹理
+{n} animation	{n} 个动画
+{n} sounds	{n} 个声音
+{n} voice lines	{n} 句台词
+Model parts	模型部件
+Colour textures	颜色纹理
+Normal maps	法线贴图
+Masks	遮罩
+Alpha masks	Alpha 遮罩
+Animation data	动画数据
+Effect meshes	特效网格
+Icons and interface art	图标和界面美术
+Voice lines	台词
+characters	角色
+enemies	敌人
+weapons	武器
+items	物品
+machines	机械
+pieces	部分
+pictures	图片
+effects	特效
+pieces of music	音乐
+things	对象

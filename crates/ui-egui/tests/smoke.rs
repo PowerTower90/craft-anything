@@ -3673,6 +3673,8 @@ fn the_asset_gallery_lists_filters_and_marks_a_projects_assets() {
         demo::deep(&mut a);
         a.open_workspace(ws);
         a.open_asset_gallery();
+        // The file grid (the default is a card per thing).
+        a.assets.show_files = true;
         a
     });
     assert!(wait(&mut h, |a| a.assets.items.len() == 4), "the gallery read the inventory through project_inventory_list");
@@ -3883,6 +3885,8 @@ fn a_real_click_on_a_gallery_tile_shows_it_and_ctrl_click_adds_another() {
         demo::deep(&mut a);
         a.open_workspace(ws);
         a.open_asset_gallery();
+        // The file grid (the default is a card per thing).
+        a.assets.show_files = true;
         a
     });
     assert!(wait(&mut h, |a| a.assets.items.len() == 4 && craft_anything_ui_egui::assets_ui::cached_thumbs(a) == 2));
@@ -4007,6 +4011,8 @@ fn categories_filter_the_gallery_and_a_hud_rebuild_is_free_and_goes_to_the_build
         a.settings.mode = Mode::Experienced;
         a.open_workspace(ws);
         a.open_asset_gallery();
+        // The file grid (the default is a card per thing).
+        a.assets.show_files = true;
         a
     });
     assert!(wait(&mut h, |a| a.assets.items.len() == 5));
@@ -4281,4 +4287,89 @@ fn models_can_be_rendered_and_a_plan_can_describe_first() {
     describe.click();
     h.run_steps(2);
     assert!(h.state().assets.plan.as_ref().is_some_and(|p| p.describe_first));
+}
+
+/// A project whose enemies are a few things made of many files.
+fn things_project(dir: &std::path::Path) -> craft_anything_engine::workspace::Workspace {
+    use craft_anything_engine::inventory::{self, Category, CategoryBy, INVENTORY_VERSION, Inventory, Item, Kind, Source, Status};
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    let ws = Workspace::create(dir, "Cave", "A cave game", TargetRef::None).unwrap();
+    let items = [
+        ("Glyphid_Grunt_A", Kind::Model),
+        ("Glyphid_Grunt_A_MAT_Base", Kind::Texture),
+        ("Glyphid_Grunt_A_MAT_Normal", Kind::Texture),
+        ("Armature_GlyphidGrunt_Run_GlyphidGrunt_0", Kind::Texture),
+        ("Praetorian_001_AnimatedMesh_combinedMesh", Kind::Model),
+        ("Praetorian_MAT_Base", Kind::Texture),
+        ("Praetorian_MAT_Masks", Kind::Texture),
+        ("sfx_praetorian_hurt_01", Kind::Sound),
+        ("sfx_bugs_small_die_01", Kind::Sound),
+        ("sfx_bugs_small_die_02", Kind::Sound),
+    ]
+    .iter()
+    .map(|(n, k)| {
+        let mut i = Item::new(Source::Build, n, *k, *n, Status::Placeholder);
+        i.path = Some(format!("app/Assets/{n}"));
+        i.category = Category::Enemies;
+        i.category_by = CategoryBy::User;
+        i
+    })
+    .collect();
+    let mut inv = Inventory { version: INVENTORY_VERSION, build_scanned_ms: Some(1), items, ..Default::default() };
+    craft_anything_engine::asset_categories::apply(&mut inv);
+    inventory::save(&ws.root, &inv).unwrap();
+    ws
+}
+
+/// Things, not files: the rail and the card count enemies; a card per enemy opens its files by
+/// role; the switch shows every file again.
+#[test]
+fn the_gallery_counts_and_shows_things_and_files_on_request() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = things_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 10));
+    h.run_steps(2);
+    // Two enemies (the sound group isn't one), ten files.
+    h.get_by_label("Enemies 2");
+    h.state_mut().assets.category = Some(craft_anything_engine::inventory::Category::Enemies);
+    h.run_steps(2);
+    h.get_by_label_contains("Enemies · 2 enemies · 10 files");
+    h.get_by_label("Praetorian").click();
+    h.run_steps(2);
+    assert_eq!(h.state().assets.thing_focus.as_deref(), Some("enemies:praetorian"));
+    h.get_by_label("Models");
+    h.get_by_label("Masks");
+    h.get_by_label("Made with the model, not on their own.");
+    h.get_by_label("Show individual files").click();
+    h.run_steps(2);
+    assert!(h.state().assets.show_files);
+    h.get_by_label("Praetorian_MAT_Masks");
+    // The plan for the enemies works per enemy.
+    h.state_mut().open_rebuild_plan(Some(craft_anything_engine::inventory::Category::Enemies), Vec::new());
+    assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| matches!(p.view, Some(Ok(_))))));
+    h.run_steps(2);
+    h.get_by_label_contains("2 enemies: one new model each");
+    h.get_by_label_contains("3 normal maps, masks and animation files are made with the models");
+}
+
+/// The project page's Assets card counts things, with the files under them.
+#[test]
+fn the_assets_card_counts_things_over_files() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = things_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Beginner, true));
+        a.open_workspace(ws);
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.summary.is_some()));
+    h.run_steps(2);
+    h.get_by_label("Enemies 2");
+    h.get_by_label("10 files");
 }

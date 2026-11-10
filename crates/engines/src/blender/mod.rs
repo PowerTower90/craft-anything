@@ -32,6 +32,8 @@ const INSPECT_TIMEOUT: Duration = Duration::from_secs(3 * 60);
 /// Models rendered in one Blender run, and how long each may take.
 pub const RENDER_CHUNK: usize = 200;
 const PER_MODEL: Duration = Duration::from_secs(45);
+/// Paths longer than this are copied to a short one before Blender reads them.
+const LONG_PATH: usize = 200;
 /// What a preview is: its side in pixels.
 pub const PREVIEW_SIDE: u32 = 256;
 /// Model files Blender reads here.
@@ -280,7 +282,31 @@ pub fn render_previews(
     let mut results: Vec<PreviewResult> = Vec::with_capacity(total);
     for chunk in items.chunks(RENDER_CHUNK) {
         cancel.check()?;
-        let list: Vec<Value> = chunk.iter().map(|p| json!({"id": p.id, "input": p.input, "output": p.output})).collect();
+        // Blender's importers can't open a path past Windows' old 260-character limit: a long one
+        // is read from a short copy (single-file formats only).
+        let short = setup.scripts_dir.join("long-paths");
+        let mut copies = Vec::new();
+        let list: Vec<Value> = chunk
+            .iter()
+            .enumerate()
+            .map(|(n, p)| {
+                let ext = p.input.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+                let long = p.input.as_os_str().len() > LONG_PATH && matches!(ext.as_str(), "obj" | "fbx" | "glb" | "stl" | "ply");
+                let input = if long {
+                    let to = short.join(format!("{n}.{ext}"));
+                    let copied = std::fs::create_dir_all(&short).and_then(|_| std::fs::copy(&p.input, &to));
+                    if copied.is_ok() {
+                        copies.push(to.clone());
+                        to
+                    } else {
+                        p.input.clone()
+                    }
+                } else {
+                    p.input.clone()
+                };
+                json!({"id": p.id, "input": input, "output": p.output})
+            })
+            .collect();
         let job = setup.job("blender_render", &json!({"items": list, "size": PREVIEW_SIDE}))?;
         let d = done.clone();
         let seen = Arc::new(craft_anything_platform::sync::Mutex::new(Vec::<PreviewResult>::new()));
@@ -297,6 +323,9 @@ pub fn render_previews(
         let args = vec!["render".to_string(), job.0.display().to_string()];
         let run =
             run_script(setup, &script, &args, &[writable.to_path_buf()], timeout, cancel, Some(on_line), &|| progress(done.load(Ordering::Relaxed), total));
+        for c in copies {
+            let _ = std::fs::remove_file(c);
+        }
         let said = seen.lock().map(|v| v.clone()).unwrap_or_default();
         let whole_failure = match &run {
             Err(e) if e.code == ErrorCode::Cancelled => return Err(e.clone()),

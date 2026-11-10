@@ -75,6 +75,21 @@ pub struct PlanView {
     /// The style the plan has (the project's last one at first).
     #[serde(default)]
     pub style: Option<String>,
+    /// What the items add up to.
+    #[serde(default)]
+    pub things: PlanThings,
+}
+
+/// A plan's things, as project_inventory_rebuild_plan gives them.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct PlanThings {
+    pub things: usize,
+    pub with_model: usize,
+    pub sounds: usize,
+    pub made_with_model: usize,
+    pub other_versions: usize,
+    pub noun: String,
 }
 
 /// The plan dialog: what it's for, the methods chosen, and the plan once read.
@@ -93,6 +108,8 @@ pub struct PlanState {
     /// Describe the items with the Assets AI before the rebuild starts (asset_describe), so the
     /// builder uses those descriptions.
     pub describe_first: bool,
+    /// Every outfit or version of each thing, not only its main one.
+    pub outfits: bool,
 }
 
 fn call(engine: &Engine, tool: &str, params: Value, job: &crate::jobs::JobCtx) -> Result<Value, ToolError> {
@@ -122,7 +139,7 @@ impl CraftApp {
         let Some(p) = self.assets.plan.as_mut() else { return };
         p.loading = true;
         let style = Some(p.style.trim()).filter(|s| !s.is_empty());
-        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "style": style});
+        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "style": style, "outfits": p.outfits});
         let (engine, root) = (self.engine.clone(), p.root.clone());
         self.jobs.spawn("Plan a rebuild", false, move |j| {
             let result = call(&engine, "project_inventory_rebuild_plan", params, j)
@@ -137,7 +154,8 @@ impl CraftApp {
         let Some(p) = self.assets.plan.as_mut().filter(|p| !p.starting) else { return };
         p.starting = true;
         let style = Some(p.style.trim()).filter(|s| !s.is_empty());
-        let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "style": style, "send": false});
+        let params =
+            json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "style": style, "outfits": p.outfits, "send": false});
         let describe = p.describe_first.then(|| json!({"project": p.root, "category": p.category, "ids": p.ids, "limit": 5000}));
         let (engine, root) = (self.engine.clone(), p.root.clone());
         self.jobs.spawn(tr("Start a rebuild"), true, move |j| {
@@ -258,7 +276,10 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
         let rebuild_w = if n > 0 { rg.size().x + 14.0 } else { 0.0 };
         let rect = egui::Rect::from_min_max(full.min, egui::pos2((full.right() - rebuild_w - 4.0).max(full.left() + 40.0), full.bottom()));
         let resp = ui.interact(rect, egui::Id::new(("asset-category", c.id())), Sense::click());
-        let label = format!("{} {}", tr(c.title()), count(n as u64));
+        // Things when the cards are shown ("Enemies 19"), files when every file is.
+        let things = !app.assets.show_files;
+        let shown_n = if things { app.assets.category_things(c) } else { n };
+        let label = format!("{} {}", tr(c.title()), count(shown_n as u64));
         resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, on, &label));
         let fill = if on { t.accent_soft } else { theme::mix(egui::Color32::TRANSPARENT, t.hover, widgets::hover_t(ui, &resp)) };
         ui.painter().rect_filled(rect, t.r_sm(), fill);
@@ -274,6 +295,7 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
         let name = ui.painter().layout_no_wrap(tr(c.title()), egui::FontId::proportional(theme::CAPTION), t.text);
         ui.painter().with_clip_rect(name_clip).galley(egui::pos2(rect.left() + 28.0, rect.center().y - name.size().y / 2.0), name, t.text);
         ui.painter().galley(egui::pos2(rect.right() - num.size().x - 6.0, rect.center().y - num.size().y / 2.0), num, t.text_faint);
+        let resp = if things { resp.on_hover_text(trf("{n} files", &[("n", &count(n as u64))])) } else { resp };
         if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
             pick = Some(c);
         }
@@ -322,12 +344,20 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
 /// Above the grid while a category is shown: "HUD & menus · 412 items · Rebuild…".
 pub fn category_header(app: &mut CraftApp, ui: &mut Ui, category: Category, shown: usize) {
     let t = Tokens::get(ui.ctx());
+    let things = app.assets.category_things(category);
+    let files = app.assets.category_count(category);
     ui.horizontal(|ui| {
         icons::show(ui, category_icon(category), 16.0, t.accent);
-        ui.label(
-            RichText::new(trf("{category} · {n} items", &[("category", &tr(category.title())), ("n", &count(shown as u64))]))
-                .font(theme::semibold(theme::BODY)),
-        );
+        let words = if app.assets.show_files {
+            trf("{category} · {n} items", &[("category", &tr(category.title())), ("n", &count(shown as u64))])
+        } else {
+            let noun = tr(craft_anything_engine::asset_things::noun(category));
+            trf(
+                "{category} · {n} {things} · {files} files",
+                &[("category", &tr(category.title())), ("n", &count(things as u64)), ("things", &noun), ("files", &count(files as u64))],
+            )
+        };
+        ui.label(RichText::new(words).font(theme::semibold(theme::BODY)));
         if widgets::link(ui, "Rebuild…").clicked() {
             app.open_rebuild_plan(Some(category), Vec::new());
         }
@@ -393,6 +423,8 @@ pub fn card_categories(app: &mut CraftApp, ui: &mut Ui, s: &Summary) {
         if n == 0 {
             continue;
         }
+        // The things ("Enemies 19") over the files ("827 files").
+        let things = s.things_by_category.get(&c).copied().unwrap_or(0);
         // Right to left: the button, then the icon with the name over its count, so a narrow card
         // keeps both readable (a name too long for the card is shortened, never the count).
         ui.horizontal(|ui| {
@@ -405,8 +437,9 @@ pub fn card_categories(app: &mut CraftApp, ui: &mut Ui, s: &Summary) {
                     icons::show(ui, category_icon(c), 14.0, t.icon);
                     ui.vertical(|ui| {
                         ui.spacing_mut().item_spacing.y = 0.0;
-                        ui.add(egui::Label::new(RichText::new(tr(c.title())).size(theme::SMALL).color(t.text)).truncate());
-                        ui.label(RichText::new(count(n)).font(theme::mono(theme::CAPTION)).color(t.text_faint));
+                        let name = if things > 0 { format!("{} {}", tr(c.title()), count(things)) } else { tr(c.title()) };
+                        ui.add(egui::Label::new(RichText::new(name).size(theme::SMALL).color(t.text)).truncate());
+                        ui.label(RichText::new(trf("{n} files", &[("n", &count(n))])).font(theme::mono(theme::CAPTION)).color(t.text_faint));
                     });
                 });
             });
@@ -458,6 +491,7 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
     let Some(plan) = app.assets.plan.clone() else { return };
     let mut style = plan.style.clone();
     let mut describe_first = plan.describe_first;
+    let mut outfits = plan.outfits;
     let assets_ai = app.assets_backend.clone();
     let t = Tokens::get(ctx);
     let mut close = false;
@@ -514,6 +548,35 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
                             ui.end_row();
                         }
                     });
+                    // Per thing: one new model each; their maps come with it.
+                    let th = &view.things;
+                    if th.with_model > 0 {
+                        ui.add_space(8.0);
+                        let noun = tr(&th.noun);
+                        ui.label(
+                            RichText::new(trf(
+                                "{n} {things}: one new model each; their textures and maps come from the new model.",
+                                &[("n", &count(th.with_model as u64)), ("things", &noun)],
+                            ))
+                            .size(theme::SMALL),
+                        );
+                    }
+                    if th.made_with_model > 0 {
+                        ui.label(
+                            RichText::new(trf(
+                                "{n} normal maps, masks and animation files are made with the models, not on their own.",
+                                &[("n", &count(th.made_with_model as u64))],
+                            ))
+                            .size(theme::CAPTION)
+                            .color(t.text_faint),
+                        );
+                    }
+                    if th.other_versions > 0 || outfits {
+                        let r = ui.checkbox(&mut outfits, tr("Every outfit, not only each one's main look"));
+                        if th.other_versions > 0 {
+                            r.on_hover_text(trf("{n} files of other outfits are left as they are.", &[("n", &count(th.other_versions as u64))]));
+                        }
+                    }
                     ui.add_space(10.0);
                     ui.label(RichText::new(trf("Total: {total}", &[("total", &tr("Free"))])).font(theme::semibold(theme::BODY)));
                     if view.uses_local_ai {
@@ -558,6 +621,12 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
     }
     if let Some(p) = app.assets.plan.as_mut() {
         p.describe_first = describe_first;
+    }
+    if app.assets.plan.as_ref().is_some_and(|p| p.outfits != outfits) {
+        if let Some(p) = app.assets.plan.as_mut() {
+            p.outfits = outfits;
+        }
+        app.load_rebuild_plan();
     }
     if let Some((kind, method)) = choose {
         app.choose_rebuild_method(kind, &method);

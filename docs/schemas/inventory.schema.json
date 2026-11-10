@@ -65,6 +65,20 @@
       "default": null,
       "minimum": 0
     },
+    "thing_merges": {
+      "description": "Things merged into another (thing key → the key it went into).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "thing_names": {
+      "description": "Things renamed by a person or an agent (thing key → name).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "version": {
       "description": "The format version ([`INVENTORY_VERSION`]).",
       "type": "integer",
@@ -285,17 +299,40 @@
           ]
         },
         "role": {
-          "description": "Its technical role when its name says (colour, normal map, mask, vertex animation data…).",
-          "type": [
-            "string",
-            "null"
+          "description": "What it is, technically: a model, a model part, a colour texture, a normal map, a mask,\nanimation data, a sound, a voice line… ([`crate::asset_things::Role`]).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Role"
+            },
+            {
+              "type": "null"
+            }
           ]
+        },
+        "role_by": {
+          "description": "Who chose the role: the rules, an agent or the person.",
+          "$ref": "#/$defs/CategoryBy"
         },
         "source": {
           "$ref": "#/$defs/Source"
         },
         "status": {
           "$ref": "#/$defs/Status"
+        },
+        "thing": {
+          "description": "The thing it belongs to (an enemy, a character with its outfits, a voice group).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThingRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "thing_by": {
+          "description": "Who chose the thing.",
+          "$ref": "#/$defs/CategoryBy"
         },
         "thumb": {
           "description": "A picture of it at most 256 pixels on a side (a PNG under reference/thumbs/), relative to\nthe project folder.",
@@ -369,6 +406,55 @@
         "job"
       ]
     },
+    "Role": {
+      "description": "What a file is, technically.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "model",
+            "normal_map",
+            "alpha",
+            "sound",
+            "voice_line",
+            "music",
+            "font",
+            "video",
+            "other"
+          ]
+        },
+        {
+          "description": "A piece of a model (a body, a helmet, a backpack, a beard, a tool).",
+          "type": "string",
+          "const": "model_part"
+        },
+        {
+          "description": "A colour (albedo, base colour) texture or sprite.",
+          "type": "string",
+          "const": "colour"
+        },
+        {
+          "description": "Channels saying where effects apply (metal, roughness, emission…).",
+          "type": "string",
+          "const": "mask"
+        },
+        {
+          "description": "Positions or bones baked into a texture (`Armature_*`), not a picture.",
+          "type": "string",
+          "const": "animation_data"
+        },
+        {
+          "description": "A mesh for an effect (an emitter, particles).",
+          "type": "string",
+          "const": "effect_mesh"
+        },
+        {
+          "description": "An icon or other interface art.",
+          "type": "string",
+          "const": "icon"
+        }
+      ]
+    },
     "Source": {
       "description": "Where an item is.",
       "oneOf": [
@@ -417,6 +503,42 @@
           "type": "string",
           "const": "replaced"
         }
+      ]
+    },
+    "ThingRef": {
+      "description": "The thing a file belongs to.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Stable within the project: the category and the thing's stem (`enemies:glyphidgrunt`).",
+          "type": "string"
+        },
+        "name": {
+          "description": "For people: `Glyphid Grunt`.",
+          "type": "string"
+        },
+        "part": {
+          "description": "The part of the model this file is (`body`, `backpack`), for model parts and their maps.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sounds_only": {
+          "description": "A group of sounds or voice lines with no model or picture.",
+          "type": "boolean"
+        },
+        "variant": {
+          "description": "An outfit or version (`Grid Runner`), when the thing has several.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "key",
+        "name"
       ]
     }
   }

@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	sunucuyu başlatan betik (tam yol)
 This one describes, sorts and looks at models. Click to choose automatically again.	Bu, modelleri açıklar, sıralar ve inceler. Yeniden otomatik seçmek için tıklayın.
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Modelleri açıklamak, sıralamak ve incelemek için otomatik seçildi (önce bu bilgisayardaki model).
 Describe, sort and look at models with this one.	Bununla modelleri açıkla, sırala ve incele.
+Check the grouping	Gruplamayı denetle
+Every outfit, not only each one's main look	Yalnız ana görünüm değil, her kıyafet
+Group assets into a thing	Varlıkları tek şeyde topla
+List a project's things	Bir projenin şeylerini listele
+Made with the model, not on their own.	Modelle birlikte yapılır, ayrı yapılmaz.
+No things here	Burada şey yok
+Outfits: {list}	Kıyafetler: {list}
+Rebuild this…	Bunu yeniden yap…
+Show individual files to see every file.	"Dosyaları tek tek göster" her dosyayı gösterir.
+Show individual files	Dosyaları tek tek göster
+The AI looks at files in no thing, or alone, and moves them where they belong.	Yapay zekâ şeysiz ya da yalnız dosyalara bakar ve onları ait oldukları yere taşır.
+The AI moved {moved} files and merged {merged} things.	Yapay zekâ {moved} dosya taşıdı ve {merged} şeyi birleştirdi.
+{category} · {n} {things} · {files} files	{category} · {n} {things} · {files} dosya
+{n} files of other outfits are left as they are.	Diğer kıyafetlerin {n} dosyası olduğu gibi kalır.
+{n} files	{n} dosya
+{n} normal maps, masks and animation files are made with the models, not on their own.	{n} normal harita, maske ve animasyon dosyası modellerle birlikte yapılır, ayrı değil.
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} {things}: her birine yeni bir model; dokular ve haritalar yeni modelden gelir.
+{n} outfits	{n} kıyafet
+{n} models	{n} model
+{n} parts	{n} parça
+{n} textures	{n} doku
+{n} animation	{n} animasyon
+{n} sounds	{n} ses
+{n} voice lines	{n} replik
+Model parts	Model parçaları
+Colour textures	Renk dokuları
+Normal maps	Normal haritalar
+Masks	Maskeler
+Alpha masks	Alfa maskeler
+Animation data	Animasyon verisi
+Effect meshes	Efekt ağları
+Icons and interface art	Simgeler ve arayüz çizimleri
+Voice lines	Replikler
+characters	karakter
+enemies	düşman
+weapons	silah
+items	eşya
+machines	makine
+pieces	parça
+pictures	resim
+effects	efekt
+pieces of music	müzik
+things	şey

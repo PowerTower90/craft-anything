@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	สคริปต์ที่เร
 This one describes, sorts and looks at models. Click to choose automatically again.	ตัวนี้อธิบาย จัดหมวด และดูโมเดล คลิกเพื่อกลับไปเลือกอัตโนมัติ
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	เลือกอัตโนมัติให้อธิบาย จัดหมวด และดูโมเดล (โมเดลในเครื่องนี้ก่อน)
 Describe, sort and look at models with this one.	อธิบาย จัดหมวด และดูโมเดลด้วยตัวนี้
+Check the grouping	ตรวจการจัดกลุ่ม
+Every outfit, not only each one's main look	ทุกชุด ไม่ใช่แค่ชุดหลัก
+Group assets into a thing	รวมแอสเซ็ตเป็นสิ่งเดียว
+List a project's things	รายการสิ่งของในโปรเจกต์
+Made with the model, not on their own.	สร้างไปพร้อมโมเดล ไม่ได้สร้างแยก
+No things here	ไม่มีสิ่งใดที่นี่
+Outfits: {list}	ชุด: {list}
+Rebuild this…	สร้างสิ่งนี้ใหม่…
+Show individual files to see every file.	เปิด "แสดงไฟล์ทีละไฟล์" เพื่อดูทุกไฟล์
+Show individual files	แสดงไฟล์ทีละไฟล์
+The AI looks at files in no thing, or alone, and moves them where they belong.	AI ดูไฟล์ที่ไม่มีสิ่งใดหรืออยู่เดี่ยว ๆ แล้วย้ายไปที่ที่ควรอยู่
+The AI moved {moved} files and merged {merged} things.	AI ย้ายไฟล์ {moved} ไฟล์ และรวม {merged} สิ่ง
+{category} · {n} {things} · {files} files	{category} · {things} {n} · {files} ไฟล์
+{n} files of other outfits are left as they are.	ไฟล์ของชุดอื่น {n} ไฟล์คงไว้ตามเดิม
+{n} files	{n} ไฟล์
+{n} normal maps, masks and animation files are made with the models, not on their own.	นอร์มอลแมป มาสก์ และไฟล์แอนิเมชัน {n} ไฟล์สร้างไปพร้อมโมเดล ไม่ได้สร้างแยก
+{n} {things}: one new model each; their textures and maps come from the new model.	{things} {n}: โมเดลใหม่อย่างละหนึ่ง เทกซ์เจอร์และแมปมาจากโมเดลใหม่
+{n} outfits	{n} ชุด
+{n} models	{n} โมเดล
+{n} parts	{n} ชิ้นส่วน
+{n} textures	{n} เทกซ์เจอร์
+{n} animation	{n} แอนิเมชัน
+{n} sounds	{n} เสียง
+{n} voice lines	{n} บทพูด
+Model parts	ชิ้นส่วนโมเดล
+Colour textures	เทกซ์เจอร์สี
+Normal maps	นอร์มอลแมป
+Masks	มาสก์
+Alpha masks	อัลฟามาสก์
+Animation data	ข้อมูลแอนิเมชัน
+Effect meshes	เมชเอฟเฟกต์
+Icons and interface art	ไอคอนและภาพอินเทอร์เฟซ
+Voice lines	บทพูด
+characters	ตัวละคร
+enemies	ศัตรู
+weapons	อาวุธ
+items	ไอเทม
+machines	เครื่องจักร
+pieces	ชิ้น
+pictures	ภาพ
+effects	เอฟเฟกต์
+pieces of music	เพลง
+things	สิ่ง

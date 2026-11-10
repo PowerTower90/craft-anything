@@ -450,6 +450,8 @@ pub fn apply(inv: &mut Inventory) {
     for item in inv.items.iter_mut().filter(|i| i.category_by == CategoryBy::Rule) {
         item.category = rules.category(item);
     }
+    // What each file is, and the thing it belongs to, follow from the categories.
+    crate::asset_things::group(inv);
 }
 
 /// Words that say nothing about what an asset is for: file and engine jargon.

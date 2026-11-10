@@ -70,6 +70,31 @@ fn user_text(req: &Value) -> String {
 fn answers(req: &Value) -> String {
     let system = req["messages"][0]["content"].as_str().unwrap_or_default();
     let user = user_text(req);
+    if system == CHECK_SYSTEM {
+        // Move the first file to check into the first thing that isn't its own.
+        let mut keys = Vec::new();
+        let mut file = None;
+        let mut in_files = false;
+        for line in user.lines() {
+            if line.starts_with("Files to check") {
+                in_files = true;
+                continue;
+            }
+            let Some(rest) = line.strip_prefix("- ") else { continue };
+            let first = rest.split_whitespace().next().unwrap_or_default().to_string();
+            if in_files {
+                if file.is_none() {
+                    let now = rest.rsplit("now in ").next().unwrap_or_default().to_string();
+                    file = Some((first, now));
+                }
+            } else {
+                keys.push(first);
+            }
+        }
+        let (f, now) = file.unwrap_or_default();
+        let to = keys.iter().find(|k| **k != now).cloned().unwrap_or_default();
+        return format!("{{\"moves\": [{{\"file\": \"{f}\", \"thing\": \"{to}\"}}, {{\"file\": \"made-up\", \"thing\": \"{to}\"}}], \"merges\": []}}");
+    }
     if system == SORT_SYSTEM {
         return "Here: {\"rules\": [{\"term\": \"glyphid\", \"category\": \"enemies\"}, {\"term\": \"made-up\", \"category\": \"hud\"}, {\"term\": \"crate\", \"category\": \"nonsense\"}]}".into();
     }
@@ -145,8 +170,8 @@ fn items_are_described_from_their_pictures_and_kept_once() {
     let base_tex = get("glyphid_grunt_mat_base");
     assert_eq!(base_tex.description.as_deref(), Some("A picture of Name: Glyphid_Grunt_MAT_Base."), "thinking is dropped");
     assert_eq!(base_tex.described_by.as_deref(), Some("Local vision"));
-    assert_eq!(base_tex.role.as_deref(), Some("colour texture"));
-    assert!(get("armature_glyphid_run_01").role.unwrap().starts_with("vertex animation"));
+    assert_eq!(base_tex.role, Some(craft_anything_engine::asset_things::Role::Colour));
+    assert_eq!(get("armature_glyphid_run_01").role, Some(craft_anything_engine::asset_things::Role::AnimationData));
     assert_eq!(get("sfx_bugs_small_die").description.as_deref(), Some("From its name only."), "sounds are described without pictures");
     assert!(get("fail_this").description.is_none());
     // The role was given to the model, never asked for.
@@ -197,4 +222,19 @@ fn a_local_server_is_seen_running_and_an_agent_app_cant_be_asked() {
     let mut gone = agent.clone();
     gone.config = BackendConfig { kind: BackendKind::OpenaiCompatible, base_url: Some("http://127.0.0.1:9/v1".into()), ..gone.config };
     assert_eq!(server_state(&gone)["state"], "not_running");
+}
+
+#[test]
+fn the_ai_checks_the_grouping_and_its_moves_are_an_agents() {
+    let (base, _) = fake_server(answers);
+    let (_d, ws, e) = setup(&base);
+    let inv = inventory::load(&ws.root).unwrap();
+    let category = inv.items.iter().find(|i| i.id == "glyphid_wing").unwrap().category;
+    let r = call(&e, "project_inventory_check_grouping", json!({"project": ws.root, "category": category})).unwrap();
+    assert_eq!(r["moved"], 1, "only the file that was asked about: {r}");
+    let inv = inventory::load(&ws.root).unwrap();
+    let moved = inv.items.iter().find(|i| r["moves"][0]["file"].as_str() == Some(i.id.as_str())).unwrap();
+    assert_eq!(moved.thing_by, craft_anything_engine::asset_categories::CategoryBy::Agent);
+    assert_eq!(moved.thing.as_ref().map(|t| t.key.as_str()), r["moves"][0]["thing"].as_str());
+    assert_eq!(parse_grouping("nothing", &[], &[]), (vec![], vec![]));
 }

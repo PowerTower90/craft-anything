@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	скрипт, запускающий
 This one describes, sorts and looks at models. Click to choose automatically again.	Этот описывает, сортирует и изучает модели. Нажмите, чтобы снова выбирать автоматически.
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Выбран автоматически для описания, сортировки и изучения моделей (сначала модель на этом компьютере).
 Describe, sort and look at models with this one.	Описывать, сортировать и изучать модели этим.
+Check the grouping	Проверить группировку
+Every outfit, not only each one's main look	Все наряды, а не только основной
+Group assets into a thing	Сгруппировать ассеты в одну вещь
+List a project's things	Список вещей проекта
+Made with the model, not on their own.	Делаются вместе с моделью, не отдельно.
+No things here	Здесь нет вещей
+Outfits: {list}	Наряды: {list}
+Rebuild this…	Пересобрать это…
+Show individual files to see every file.	«Показать отдельные файлы» показывает каждый файл.
+Show individual files	Показать отдельные файлы
+The AI looks at files in no thing, or alone, and moves them where they belong.	ИИ смотрит файлы без вещи или одиночные и переносит их куда надо.
+The AI moved {moved} files and merged {merged} things.	ИИ перенёс файлов: {moved}, объединил вещей: {merged}.
+{category} · {n} {things} · {files} files	{category} · {n} {things} · файлов: {files}
+{n} files of other outfits are left as they are.	Файлы других нарядов ({n}) остаются как есть.
+{n} files	Файлов: {n}
+{n} normal maps, masks and animation files are made with the models, not on their own.	Карты нормалей, маски и файлы анимации ({n}) делаются вместе с моделями, не отдельно.
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} {things}: по новой модели на каждого; текстуры и карты берутся из новой модели.
+{n} outfits	нарядов: {n}
+{n} models	моделей: {n}
+{n} parts	частей: {n}
+{n} textures	текстур: {n}
+{n} animation	анимаций: {n}
+{n} sounds	звуков: {n}
+{n} voice lines	реплик: {n}
+Model parts	Части модели
+Colour textures	Цветовые текстуры
+Normal maps	Карты нормалей
+Masks	Маски
+Alpha masks	Альфа-маски
+Animation data	Данные анимации
+Effect meshes	Сетки эффектов
+Icons and interface art	Иконки и графика интерфейса
+Voice lines	Реплики
+characters	персонажей
+enemies	врагов
+weapons	оружия
+items	предметов
+machines	машин
+pieces	частей
+pictures	картинок
+effects	эффектов
+pieces of music	музыки
+things	вещей

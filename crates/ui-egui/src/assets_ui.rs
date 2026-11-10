@@ -141,6 +141,8 @@ pub struct Summary {
     pub by_kind: BTreeMap<Kind, u64>,
     /// Items in each category.
     pub by_category: BTreeMap<Category, u64>,
+    /// Things counted in each category (asset_things).
+    pub things_by_category: BTreeMap<Category, u64>,
     /// Items marked "needs replacing".
     pub marked: u64,
     /// The build or the original was scanned (an inventory exists).
@@ -167,11 +169,16 @@ impl Summary {
             .as_object()
             .map(|m| m.iter().filter_map(|(k, n)| Some((Category::from_id(k)?, n.as_u64().unwrap_or(0)))).collect())
             .unwrap_or_default();
+        let things_by_category = counts["things_by_category"]
+            .as_object()
+            .map(|m| m.iter().filter_map(|(k, n)| Some((Category::from_id(k)?, n.as_u64().unwrap_or(0)))).collect())
+            .unwrap_or_default();
         Summary {
             root: root.to_path_buf(),
             items: counts["items"].as_u64().unwrap_or(0),
             by_kind,
             by_category,
+            things_by_category,
             marked: counts["by_status"][Status::NeedsReplacing.id()].as_u64().unwrap_or(0),
             scanned: !v["build_scanned_ms"].is_null() || !v["original_scanned_ms"].is_null() || counts["items"].as_u64().unwrap_or(0) > 0,
             hidden: counts["original_hidden_in_clean_room"].as_u64().unwrap_or(0),
@@ -298,6 +305,15 @@ pub struct Gallery {
     pub plan: Option<crate::asset_plan::PlanState>,
     /// The filters the grid was last scrolled for: when they change, it starts at the top.
     scrolled_for: Option<GridFilters>,
+    /// Every file, not one card per thing.
+    pub show_files: bool,
+    /// The thing shown in the Inspector.
+    pub thing_focus: Option<String>,
+    /// The things of the shown files, and the things counted in each category.
+    things: Vec<craft_anything_engine::asset_things::Thing>,
+    cat_things: BTreeMap<Category, usize>,
+    /// Files of each category passing the other filters.
+    cat_files: BTreeMap<Category, usize>,
 }
 
 /// What the grid shows (category, source, kind, status, search, unreadable shown).
@@ -307,7 +323,8 @@ impl Gallery {
     /// Start over for another project (or none).
     fn reset_for(&mut self, root: Option<&Path>) {
         if self.root.as_deref() != root {
-            *self = Gallery { root: root.map(Path::to_path_buf), ..Default::default() };
+            // The view (cards or files) is the person's, whatever the project.
+            *self = Gallery { root: root.map(Path::to_path_buf), show_files: self.show_files, ..Default::default() };
         }
     }
 
@@ -325,6 +342,23 @@ impl Gallery {
     pub fn category_count(&mut self, category: Category) -> usize {
         self.refilter();
         self.cats.get(&category).copied().unwrap_or(0)
+    }
+
+    /// How many things of `category` count, of the files passing the other filters.
+    pub fn category_things(&mut self, category: Category) -> usize {
+        self.refilter();
+        self.cat_things.get(&category).copied().unwrap_or(0)
+    }
+
+    /// The things of the files shown, models first.
+    pub fn things(&mut self) -> &[craft_anything_engine::asset_things::Thing] {
+        self.refilter();
+        &self.things
+    }
+
+    /// An item's thumbnail, when it's loaded or loading.
+    pub fn thumb(&self, id: &str) -> Option<&Thumb> {
+        self.thumbs.get(id).map(|(t, _)| t)
     }
 
     /// Put items in a category here too, once the tool has saved it.
@@ -374,6 +408,7 @@ impl Gallery {
         self.kinds.clear();
         self.cats.clear();
         self.unreadable = 0;
+        let mut passing: Vec<usize> = Vec::new();
         for &i in &self.order {
             let Some(item) = self.items.get(i) else { continue };
             let pass = key.source.is_none_or(|s| item.source == s)
@@ -394,6 +429,7 @@ impl Gallery {
                 }
             }
             *self.cats.entry(item.category).or_insert(0) += 1;
+            passing.push(i);
             if !in_category {
                 continue;
             }
@@ -402,6 +438,12 @@ impl Gallery {
                 self.shown.push(i);
             }
         }
+        // The things: counted over the files passing the other filters, shown for the files shown.
+        use craft_anything_engine::asset_things;
+        let (all, _) = asset_things::things(passing.iter().filter_map(|i| self.items.get(*i)), None);
+        self.cat_things = asset_things::count_things(&all).into_iter().collect();
+        self.cat_files = self.cats.clone().into_iter().collect();
+        self.things = asset_things::things(self.shown.iter().filter_map(|i| self.items.get(*i)), None).0;
         self.key = Some(key);
     }
 
@@ -432,6 +474,11 @@ impl Gallery {
 }
 
 /// A relative path inside the project, refused if it climbs out of it.
+/// Load these thumbnails (item id, path in the project) for the thing cards.
+pub(crate) fn want_thumbs(app: &mut CraftApp, ctx: &egui::Context, want: Vec<(String, String)>) {
+    app.want_asset_thumbs(ctx, want);
+}
+
 fn inside(root: &Path, rel: &str) -> Option<PathBuf> {
     let p = Path::new(rel);
     let ok = !rel.is_empty() && p.components().all(|c| matches!(c, std::path::Component::Normal(_) | std::path::Component::CurDir));
@@ -910,7 +957,11 @@ pub fn center(app: &mut CraftApp, ui: &mut Ui) {
     }
     toolbar(app, ui);
     ui.add_space(6.0);
-    grid(app, ui);
+    if app.assets.show_files {
+        grid(app, ui);
+    } else {
+        crate::things_ui::grid(app, ui);
+    }
 }
 
 /// Above the grid: how many are shown and selected, and marking the selection.
@@ -923,6 +974,22 @@ fn toolbar(app: &mut CraftApp, ui: &mut Ui) {
         crate::asset_plan::category_header(app, ui, c, shown);
     }
     ui.horizontal_wrapped(|ui| {
+        let mut files = app.assets.show_files;
+        if widgets::named(ui.checkbox(&mut files, tr("Show individual files")), "Show individual files").changed() {
+            app.assets.show_files = files;
+        }
+        // The Assets AI checks the grouping of the category shown (an API backend: a local model).
+        let api = app.assets_backend.as_ref().is_some_and(|n| app.backends.iter().any(|b| &b.name == n && b.kind != craft_anything_ai::BackendKind::AgentCli));
+        if !files
+            && api
+            && app.assets.category.is_some()
+            && widgets::link(ui, "Check the grouping")
+                .on_hover_text(tr("The AI looks at files in no thing, or alone, and moves them where they belong."))
+                .clicked()
+        {
+            app.check_grouping();
+        }
+        ui.label(RichText::new("·").color(t.text_faint));
         ui.label(RichText::new(trf("{n} shown", &[("n", &count(shown as u64))])).color(t.text_dim));
         // One item is marked from the Inspector; several from here too.
         if picked > 1 {
@@ -1126,6 +1193,9 @@ fn kv(ui: &mut Ui, k: &str, v: &str, t: &Tokens) {
 /// buttons, note and file location; or the selection, to mark together.
 pub fn inspector(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
+    if !app.assets.show_files && crate::things_ui::inspector(app, ui) {
+        return;
+    }
     let item = app.assets.focus.as_deref().and_then(|id| app.assets.item(id)).cloned();
     let Some(item) = item else {
         widgets::empty_state(ui, "image", "Pick an asset", "Click a tile to see it here. Ctrl/⌘-click or Shift-click picks several.");

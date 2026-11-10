@@ -41,6 +41,13 @@ impl CraftApp {
         self.act("project_inventory_render_models", json!({"project": root}), tr("Render model previews"));
     }
 
+    /// Let the Assets AI check how the shown category's files are grouped into things
+    /// (project_inventory_check_grouping).
+    pub fn check_grouping(&mut self) {
+        let (Some(root), Some(category)) = (self.workspace.as_ref().map(|w| w.root.clone()), self.assets.category) else { return };
+        self.act("project_inventory_check_grouping", json!({"project": root, "category": category}), tr("Check the grouping"));
+    }
+
     /// Whether the asset work is done by a model server on this computer that's running (so the
     /// rebuild plan offers to describe first).
     pub fn local_assets_ready(&self) -> bool {
@@ -89,6 +96,15 @@ impl CraftApp {
                 } else {
                     self.toast(trf("Sorted with {n} new terms: {terms}", &[("n", &added.len().to_string()), ("terms", &added.join(", "))]), false);
                 }
+                self.assets.summary = None;
+                self.load_assets();
+            }
+            ("project_inventory_check_grouping", Ok(v)) => {
+                let (moved, merged) = (v["moved"].as_u64().unwrap_or(0), v["merged"].as_u64().unwrap_or(0));
+                self.toast(
+                    trf("The AI moved {moved} files and merged {merged} things.", &[("moved", &moved.to_string()), ("merged", &merged.to_string())]),
+                    false,
+                );
                 self.assets.summary = None;
                 self.load_assets();
             }

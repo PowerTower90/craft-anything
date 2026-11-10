@@ -1705,3 +1705,46 @@ a script that starts the server (full path)	script khởi động máy chủ (đ
 This one describes, sorts and looks at models. Click to choose automatically again.	Cái này mô tả, phân loại và xem mô hình. Nhấn để chọn tự động lại.
 Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Được chọn tự động để mô tả, phân loại và xem mô hình (mô hình trên máy này trước).
 Describe, sort and look at models with this one.	Mô tả, phân loại và xem mô hình bằng cái này.
+Check the grouping	Kiểm tra cách nhóm
+Every outfit, not only each one's main look	Mọi trang phục, không chỉ vẻ chính
+Group assets into a thing	Gộp tài nguyên thành một thứ
+List a project's things	Liệt kê các thứ của dự án
+Made with the model, not on their own.	Được làm cùng mô hình, không làm riêng.
+No things here	Không có thứ nào ở đây
+Outfits: {list}	Trang phục: {list}
+Rebuild this…	Làm lại thứ này…
+Show individual files to see every file.	Bật "Hiện từng tệp" để xem mọi tệp.
+Show individual files	Hiện từng tệp
+The AI looks at files in no thing, or alone, and moves them where they belong.	AI xem các tệp không thuộc thứ nào hoặc đứng một mình và chuyển chúng về đúng chỗ.
+The AI moved {moved} files and merged {merged} things.	AI đã chuyển {moved} tệp và gộp {merged} thứ.
+{category} · {n} {things} · {files} files	{category} · {n} {things} · {files} tệp
+{n} files of other outfits are left as they are.	{n} tệp của trang phục khác giữ nguyên.
+{n} files	{n} tệp
+{n} normal maps, masks and animation files are made with the models, not on their own.	{n} normal map, mặt nạ và tệp hoạt ảnh được làm cùng mô hình, không làm riêng.
+{n} {things}: one new model each; their textures and maps come from the new model.	{n} {things}: mỗi thứ một mô hình mới; kết cấu và bản đồ đến từ mô hình mới.
+{n} outfits	{n} trang phục
+{n} models	{n} mô hình
+{n} parts	{n} bộ phận
+{n} textures	{n} kết cấu
+{n} animation	{n} hoạt ảnh
+{n} sounds	{n} âm thanh
+{n} voice lines	{n} câu thoại
+Model parts	Bộ phận mô hình
+Colour textures	Kết cấu màu
+Normal maps	Normal map
+Masks	Mặt nạ
+Alpha masks	Mặt nạ alpha
+Animation data	Dữ liệu hoạt ảnh
+Effect meshes	Lưới hiệu ứng
+Icons and interface art	Biểu tượng và đồ họa giao diện
+Voice lines	Câu thoại
+characters	nhân vật
+enemies	kẻ địch
+weapons	vũ khí
+items	vật phẩm
+machines	máy móc
+pieces	mảnh
+pictures	hình
+effects	hiệu ứng
+pieces of music	bản nhạc
+things	thứ

@@ -235,6 +235,10 @@ pub struct PlanParams {
     /// The style for the items made with local AI (e.g. "Pixel art"); default: the project's last one.
     #[serde(default)]
     pub style: Option<String>,
+    /// Every outfit or version of each thing (a character's outfits); default: only each thing's
+    /// main one.
+    #[serde(default)]
+    pub outfits: bool,
 }
 
 /// The plan for these params, and the inventory it's of.
@@ -245,7 +249,10 @@ pub fn plan_for(ctx: &Ctx<'_>, p: &PlanParams) -> Result<(crate::workspace::Work
     let ready = crate::tools::local_gen_tools::ready(ctx.session);
     let mut plan = {
         let items = asset_rebuild::select(&inv, p.category, &p.ids, &see)?;
-        Plan::new(&items, p.category, &p.methods, ready)?
+        let mut plan = Plan::new(&items, p.category, &p.methods, ready)?;
+        plan.outfits = p.outfits;
+        plan.things = asset_rebuild::ThingSummary::of(&items, plan.category, p.outfits);
+        plan
     };
     plan.style = p.style.clone().filter(|s| !s.trim().is_empty()).or_else(|| inv.last_style.clone());
     Ok((ws, inv, plan))
