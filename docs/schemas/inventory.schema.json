@@ -184,6 +184,20 @@
           "$ref": "#/$defs/CategoryBy",
           "default": "rule"
         },
+        "described_by": {
+          "description": "Who wrote the description: the AI backend's name, or \"person\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "What it shows and what it's for in the game, in a sentence or two (asset_describe), used\nwhen it's remade.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "detail": {
           "description": "What it is in more words (an Unreal package's class, a sound bank's codec, what a generated\nasset was made from).",
           "type": [
@@ -268,6 +282,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "role": {
+          "description": "Its technical role when its name says (colour, normal map, mask, vertex animation data…).",
+          "type": [
+            "string",
+            "null"
           ]
         },
         "source": {

@@ -167,14 +167,20 @@ fn project_inventory_category_rules(ctx: &mut Ctx<'_>, params: Value) -> Result<
         let inv = inventory::load(&ws.root)?;
         return Ok(ToolOutput::Value(json!({"rules": inv.category_rules, "by_category": by_category(&inv, &see)})));
     }
-    if p.add.iter().any(|r| asset_categories::words(&r.term).is_empty() || r.term.chars().count() > 80) {
+    let inv = change_rules(&ws, &p.add, &p.remove)?;
+    Ok(ToolOutput::Value(json!({"rules": inv.category_rules, "by_category": by_category(&inv, &see)})))
+}
+
+/// Add (newest first) and remove a project's category terms, sort its items again and save.
+pub fn change_rules(ws: &crate::workspace::Workspace, add: &[asset_categories::CategoryRule], remove: &[String]) -> Result<inventory::Inventory, ToolError> {
+    if add.iter().any(|r| asset_categories::words(&r.term).is_empty() || r.term.chars().count() > 80) {
         return Err(ToolError::invalid("Each term needs a letter or digit, and at most 80 characters."));
     }
-    let mut inv = load_for_change(&ws)?;
+    let mut inv = load_for_change(ws)?;
     let same = |a: &str, b: &str| asset_categories::words(a) == asset_categories::words(b);
-    inv.category_rules.retain(|r| !p.remove.iter().any(|t| same(t, &r.term)) && !p.add.iter().any(|a| same(&a.term, &r.term)));
+    inv.category_rules.retain(|r| !remove.iter().any(|t| same(t, &r.term)) && !add.iter().any(|a| same(&a.term, &r.term)));
     // Newest first, so a term just added wins over an older one it overlaps.
-    let mut rules = p.add.clone();
+    let mut rules = add.to_vec();
     rules.extend(std::mem::take(&mut inv.category_rules));
     if rules.len() > MAX_RULES {
         return Err(ToolError::invalid(format!("A project keeps at most {MAX_RULES} terms.")).with_remediation("Remove some, or use broader terms."));
@@ -182,7 +188,7 @@ fn project_inventory_category_rules(ctx: &mut Ctx<'_>, params: Value) -> Result<
     inv.category_rules = rules;
     asset_categories::apply(&mut inv);
     inventory::save(&ws.root, &inv)?;
-    Ok(ToolOutput::Value(json!({"rules": inv.category_rules, "by_category": by_category(&inv, &see)})))
+    Ok(inv)
 }
 
 fn d_terms() -> usize {

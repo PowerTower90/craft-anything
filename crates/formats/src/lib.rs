@@ -59,6 +59,7 @@ pub mod swift;
 pub mod swift_demangle;
 pub mod tarcpio;
 pub mod unity_bundle;
+pub mod unity_mesh;
 pub mod unity_serialized;
 pub mod unity_texture;
 pub mod unreal_iostore;

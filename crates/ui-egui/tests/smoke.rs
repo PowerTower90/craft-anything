@@ -1360,7 +1360,7 @@ fn a_model_the_list_doesnt_offer_can_be_typed_in() {
 #[test]
 fn an_ai_server_is_added_by_its_address() {
     let url = model_server();
-    let mut h = harness(|| {
+    let mut h = harness_sized(egui::vec2(1280.0, 1000.0), || {
         let mut a = demo::app(demo::engine(Mode::Experienced, true));
         a.state.settings_open = true;
         a.state.settings_tab = craft_anything_ui_egui::state::SettingsTab::Ai;
@@ -1370,6 +1370,9 @@ fn an_ai_server_is_added_by_its_address() {
     h.get_by_label("Add an AI by its address");
     h.state_mut().server_form = craft_anything_ui_egui::ServerForm { name: "Studio box".into(), address: url.clone(), ..Default::default() };
     h.run_steps(1);
+    // The AI rows above can push the form below the fold: it's scrolled to, as a person would.
+    h.get_by_label("Add").scroll_to_me();
+    h.run_steps(3);
     h.get_by_label("Add").click();
     assert!(wait(&mut h, |a| a.backends.iter().any(|b| b.name == "Studio box" && b.model == "qwen3:8b")), "added with a model that can chat");
     assert!(h.state().server_form.name.is_empty(), "the form empties once it's added");
@@ -4223,4 +4226,59 @@ fn the_console_keeps_the_size_it_is_dragged_to_with_a_project_open() {
     h.run_steps(30);
     assert_eq!(h.get_by_label("Agent").rect().top(), dragged, "it keeps the size it was dragged to");
     assert_eq!(sides(&h), before, "the side panels keep their widths too");
+}
+
+/// Settings → AI: a model server on this computer says whether it runs, takes a start command,
+/// and does the asset work when it's the only local one.
+#[test]
+fn a_local_model_shows_whether_it_runs_and_does_the_asset_work() {
+    let url = model_server();
+    let mut h = harness(move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        a.hub.add_server("Box", &url, Some("qwen3:8b"), None).unwrap();
+        a.state.settings_open = true;
+        a.state.settings_tab = craft_anything_ui_egui::state::SettingsTab::Ai;
+        a
+    });
+    h.state_mut().refresh_backends();
+    assert!(wait(&mut h, |a| a.backends.iter().any(|b| b.name == "Box") && a.assets_backend.as_deref() == Some("Box")));
+    assert!(wait(&mut h, |a| a.local_models.is_some()), "it looked by itself: {:?} {}", h.state().state.toasts, h.state().local_models_asked);
+    h.run_steps(2);
+    h.get_by_label("Local model: Running");
+    h.get_by_label("Does the asset work");
+    h.get_by_label("Start command for Box");
+    let script = std::env::temp_dir().join("start-box.ps1").display().to_string();
+    h.state_mut().set_backend_start("Box", Some(script.clone()));
+    assert!(wait(&mut h, |a| a.backend_options.get("Box").and_then(|o| o.start.as_deref()) == Some(script.as_str())));
+    h.state_mut().set_backend_start("Box", Some("relative.ps1".into()));
+    assert!(wait(&mut h, |a| a.backend_options.get("Box").and_then(|o| o.start.as_deref()) == Some(script.as_str())), "a relative path is refused");
+}
+
+/// The gallery offers to render models that have a file and no picture, and the rebuild plan
+/// offers to describe first with the Assets AI.
+#[test]
+fn models_can_be_rendered_and_a_plan_can_describe_first() {
+    use egui_kittest::kittest::NodeT;
+    let d = tempfile::tempdir().unwrap();
+    let ws = category_project(d.path());
+    let mut h = harness_sized(egui::vec2(1600.0, 1000.0), move || {
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.assets.items.len() == 5));
+    h.run_steps(2);
+    h.get_by_label("Render model previews").click();
+    h.run_steps(1);
+    assert!(wait(&mut h, |a| !a.assets.rendering), "the models' files aren't there, so it says so and stops");
+    h.state_mut().assets_backend = Some("Box".into());
+    h.state_mut().open_rebuild_plan(Some(craft_anything_engine::inventory::Category::Enemies), Vec::new());
+    assert!(wait(&mut h, |a| a.assets.plan.as_ref().is_some_and(|p| matches!(p.view, Some(Ok(_))))));
+    h.run_steps(2);
+    let describe = h.get_by_label("Describe them first with the local model");
+    assert_eq!(describe.accesskit_node().toggled(), Some(egui::accesskit::Toggled::False), "off while no local model runs");
+    describe.click();
+    h.run_steps(2);
+    assert!(h.state().assets.plan.as_ref().is_some_and(|p| p.describe_first));
 }

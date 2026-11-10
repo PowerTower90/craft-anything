@@ -213,6 +213,16 @@ pub struct Item {
     /// The rebuild it was sent to (project_inventory_rebuild), while it waits to be replaced.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rebuild: Option<RebuildMark>,
+    /// What it shows and what it's for in the game, in a sentence or two (asset_describe), used
+    /// when it's remade.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Who wrote the description: the AI backend's name, or "person".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub described_by: Option<String>,
+    /// Its technical role when its name says (colour, normal map, mask, vertex animation data…).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
 }
 
 /// An item's place in a rebuild: how it's to be remade, when it was asked for, and the rebuild's
@@ -250,6 +260,9 @@ impl Item {
             category: Category::Unsorted,
             category_by: CategoryBy::Rule,
             rebuild: None,
+            description: None,
+            described_by: None,
+            role: None,
         }
     }
 }
@@ -319,6 +332,13 @@ impl Inventory {
     /// Bring the person's marks from `disk` (the file as it is now) onto these items: a mark made
     /// while a scan ran isn't lost when the scan saves.
     pub fn keep_newer_marks(&mut self, disk: &Inventory) {
+        // Descriptions and rendered previews made meanwhile aren't lost either.
+        let looked: HashMap<&str, &Item> = disk.items.iter().filter(|i| i.description.is_some() || i.thumb.is_some()).map(|i| (i.id.as_str(), i)).collect();
+        for item in &mut self.items {
+            if let Some(prev) = looked.get(item.id.as_str()) {
+                keep_looks(item, prev);
+            }
+        }
         let marked: HashMap<&str, &Item> = disk.items.iter().filter(|i| i.marked_ms.is_some()).map(|i| (i.id.as_str(), i)).collect();
         for item in &mut self.items {
             if let Some(prev) = marked.get(item.id.as_str())
@@ -368,6 +388,7 @@ impl Inventory {
 }
 
 fn keep_marks(item: &mut Item, prev: &Item) {
+    keep_looks(item, prev);
     if prev.marked_ms.is_some() {
         item.status = prev.status;
         item.note = prev.note.clone();
@@ -376,6 +397,19 @@ fn keep_marks(item: &mut Item, prev: &Item) {
     }
     if prev.category_by != CategoryBy::Rule {
         (item.category, item.category_by) = (prev.category, prev.category_by);
+    }
+}
+
+/// What a scan doesn't find out by itself: the description, and a model's rendered preview while
+/// its file is still there.
+fn keep_looks(item: &mut Item, prev: &Item) {
+    if item.description.is_none() && prev.description.is_some() {
+        item.description.clone_from(&prev.description);
+        item.described_by.clone_from(&prev.described_by);
+        item.role.clone_from(&prev.role);
+    }
+    if item.thumb.is_none() && item.kind == Kind::Model && prev.thumb.is_some() && item.path.is_some() {
+        item.thumb.clone_from(&prev.thumb);
     }
 }
 

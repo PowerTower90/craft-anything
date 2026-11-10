@@ -120,6 +120,10 @@ pub struct BackendOptions {
     /// another account. `~/` is the home folder; over SSH it's a folder on that computer.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config_dir: Option<String>,
+    /// A model server on this computer: what starts it when it isn't running (a script such as
+    /// `.ps1`, `.bat`, `.vbs`, `.sh`, or a program), started detached and waited for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
 }
 
 impl BackendOptions {
@@ -264,6 +268,12 @@ pub struct AiConfig {
     pub install_id: Option<String>,
 }
 
+/// A model server on this computer or its network (llama.cpp, Ollama, LM Studio…), not a cloud
+/// service.
+pub fn is_local_server(c: &BackendConfig) -> bool {
+    c.kind == BackendKind::OpenaiCompatible && c.base_url.as_deref().is_none_or(crate::detect::on_this_network)
+}
+
 pub fn role_key(r: Role) -> &'static str {
     match r {
         Role::Lead => "lead",
@@ -271,6 +281,7 @@ pub fn role_key(r: Role) -> &'static str {
         Role::Reviewer => "reviewer",
         Role::Builder => "builder",
         Role::Extractor => "extractor",
+        Role::Assets => "assets",
     }
 }
 
@@ -326,7 +337,8 @@ impl AiConfig {
 
     /// The backend for a role, with the plan's defaults: lead = first enabled backend; worker =
     /// a local model if present, else lead; reviewer and extractor = only when set; builder = an
-    /// agent CLI if present, else lead.
+    /// agent CLI if present, else lead; assets = a model server on this computer or its network
+    /// if present, else the builder.
     pub fn backend_for(&self, role: Role) -> Option<&BackendEntry> {
         if let Some(b) = self.roles.get(role_key(role)).and_then(|n| self.get(n)).filter(|b| b.config.enabled) {
             return Some(b);
@@ -337,6 +349,7 @@ impl AiConfig {
             Role::Worker => self.enabled().find(|b| b.config.kind == BackendKind::OpenaiCompatible).or_else(lead),
             Role::Reviewer | Role::Extractor => None,
             Role::Builder => self.enabled().find(|b| b.config.kind == BackendKind::AgentCli).or_else(lead),
+            Role::Assets => self.enabled().find(|b| is_local_server(&b.config)).or_else(|| self.backend_for(Role::Builder)),
         }
     }
 
@@ -459,12 +472,14 @@ mod tests {
         assert_eq!(c.backend_for(Role::Builder).unwrap().config.name, "Codex");
         assert!(c.backend_for(Role::Reviewer).is_none());
         assert!(c.backend_for(Role::Extractor).is_none(), "the extractor only runs when chosen");
+        assert_eq!(c.backend_for(Role::Assets).unwrap().config.name, "Local", "a local model does the asset work");
         c.roles.insert("lead".into(), "Local".into());
         assert_eq!(c.backend_for(Role::Lead).unwrap().config.name, "Local");
         c.fallback_chain = vec!["Claude".into(), "Local".into(), "Gone".into()];
         assert_eq!(c.chain_from("Local"), vec!["Local".to_string(), "Claude".to_string()]);
         assert!(c.remove("Local"));
         assert!(c.roles.is_empty());
+        assert_eq!(c.backend_for(Role::Assets).unwrap().config.name, "Codex", "without a local model the builder does the asset work");
         assert!(!c.remove("Local"));
     }
 

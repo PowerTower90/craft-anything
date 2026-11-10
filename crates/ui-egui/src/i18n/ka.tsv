@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	ჩვეულებრი�
 Voices	ხმები
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, ორიგინალის ხმების მოსასმენად თამაშის საკუთარ ფორმატში.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	შექმნილია ამ კომპიუტერის ვიდეობარათებზე თქვენ მიერ არჩეულ სტილში: სურათები, Blender-ში დასრულებული 3D მოდელები, ხმები, მუსიკა და ხმები.
+Asset work with this	აქტივებზე მუშაობა ამით
+Blender makes a picture of {n} models, so they show here.	Blender ქმნის {n} მოდელის სურათს, რომ აქ გამოჩნდეს.
+Check the local model	ლოკალური მოდელის შემოწმება
+Describe them first with the local model	ჯერ ლოკალური მოდელით აღწერა
+Does the asset work	აქტივებზე მუშაობს
+Every model has a preview.	ყველა მოდელს აქვს გადახედვა.
+Inspect a model in Blender	მოდელის შემოწმება Blender-ში
+Local model: Not running	ლოკალური მოდელი: არ მუშაობს
+Local model: Running	ლოკალური მოდელი: მუშაობს
+Local model: checking…	ლოკალური მოდელი: მოწმდება…
+Local model: not checked	ლოკალური მოდელი: არ შემოწმებულა
+Render a model preview	მოდელის გადახედვის რენდერი
+Render model previews	მოდელების გადახედვების რენდერი
+Run a Blender script	Blender-ის სკრიპტის გაშვება
+Set what starts the local model	რა უშვებს ლოკალურ მოდელს
+Sort the unsorted with the AI	დაუხარისხებლის დახარისხება AI-ით
+Sorted with {n} new terms: {terms}	დახარისხდა {n} ახალი ტერმინით: {terms}
+Start command for {name}	გაშვების ბრძანება: {name}
+Start command	გაშვების ბრძანება
+Start the local model	ლოკალური მოდელის გაშვება
+The AI found nothing it was sure about.	AI არაფერში იყო დარწმუნებული.
+The AI is sorting them; the counts change when it's done.	AI ახარისხებს; რიცხვები შეიცვლება, როცა დაასრულებს.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	აქტივებზე მომუშავე AI ახარისხებს (ამ კომპიუტერის მოდელი, თუ არის, თორემ შემქმნელი). ფული არ ჯდება.
+The local model is running.	ლოკალური მოდელი მუშაობს.
+The local model was already running.	ლოკალური მოდელი უკვე მუშაობდა.
+a script that starts the server (full path)	სკრიპტი, რომელიც სერვერს უშვებს (სრული გზა)
+{made} model previews made, {failed} couldn't be.	{made} გადახედვა შეიქმნა, {failed} ვერ.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} ათვალიერებს თითოეულს და წერს, რა არის; შემქმნელი ამ სიტყვებს იყენებს.
+{n} assets described.	{n} აქტივი აღიწერა.
+This one describes, sorts and looks at models. Click to choose automatically again.	ეს აღწერს, ახარისხებს და ათვალიერებს მოდელებს. დააწკაპეთ ავტომატურ არჩევანზე დასაბრუნებლად.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	ავტომატურად არჩეული მოდელების აღსაწერად და დასახარისხებლად (ჯერ ამ კომპიუტერის მოდელი).
+Describe, sort and look at models with this one.	აღწერა, დახარისხება და მოდელების დათვალიერება ამით.

@@ -102,7 +102,11 @@ const ACTIONS: &[Action] = &[
     a("categorize_assets",   "put assets in a category (the person's choice)", Tool(&["project_inventory_categorize"])),
     a("check_local_generation", "whether this computer can make pictures, 3D models, sounds and voices itself", Tool(&["local_generation_status"])),
     a("start_local_generation", "start the local generation servers", Tool(&["local_generation_start"])),
-    a("sort_unsorted_with_agent", "ask the builder to sort the unsorted assets", Tool(&["project_inventory_unsorted_terms", "project_inventory_category_rules"])),
+    a("sort_unsorted_with_agent", "sort the unsorted assets with the Assets AI (or ask the builder)", Tool(&["project_inventory_sort_with_agent", "project_inventory_unsorted_terms", "project_inventory_category_rules"])),
+    a("render_model_previews", "render previews of the project's models in Blender", Tool(&["project_inventory_render_models"])),
+    a("check_local_models",  "whether the model servers on this computer are running", Tool(&["ai_backend_status"])),
+    a("start_local_model",   "start a model server on this computer",          Tool(&["ai_backend_start"])),
+    a("set_backend_start",   "what starts a model server on this computer",    Cli("ai start <name> <path>")),
 
     // ---- Engines, Deep mode and assets --------------------------------------------------------
     a("refresh_game_engines","which game engines are on this computer",        Tool(&["engines_list"])),

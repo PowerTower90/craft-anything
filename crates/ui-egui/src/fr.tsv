@@ -1664,3 +1664,35 @@ Usually the 3D server's address: it starts with it.	En général l'adresse du se
 Voices	Voix
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, pour écouter les sons de l'original dans le format propre à un jeu.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Fait sur les cartes graphiques de cet ordinateur dans le style choisi : des images, des modèles 3D finis dans Blender, des sons, de la musique et des voix.
+Asset work with this	Travail des assets avec celui-ci
+Blender makes a picture of {n} models, so they show here.	Blender fait une image de {n} modèles, pour qu'ils s'affichent ici.
+Check the local model	Vérifier le modèle local
+Describe them first with the local model	Les décrire d'abord avec le modèle local
+Does the asset work	Fait le travail des assets
+Every model has a preview.	Chaque modèle a un aperçu.
+Inspect a model in Blender	Examiner un modèle dans Blender
+Local model: Not running	Modèle local : arrêté
+Local model: Running	Modèle local : en marche
+Local model: checking…	Modèle local : vérification…
+Local model: not checked	Modèle local : pas vérifié
+Render a model preview	Rendre un aperçu de modèle
+Render model previews	Rendre les aperçus des modèles
+Run a Blender script	Lancer un script Blender
+Set what starts the local model	Définir ce qui démarre le modèle local
+Sort the unsorted with the AI	Trier les non triées avec l'IA
+Sorted with {n} new terms: {terms}	Trié avec {n} nouveaux termes : {terms}
+Start command for {name}	Commande de démarrage de {name}
+Start command	Commande de démarrage
+Start the local model	Démarrer le modèle local
+The AI found nothing it was sure about.	L'IA n'était sûre de rien.
+The AI is sorting them; the counts change when it's done.	L'IA les trie ; les nombres changent quand elle a fini.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	L'IA qui fait le travail des assets les trie (un modèle sur cet ordinateur s'il y en a un, sinon le constructeur). Cela ne coûte rien.
+The local model is running.	Le modèle local est en marche.
+The local model was already running.	Le modèle local était déjà en marche.
+a script that starts the server (full path)	un script qui démarre le serveur (chemin complet)
+{made} model previews made, {failed} couldn't be.	{made} aperçus de modèles faits, {failed} impossibles.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} regarde chacun et écrit ce que c'est ; le constructeur utilise ces mots au lieu des siens.
+{n} assets described.	{n} assets décrits.
+This one describes, sorts and looks at models. Click to choose automatically again.	Celui-ci décrit, trie et examine les modèles. Cliquez pour choisir automatiquement à nouveau.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Choisi automatiquement pour décrire, trier et examiner les modèles (un modèle sur cet ordinateur d'abord).
+Describe, sort and look at models with this one.	Décrire, trier et examiner les modèles avec celui-ci.

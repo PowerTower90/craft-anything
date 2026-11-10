@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	Обычно адрес 3D-�
 Voices	Голоса
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, чтобы слушать звуки оригинала в собственном формате игры.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Сделано на видеокартах этого компьютера в выбранном стиле: картинки, 3D-модели, доработанные в Blender, звуки, музыка и голоса.
+Asset work with this	Работа с ассетами этим
+Blender makes a picture of {n} models, so they show here.	Blender делает картинку {n} моделей, чтобы они были видны здесь.
+Check the local model	Проверить локальную модель
+Describe them first with the local model	Сначала описать их локальной моделью
+Does the asset work	Делает работу с ассетами
+Every model has a preview.	У каждой модели есть превью.
+Inspect a model in Blender	Изучить модель в Blender
+Local model: Not running	Локальная модель: не запущена
+Local model: Running	Локальная модель: работает
+Local model: checking…	Локальная модель: проверка…
+Local model: not checked	Локальная модель: не проверена
+Render a model preview	Отрендерить превью модели
+Render model previews	Отрендерить превью моделей
+Run a Blender script	Запустить скрипт Blender
+Set what starts the local model	Указать, что запускает локальную модель
+Sort the unsorted with the AI	Рассортировать неразобранное с помощью ИИ
+Sorted with {n} new terms: {terms}	Рассортировано с {n} новыми словами: {terms}
+Start command for {name}	Команда запуска для {name}
+Start command	Команда запуска
+Start the local model	Запустить локальную модель
+The AI found nothing it was sure about.	ИИ ни в чём не был уверен.
+The AI is sorting them; the counts change when it's done.	ИИ сортирует; числа изменятся, когда он закончит.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	Их сортирует ИИ для работы с ассетами (модель на этом компьютере, если есть, иначе сборщик). Это бесплатно.
+The local model is running.	Локальная модель работает.
+The local model was already running.	Локальная модель уже работала.
+a script that starts the server (full path)	скрипт, запускающий сервер (полный путь)
+{made} model previews made, {failed} couldn't be.	Сделано превью: {made}, не удалось: {failed}.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} смотрит на каждый и пишет, что это; сборщик использует эти слова вместо своих.
+{n} assets described.	Описано ассетов: {n}.
+This one describes, sorts and looks at models. Click to choose automatically again.	Этот описывает, сортирует и изучает модели. Нажмите, чтобы снова выбирать автоматически.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Выбран автоматически для описания, сортировки и изучения моделей (сначала модель на этом компьютере).
+Describe, sort and look at models with this one.	Описывать, сортировать и изучать модели этим.

@@ -7,6 +7,7 @@
 
 pub mod adb;
 pub mod assets;
+pub mod blender;
 pub mod cdp;
 pub mod cutter;
 pub mod frida;

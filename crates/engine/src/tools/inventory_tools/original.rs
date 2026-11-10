@@ -240,8 +240,8 @@ fn out_rel(kind: Kind, archive: &str, file: &str) -> String {
 
 // ---- Unity ----
 
-/// Unity games: textures (as PNG) and sounds (as the game stores them) from the serialized files
-/// and bundles; meshes, fonts and videos are listed.
+/// Unity games: textures (as PNG), sounds (as the game stores them) and meshes (as OBJ) from the
+/// serialized files and bundles; fonts and videos are listed.
 pub struct Unity;
 
 /// A Unity class the inventory lists, and what kind of asset it is.
@@ -323,6 +323,7 @@ fn unity_file(job: &mut Job<'_, '_>, path: &Path, rel: &str, inner: Option<&str>
         match kind {
             Kind::Texture => unity_texture(job, &mut item, src, &h, &version, o, &archive, &file),
             Kind::Sound => unity_sound(job, &mut item, src, &h, &version, o, &archive, &file),
+            Kind::Model => unity_model(job, &mut item, src, &h, &version, o, &archive, &file),
             _ => {
                 item.detail = Some(format!("Unity {class}: listed; taking it out isn't supported yet."));
                 job.listed.push(item);
@@ -481,6 +482,41 @@ pub fn sound_format(head: &[u8]) -> (&'static str, String) {
         ("mp3", "MP3".into())
     } else {
         ("bin", "raw audio data".into())
+    }
+}
+
+/// A Unity Mesh, taken out as an OBJ file (Blender reads it; previews are rendered from it).
+#[allow(clippy::too_many_arguments)]
+fn unity_model(
+    job: &mut Job<'_, '_>,
+    item: &mut Item,
+    src: &mut Serialized,
+    h: &unity_serialized::Header,
+    version: &str,
+    o: &unity_serialized::Object,
+    archive: &str,
+    file: &str,
+) {
+    let rel = out_rel(Kind::Model, archive, &format!("{file}.obj"));
+    let path = job.root.join(&rel);
+    if path.is_file() {
+        item.path = Some(rel);
+        item.detail = Some("Unity Mesh".into());
+        job.reuse(item, &path);
+        return;
+    }
+    if !job.fits(0) {
+        return job.over_budget(item);
+    }
+    match crate::tools::game_archive_tools::unity_mesh_obj(src, version, h.big_endian, o) {
+        Ok((obj, triangles)) => {
+            item.detail = Some(format!("Unity Mesh ({triangles} triangles)"));
+            if !job.fits(obj.len() as u64) {
+                return job.over_budget(item);
+            }
+            job.write(item, &rel, obj.as_bytes());
+        }
+        Err(e) => item.problem = Some(e.message),
     }
 }
 

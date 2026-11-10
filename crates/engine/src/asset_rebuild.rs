@@ -295,6 +295,7 @@ pub fn start(ws: &Workspace, inv: &mut Inventory, plan: &Plan, now_ms: u64) -> R
         listed.push(json!({
             "id": item.id, "name": item.name, "kind": item.kind, "category": item.category,
             "path": item.path, "origin": item.origin, "method": m,
+            "description": item.description, "role": item.role,
         }));
     }
     if listed.is_empty() {
@@ -337,7 +338,8 @@ pub fn brief(category: Option<Category>, count: usize, methods: &BTreeMap<Kind, 
         text.push_str(&format!(
             " For the items made with local AI: look at each original (its thumbnail or path) only to understand WHAT it shows and what it's for in the game, \
              then write a short plain description of the subject in your own words (no copying of logos, text or exact designs). \
-             Call asset_generate_batch once with all the descriptions (project, job \"{job}\", style \"{style}\"; kind image for pictures, \
+             Where the list has a description for an item (written beforehand by asset_describe), use it as that item's description as it is; \
+             write your own only for the rest. Call asset_generate_batch once with all the descriptions (project, job \"{job}\", style \"{style}\"; kind image for pictures, \
              kind model with height_m for 3D models; each item's id from the list as its id). Never feed the original file to a generator as an input picture. \
              Then put the generated files into the game (import them, replace the references, keep sizes and aspect ratios; HUD icons keep their \
              transparent background) and rebuild."

@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	Meist die Adresse des 3D-Ser
 Voices	Stimmen
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, um die Sounds des Originals im eigenen Format eines Spiels anzuhören.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Auf den Grafikkarten dieses Computers im gewählten Stil erzeugt: Bilder, in Blender fertiggestellte 3D-Modelle, Sounds, Musik und Stimmen.
+Asset work with this	Asset-Arbeit damit
+Blender makes a picture of {n} models, so they show here.	Blender macht ein Bild von {n} Modellen, damit sie hier erscheinen.
+Check the local model	Lokales Modell prüfen
+Describe them first with the local model	Zuerst mit dem lokalen Modell beschreiben
+Does the asset work	Macht die Asset-Arbeit
+Every model has a preview.	Jedes Modell hat eine Vorschau.
+Inspect a model in Blender	Modell in Blender untersuchen
+Local model: Not running	Lokales Modell: läuft nicht
+Local model: Running	Lokales Modell: läuft
+Local model: checking…	Lokales Modell: wird geprüft…
+Local model: not checked	Lokales Modell: nicht geprüft
+Render a model preview	Modellvorschau rendern
+Render model previews	Modellvorschauen rendern
+Run a Blender script	Blender-Skript ausführen
+Set what starts the local model	Festlegen, was das lokale Modell startet
+Sort the unsorted with the AI	Unsortiertes mit der KI sortieren
+Sorted with {n} new terms: {terms}	Mit {n} neuen Begriffen sortiert: {terms}
+Start command for {name}	Startbefehl für {name}
+Start command	Startbefehl
+Start the local model	Lokales Modell starten
+The AI found nothing it was sure about.	Die KI war sich bei nichts sicher.
+The AI is sorting them; the counts change when it's done.	Die KI sortiert sie; die Zahlen ändern sich, wenn sie fertig ist.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	Die KI für die Asset-Arbeit sortiert sie (ein Modell auf diesem Computer, wenn es eins gibt, sonst der Builder). Es kostet kein Geld.
+The local model is running.	Das lokale Modell läuft.
+The local model was already running.	Das lokale Modell lief schon.
+a script that starts the server (full path)	ein Skript, das den Server startet (vollständiger Pfad)
+{made} model previews made, {failed} couldn't be.	{made} Modellvorschauen erstellt, {failed} nicht möglich.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} sieht sich jedes an und schreibt, was es ist; der Builder nutzt diese Worte statt eigener.
+{n} assets described.	{n} Assets beschrieben.
+This one describes, sorts and looks at models. Click to choose automatically again.	Dieses beschreibt, sortiert und sieht sich Modelle an. Klicken, um wieder automatisch zu wählen.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Automatisch gewählt zum Beschreiben, Sortieren und Ansehen von Modellen (ein Modell auf diesem Computer zuerst).
+Describe, sort and look at models with this one.	Hiermit beschreiben, sortieren und Modelle ansehen.

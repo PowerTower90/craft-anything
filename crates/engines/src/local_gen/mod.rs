@@ -286,11 +286,13 @@ pub fn start(setup: &Setup, cancel: &CancelToken, progress: &dyn Fn(&str)) -> Re
     Ok(started)
 }
 
-/// Start a server's start script and let it run on (a server outlives the call).
-fn launch_script(script: &Path) -> Result<(), ToolError> {
+/// Start a server's start script (`.ps1`, `.bat`, `.cmd`, `.vbs`, `.sh`, or a program) and let it
+/// run on (a server outlives the call).
+pub fn launch_script(script: &Path) -> Result<(), ToolError> {
     let ext = script.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
     let launch = match ext.as_str() {
         "ps1" => Launch::new("powershell").args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]).arg(script),
+        "vbs" => Launch::new("wscript").arg(script),
         "bat" | "cmd" => Launch::new("cmd").arg("/C").arg(script),
         "sh" => Launch::new("sh").arg(script),
         _ => Launch::new(script),

@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	Tavaliselt 3D-serveri aadres
 Voices	Hääled
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, et kuulata originaali helisid mängu enda vormingus.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Tehtud selle arvuti graafikakaartidel sinu valitud stiilis: pildid, Blenderis viimistletud 3D-mudelid, helid, muusika ja hääled.
+Asset work with this	Varatöö sellega
+Blender makes a picture of {n} models, so they show here.	Blender teeb pildi {n} mudelist, et need siin näha oleksid.
+Check the local model	Kontrolli kohalikku mudelit
+Describe them first with the local model	Kirjelda neid enne kohaliku mudeliga
+Does the asset work	Teeb varatöö
+Every model has a preview.	Igal mudelil on eelvaade.
+Inspect a model in Blender	Uuri mudelit Blenderis
+Local model: Not running	Kohalik mudel: ei tööta
+Local model: Running	Kohalik mudel: töötab
+Local model: checking…	Kohalik mudel: kontrollin…
+Local model: not checked	Kohalik mudel: kontrollimata
+Render a model preview	Renderda mudeli eelvaade
+Render model previews	Renderda mudelite eelvaated
+Run a Blender script	Käivita Blenderi skript
+Set what starts the local model	Määra, mis kohaliku mudeli käivitab
+Sort the unsorted with the AI	Sordi sortimata tehisaruga
+Sorted with {n} new terms: {terms}	Sorditud {n} uue terminiga: {terms}
+Start command for {name}	Käivituskäsk: {name}
+Start command	Käivituskäsk
+Start the local model	Käivita kohalik mudel
+The AI found nothing it was sure about.	Tehisaru ei olnud milleski kindel.
+The AI is sorting them; the counts change when it's done.	Tehisaru sordib neid; arvud muutuvad, kui see valmis saab.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	Varatööd tegev tehisaru sordib need (selle arvuti mudel, kui on, muidu ehitaja). See ei maksa midagi.
+The local model is running.	Kohalik mudel töötab.
+The local model was already running.	Kohalik mudel juba töötas.
+a script that starts the server (full path)	skript, mis serveri käivitab (täielik tee)
+{made} model previews made, {failed} couldn't be.	{made} mudeli eelvaadet tehtud, {failed} ei õnnestunud.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} vaatab igaüht ja kirjutab, mis see on; ehitaja kasutab neid sõnu enda omade asemel.
+{n} assets described.	{n} vara kirjeldatud.
+This one describes, sorts and looks at models. Click to choose automatically again.	See kirjeldab, sordib ja vaatab mudeleid. Klõpsa, et valida taas automaatselt.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Valitud automaatselt mudelite kirjeldamiseks, sortimiseks ja vaatamiseks (esmalt selle arvuti mudel).
+Describe, sort and look at models with this one.	Kirjelda, sordi ja vaata mudeleid sellega.

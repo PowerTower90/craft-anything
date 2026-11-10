@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	Genellikle 3B sunucusunun ad
 Voices	Seslendirmeler
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, orijinalin seslerini oyunun kendi biçiminde dinlemek için.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Bu bilgisayarın ekran kartlarında seçtiğiniz tarzda yapılır: resimler, Blender'da tamamlanan 3B modeller, sesler, müzik ve seslendirmeler.
+Asset work with this	Varlık işi bununla
+Blender makes a picture of {n} models, so they show here.	Blender {n} modelin resmini yapar, burada görünsünler diye.
+Check the local model	Yerel modeli denetle
+Describe them first with the local model	Önce yerel modelle açıkla
+Does the asset work	Varlık işini yapıyor
+Every model has a preview.	Her modelin önizlemesi var.
+Inspect a model in Blender	Modeli Blender'da incele
+Local model: Not running	Yerel model: çalışmıyor
+Local model: Running	Yerel model: çalışıyor
+Local model: checking…	Yerel model: denetleniyor…
+Local model: not checked	Yerel model: denetlenmedi
+Render a model preview	Model önizlemesi çiz
+Render model previews	Model önizlemelerini çiz
+Run a Blender script	Blender betiği çalıştır
+Set what starts the local model	Yerel modeli neyin başlattığını ayarla
+Sort the unsorted with the AI	Sıralanmamışları yapay zekâyla sırala
+Sorted with {n} new terms: {terms}	{n} yeni terimle sıralandı: {terms}
+Start command for {name}	{name} için başlatma komutu
+Start command	Başlatma komutu
+Start the local model	Yerel modeli başlat
+The AI found nothing it was sure about.	Yapay zekâ hiçbirinden emin olamadı.
+The AI is sorting them; the counts change when it's done.	Yapay zekâ sıralıyor; bitince sayılar değişir.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	Varlık işini yapan yapay zekâ sıralar (bu bilgisayarda model varsa o, yoksa oluşturucu). Para tutmaz.
+The local model is running.	Yerel model çalışıyor.
+The local model was already running.	Yerel model zaten çalışıyordu.
+a script that starts the server (full path)	sunucuyu başlatan betik (tam yol)
+{made} model previews made, {failed} couldn't be.	{made} model önizlemesi yapıldı, {failed} yapılamadı.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} her birine bakıp ne olduğunu yazar; oluşturucu kendi yerine bu sözcükleri kullanır.
+{n} assets described.	{n} varlık açıklandı.
+This one describes, sorts and looks at models. Click to choose automatically again.	Bu, modelleri açıklar, sıralar ve inceler. Yeniden otomatik seçmek için tıklayın.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Modelleri açıklamak, sıralamak ve incelemek için otomatik seçildi (önce bu bilgisayardaki model).
+Describe, sort and look at models with this one.	Bununla modelleri açıkla, sırala ve incele.

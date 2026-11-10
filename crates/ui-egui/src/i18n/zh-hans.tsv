@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	通常是 3D 服务器的地
 Voices	语音
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli，用来听原作中游戏专用格式的声音。
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	用这台电脑的显卡按你选的风格生成：图片、在 Blender 中完成的 3D 模型、声音、音乐和语音。
+Asset work with this	用它做素材工作
+Blender makes a picture of {n} models, so they show here.	Blender 为 {n} 个模型生成图片，以便在这里显示。
+Check the local model	检查本地模型
+Describe them first with the local model	先用本地模型描述它们
+Does the asset work	负责素材工作
+Every model has a preview.	每个模型都有预览。
+Inspect a model in Blender	在 Blender 中检查模型
+Local model: Not running	本地模型：未运行
+Local model: Running	本地模型：运行中
+Local model: checking…	本地模型：检查中…
+Local model: not checked	本地模型：未检查
+Render a model preview	渲染模型预览
+Render model previews	渲染模型预览
+Run a Blender script	运行 Blender 脚本
+Set what starts the local model	设置启动本地模型的方式
+Sort the unsorted with the AI	用 AI 整理未分类项
+Sorted with {n} new terms: {terms}	用 {n} 个新词整理：{terms}
+Start command for {name}	{name} 的启动命令
+Start command	启动命令
+Start the local model	启动本地模型
+The AI found nothing it was sure about.	AI 没有把握的内容。
+The AI is sorting them; the counts change when it's done.	AI 正在整理；完成后数字会变化。
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	由负责素材工作的 AI 整理（有本机模型就用它，否则用构建者）。不花钱。
+The local model is running.	本地模型正在运行。
+The local model was already running.	本地模型已在运行。
+a script that starts the server (full path)	启动服务器的脚本（完整路径）
+{made} model previews made, {failed} couldn't be.	已生成 {made} 个模型预览，{failed} 个失败。
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} 会逐个查看并写下它是什么；构建者会用这些描述代替自己写的。
+{n} assets described.	已描述 {n} 个素材。
+This one describes, sorts and looks at models. Click to choose automatically again.	它负责描述、整理和查看模型。点击可恢复自动选择。
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	自动选中来描述、整理和查看模型（优先本机模型）。
+Describe, sort and look at models with this one.	用它描述、整理和查看模型。

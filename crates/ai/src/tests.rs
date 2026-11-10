@@ -1368,3 +1368,63 @@ fn openrouter_with_no_provider_for_tools_falls_back_to_the_text_protocol() {
     assert!(seen[0].body.get("tools").is_some());
     assert!(seen[1].body.get("provider").is_none() && seen[1].body.get("tools").is_none(), "the second asks in text: {}", seen[1].body);
 }
+
+/// A local model (llama.cpp's OpenAI-style tool_calls) asks Craft Anything's chat agent to
+/// inspect a model in Blender: the loop runs blender_inspect and carries on to the answer. With
+/// Blender installed, the stats reach the model; without it, the error does.
+#[test]
+fn a_local_model_inspects_a_model_in_blender_through_the_chat_agent() {
+    let d = tempfile::tempdir().unwrap();
+    let cube = d.path().join("cube.obj");
+    std::fs::write(&cube, "v -1 -1 -1\nv 1 -1 -1\nv 1 1 -1\nv -1 1 -1\nf 1 2 3 4\n").unwrap();
+    let args = json!({"file": cube.display().to_string()}).to_string();
+    let t1 = chat_sse(&[
+        json!({"model":"local-qwen3-vl","choices":[{"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_b","type":"function","function":{"name":"blender_inspect","arguments":""}}]}}]}),
+        json!({"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":args}}]}}]}),
+        json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let t2 = chat_sse(&[json!({"choices":[{"delta":{"content":"It has 1 face and is 2 by 2."},"finish_reason":"stop"}]})]);
+    let (url, seen) = mock(vec![(200, "text/event-stream", t1), (200, "text/event-stream", t2)]);
+    let (h, _d) = hub();
+    add(&h, "Local", BackendKind::OpenaiCompatible, &format!("{url}/v1"), None);
+    let mut c = h.start(Some("Local"), false).unwrap();
+    let ev = run(&mut c, "inspect cube.obj in Blender and tell me its face count and bounds");
+    assert!(ev.iter().any(|e| matches!(e, AgentEvent::ToolStarted { tool, .. } if tool == "blender_inspect")), "{ev:?}");
+    let finished = ev.iter().find_map(|e| match e {
+        AgentEvent::ToolFinished { tool, ok, .. } if tool == "blender_inspect" => Some(*ok),
+        _ => None,
+    });
+    assert!(ev.iter().any(|e| matches!(e, AgentEvent::TextDelta { text } if text.contains("1 face"))), "it carried on: {ev:?}");
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.len(), 2);
+    let result = seen[1].body["messages"].as_array().unwrap().iter().find(|m| m["role"] == "tool").unwrap().clone();
+    assert_eq!(result["tool_call_id"], "call_b");
+    let content = result["content"].as_str().unwrap();
+    if craft_anything_engines::local_gen::find_blender(None).is_some() {
+        assert_eq!(finished, Some(true), "{content}");
+        assert!(content.contains("\"faces\":1") && content.contains("bounds"), "{content}");
+    } else {
+        assert_eq!(finished, Some(false));
+        assert!(content.contains("Blender"), "{content}");
+    }
+}
+
+/// A tool's `show_images` go to the model as pictures after its result (OpenAI format: a user
+/// message with image_url parts; Anthropic: image blocks).
+#[test]
+fn pictures_a_tool_shows_reach_the_model() {
+    let d = tempfile::tempdir().unwrap();
+    let png = d.path().join("p.png");
+    std::fs::write(&png, b"\x89PNG small").unwrap();
+    let blocks = agent::images_to_show(&json!({"show_images": [png.display().to_string(), d.path().join("missing.png").display().to_string(), "x.txt"]}));
+    assert_eq!(blocks.len(), 1);
+    use crate::model::{Block, Speaker};
+    let msg =
+        Msg { role: Speaker::User, blocks: [vec![Block::ToolResult { tool_use_id: "c".into(), content: "{}".into(), is_error: false }], blocks].concat() };
+    let wire = openai::messages_json(&msg, false);
+    assert_eq!(wire[0]["role"], "tool");
+    assert_eq!(wire[1]["role"], "user");
+    assert!(wire[1]["content"][1]["image_url"]["url"].as_str().unwrap().starts_with("data:image/png;base64,"));
+    let a = anthropic::message_json(&msg);
+    assert_eq!(a["content"][1]["type"], "image");
+}

@@ -239,7 +239,7 @@ pub fn unreadable(item: &Item) -> bool {
 /// The order the grid shows items in: those with a picture first (textures and sprites with a
 /// thumbnail, by name), then the other kinds, and the ones with a problem last.
 fn order_key(item: &Item) -> (bool, bool, Kind, String) {
-    let preview = item.thumb.is_some() && matches!(item.kind, Kind::Texture | Kind::Sprite);
+    let preview = item.thumb.is_some() && matches!(item.kind, Kind::Texture | Kind::Sprite | Kind::Model);
     (item.problem.is_some(), !preview, item.kind, item.name.to_lowercase())
 }
 
@@ -292,6 +292,8 @@ pub struct Gallery {
     pub scanning: Option<u64>,
     /// Marks sent and not back yet.
     pub marking: usize,
+    /// Model previews being rendered.
+    pub rendering: bool,
     /// The rebuild plan dialog, while it's open.
     pub plan: Option<crate::asset_plan::PlanState>,
     /// The filters the grid was last scrolled for: when they change, it starts at the top.

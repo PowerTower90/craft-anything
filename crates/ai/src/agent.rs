@@ -235,6 +235,34 @@ pub fn compact(out: &ToolOutput) -> (String, String, Option<String>) {
     }
 }
 
+/// Most pictures, and the largest, a tool's result shows the model.
+const MAX_SHOWN_IMAGES: usize = 2;
+const MAX_SHOWN_IMAGE_BYTES: u64 = 4 * 1024 * 1024;
+
+/// The pictures a tool's result names in `show_images` (PNG or JPEG files), to show the model.
+pub fn images_to_show(v: &Value) -> Vec<Block> {
+    use base64::Engine as _;
+    let Some(list) = v.get("show_images").and_then(Value::as_array) else { return Vec::new() };
+    list.iter()
+        .filter_map(Value::as_str)
+        .take(MAX_SHOWN_IMAGES)
+        .filter_map(|p| {
+            let path = std::path::Path::new(p);
+            let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+            let media_type = match ext.as_str() {
+                "png" => "image/png",
+                "jpg" | "jpeg" => "image/jpeg",
+                _ => return None,
+            };
+            if std::fs::metadata(path).ok()?.len() > MAX_SHOWN_IMAGE_BYTES {
+                return None;
+            }
+            let bytes = std::fs::read(path).ok()?;
+            Some(Block::Image { media_type: media_type.into(), data: base64::engine::general_purpose::STANDARD.encode(bytes) })
+        })
+        .collect()
+}
+
 fn error_text(e: &ToolError) -> String {
     serde_json::to_string(&json!({"error": e})).unwrap_or_else(|_| e.message.clone())
 }
@@ -325,6 +353,8 @@ pub struct AgentLoop {
     failure: Arc<Mutex<Option<TurnFailure>>>,
     /// Build commands that failed in a row in this step (see [`MAX_FAILED_BUILDS`]).
     failed_builds: u32,
+    /// Pictures the last tool asked to show the model (its `show_images`), sent with its result.
+    pending_images: Vec<Block>,
     /// Context windows servers said they have, by chain position: a request that didn't fit
     /// tells us the real size (#962), which may be smaller than the budget we assumed.
     server_windows: BTreeMap<usize, u64>,
@@ -705,6 +735,7 @@ impl AgentLoop {
             let (content, ok, summary, evidence_id) = self.run_one(id, name, input.clone());
             self.emit(AgentEvent::ToolFinished { call_id: id.clone(), tool: name.clone(), ok, summary, evidence_id });
             out.push(Block::ToolResult { tool_use_id: id.clone(), content, is_error: !ok });
+            out.append(&mut self.pending_images);
         }
         out
     }
@@ -776,6 +807,9 @@ impl AgentLoop {
                         Some(false) => self.failed_builds = self.failed_builds.saturating_add(1),
                         None => {}
                     }
+                }
+                if let ToolOutput::Value(v) = &out {
+                    self.pending_images = images_to_show(v);
                 }
                 let (text, summary, ev) = compact(&out);
                 (text, true, summary, ev)
@@ -865,6 +899,7 @@ impl ApiConversation {
             last_history_estimate: 0,
             failure: failure.clone(),
             failed_builds: 0,
+            pending_images: Vec::new(),
             server_windows: BTreeMap::new(),
         };
         let busy2 = busy.clone();
@@ -1423,6 +1458,7 @@ pub(crate) mod tests {
             last_history_estimate: 0,
             failure: Arc::default(),
             failed_builds: 0,
+            pending_images: Vec::new(),
             server_windows: BTreeMap::new(),
         };
         let tools = [ToolDef { name: "look".into(), description: "x".repeat(4000), schema: json!({"type": "object"}) }];

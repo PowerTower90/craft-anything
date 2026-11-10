@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	มักเป็นที�
 Voices	เสียงพูด
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli สำหรับฟังเสียงของต้นฉบับในรูปแบบเฉพาะของเกม
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	สร้างด้วยการ์ดจอของคอมพิวเตอร์เครื่องนี้ในสไตล์ที่คุณเลือก: ภาพ โมเดล 3 มิติที่เก็บงานใน Blender เสียง เพลง และเสียงพูด
+Asset work with this	ทำงานแอสเซ็ตด้วยตัวนี้
+Blender makes a picture of {n} models, so they show here.	Blender สร้างภาพของโมเดล {n} ชิ้นเพื่อให้แสดงที่นี่
+Check the local model	ตรวจโมเดลในเครื่อง
+Describe them first with the local model	ให้โมเดลในเครื่องอธิบายก่อน
+Does the asset work	ทำงานแอสเซ็ต
+Every model has a preview.	ทุกโมเดลมีภาพตัวอย่างแล้ว
+Inspect a model in Blender	ตรวจโมเดลใน Blender
+Local model: Not running	โมเดลในเครื่อง: ไม่ทำงาน
+Local model: Running	โมเดลในเครื่อง: ทำงานอยู่
+Local model: checking…	โมเดลในเครื่อง: กำลังตรวจ…
+Local model: not checked	โมเดลในเครื่อง: ยังไม่ตรวจ
+Render a model preview	เรนเดอร์ภาพตัวอย่างโมเดล
+Render model previews	เรนเดอร์ภาพตัวอย่างโมเดล
+Run a Blender script	รันสคริปต์ Blender
+Set what starts the local model	ตั้งสิ่งที่เริ่มโมเดลในเครื่อง
+Sort the unsorted with the AI	จัดหมวดที่ยังไม่จัดด้วย AI
+Sorted with {n} new terms: {terms}	จัดหมวดด้วยคำใหม่ {n} คำ: {terms}
+Start command for {name}	คำสั่งเริ่มของ {name}
+Start command	คำสั่งเริ่ม
+Start the local model	เริ่มโมเดลในเครื่อง
+The AI found nothing it was sure about.	AI ไม่แน่ใจอะไรเลย
+The AI is sorting them; the counts change when it's done.	AI กำลังจัดหมวด ตัวเลขจะเปลี่ยนเมื่อเสร็จ
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	AI ที่ทำงานแอสเซ็ตจะจัดหมวดให้ (โมเดลในเครื่องนี้ถ้ามี ไม่เช่นนั้นตัวสร้าง) ไม่เสียเงิน
+The local model is running.	โมเดลในเครื่องทำงานอยู่
+The local model was already running.	โมเดลในเครื่องทำงานอยู่แล้ว
+a script that starts the server (full path)	สคริปต์ที่เริ่มเซิร์ฟเวอร์ (พาธเต็ม)
+{made} model previews made, {failed} couldn't be.	สร้างภาพตัวอย่าง {made} ชิ้น ทำไม่ได้ {failed} ชิ้น
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} ดูทีละชิ้นและเขียนว่าคืออะไร ตัวสร้างใช้คำเหล่านี้แทนของตัวเอง
+{n} assets described.	อธิบายแอสเซ็ตแล้ว {n} ชิ้น
+This one describes, sorts and looks at models. Click to choose automatically again.	ตัวนี้อธิบาย จัดหมวด และดูโมเดล คลิกเพื่อกลับไปเลือกอัตโนมัติ
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	เลือกอัตโนมัติให้อธิบาย จัดหมวด และดูโมเดล (โมเดลในเครื่องนี้ก่อน)
+Describe, sort and look at models with this one.	อธิบาย จัดหมวด และดูโมเดลด้วยตัวนี้

@@ -37,6 +37,8 @@ pub fn estimate_tokens(history: &[Msg]) -> u64 {
             Block::ToolUse { input, name, .. } => name.len() + input.to_string().len(),
             Block::ToolExtra { extra, .. } => extra.to_string().len(),
             Block::ToolResult { content, .. } => content.len(),
+            // A picture counts as about 1 500 tokens, whatever its size in base64.
+            Block::Image { .. } => 6000,
         })
         .sum();
     (chars / 4) as u64

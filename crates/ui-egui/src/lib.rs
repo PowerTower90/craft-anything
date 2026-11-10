@@ -27,6 +27,7 @@ pub mod icons;
 pub mod jobs;
 pub mod just_ask;
 pub mod local_gen_ui;
+pub mod local_model_ui;
 pub mod make;
 pub mod manage;
 #[cfg(target_os = "macos")]
@@ -173,7 +174,13 @@ pub enum Done {
     Detected(Vec<Detected>, Vec<craft_anything_ai::detect::DetectHint>),
     /// The configured backends, the ones chosen to build with and to extract with, and each one's
     /// options.
-    Backends(Vec<BackendConfig>, Option<String>, Option<String>, std::collections::BTreeMap<String, craft_anything_ai::BackendOptions>),
+    Backends(
+        Vec<BackendConfig>,
+        Option<String>,
+        Option<String>,
+        std::collections::BTreeMap<String, craft_anything_ai::BackendOptions>,
+        (Option<String>, Option<String>),
+    ),
     /// The models an AI can be set to (Settings → AI's model picker).
     ModelChoices {
         name: String,
@@ -573,6 +580,14 @@ pub struct CraftApp {
     pub builder: Option<String>,
     /// The backend chosen to take a game's files out in Deep mode, if any.
     pub extractor: Option<String>,
+    /// The Assets role: the one chosen in Settings → AI, and the one doing the work (chosen or
+    /// automatic).
+    pub assets_chosen: Option<String>,
+    pub assets_backend: Option<String>,
+    /// The model servers on this computer (ai_backend_status), once looked at.
+    pub local_models: Option<serde_json::Value>,
+    pub local_models_busy: bool,
+    pub local_models_asked: bool,
     pub detected: Option<Vec<Detected>>,
     /// Why an expected coding agent may be missing, from the last scan.
     pub detect_hints: Vec<craft_anything_ai::detect::DetectHint>,
@@ -709,6 +724,11 @@ impl CraftApp {
             folder_inputs: Default::default(),
             builder: None,
             extractor: None,
+            assets_chosen: None,
+            assets_backend: None,
+            local_models: None,
+            local_models_busy: false,
+            local_models_asked: false,
             detected: None,
             detect_hints: Vec::new(),
             detecting: false,
@@ -1190,6 +1210,9 @@ impl CraftApp {
             ("project_rename" | "project_duplicate" | "project_delete", r) => self.managed(tool, r),
             (craft_anything_engine::tools::inventory_tools::SCAN_TOOL, r) => self.assets_scanned(r),
             ("local_generation_status" | "local_generation_start", r) => self.local_generation_done(tool, r),
+            ("ai_backend_status" | "ai_backend_start" | "project_inventory_render_models" | "project_inventory_sort_with_agent" | "asset_describe", r) => {
+                self.local_model_done(tool, r)
+            }
             // The tool changed the session's plugin list; take it, so saving settings keeps it.
             ("plugins_add" | "plugins_remove", Ok(_)) => {
                 if let Some(s) = self.engine.try_session() {
@@ -1699,7 +1722,9 @@ impl CraftApp {
                 self.log(false, format!("Found {} AI option(s) on this computer", d.len()));
                 self.detected = Some(d);
             }
-            Done::Backends(b, builder, extractor, options) => {
+            Done::Backends(b, builder, extractor, options, (assets_chosen, assets_backend)) => {
+                self.assets_chosen = assets_chosen;
+                self.assets_backend = assets_backend;
                 self.looks.finished(Look::Backends);
                 if self.state.backend.as_ref().is_some_and(|n| !b.iter().any(|c| &c.name == n)) {
                     self.state.backend = None;
@@ -2184,7 +2209,13 @@ pub fn app_icon(size: f32) -> egui::Image<'static> {
 /// Run an action; a panic is logged and swallowed so one bad action never takes the app down.
 /// The configured backends and the ones chosen to build and to extract (read off the UI thread).
 pub(crate) fn backends(hub: &AiHub) -> Done {
-    Done::Backends(hub.backends(), hub.chosen(craft_anything_ai::Role::Builder), hub.chosen(craft_anything_ai::Role::Extractor), hub.options())
+    Done::Backends(
+        hub.backends(),
+        hub.chosen(craft_anything_ai::Role::Builder),
+        hub.chosen(craft_anything_ai::Role::Extractor),
+        hub.options(),
+        (hub.chosen(craft_anything_ai::Role::Assets), hub.assets_backend()),
+    )
 }
 
 impl CraftApp {

@@ -137,6 +137,7 @@ pub fn message_json(m: &Msg) -> Value {
                 Block::RedactedThinking { data } => json!({"type": "redacted_thinking", "data": data}),
                 Block::ToolUse { id, name, input } => json!({"type": "tool_use", "id": id, "name": name, "input": input}),
                 Block::ToolExtra { .. } => return None,
+                Block::Image { media_type, data } => json!({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}}),
                 Block::ToolResult { tool_use_id, content, is_error } => {
                     json!({"type": "tool_result", "tool_use_id": tool_use_id, "content": content, "is_error": is_error})
                 }

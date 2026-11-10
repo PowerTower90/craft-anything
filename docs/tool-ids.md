@@ -11,7 +11,8 @@ form is the CLI command.
   `firmware`, `formats`, `radio`, `packets`, `db`, `assets`, `game`, `project`, `rebuild`, `build`,
   `runtime`, `adb`, `frida`, `engines`, `settings`, `plugins`, `setup`, `local` (generation on
   this computer's graphics cards: `local_generation_status`), `asset` (one asset made locally:
-  `asset_generate_image`; `assets` is the paid provider's) (the list is `registry::AREAS`).
+  `asset_generate_image`; `assets` is the paid provider's), `blender` (headless Blender:
+  `blender_run`, `blender_inspect`, `blender_render`) (the list is `registry::AREAS`).
 - **object**: what it works on, plural for collections (`functions`, `page`, `feed`, `inbox`).
 - **action**: a plain verb (`list`, `show`, `open`, `capture`, `compare`, `start`, `answer`).
 

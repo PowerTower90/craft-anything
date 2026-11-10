@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	Thường là địa chỉ c
 Voices	Giọng nói
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, để nghe âm thanh của bản gốc ở định dạng riêng của trò chơi.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Tạo trên card đồ họa của máy tính này theo phong cách bạn chọn: hình ảnh, mô hình 3D hoàn thiện trong Blender, âm thanh, nhạc và giọng nói.
+Asset work with this	Làm việc tài nguyên bằng cái này
+Blender makes a picture of {n} models, so they show here.	Blender tạo ảnh của {n} mô hình để chúng hiện ở đây.
+Check the local model	Kiểm tra mô hình cục bộ
+Describe them first with the local model	Mô tả trước bằng mô hình cục bộ
+Does the asset work	Làm việc tài nguyên
+Every model has a preview.	Mô hình nào cũng có ảnh xem trước.
+Inspect a model in Blender	Kiểm tra mô hình trong Blender
+Local model: Not running	Mô hình cục bộ: không chạy
+Local model: Running	Mô hình cục bộ: đang chạy
+Local model: checking…	Mô hình cục bộ: đang kiểm tra…
+Local model: not checked	Mô hình cục bộ: chưa kiểm tra
+Render a model preview	Kết xuất ảnh xem trước mô hình
+Render model previews	Kết xuất ảnh xem trước các mô hình
+Run a Blender script	Chạy script Blender
+Set what starts the local model	Đặt thứ khởi động mô hình cục bộ
+Sort the unsorted with the AI	Phân loại phần chưa phân loại bằng AI
+Sorted with {n} new terms: {terms}	Đã phân loại với {n} từ mới: {terms}
+Start command for {name}	Lệnh khởi động cho {name}
+Start command	Lệnh khởi động
+Start the local model	Khởi động mô hình cục bộ
+The AI found nothing it was sure about.	AI không chắc chắn điều gì.
+The AI is sorting them; the counts change when it's done.	AI đang phân loại; con số sẽ đổi khi xong.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	AI làm việc tài nguyên sẽ phân loại (mô hình trên máy này nếu có, không thì trình dựng). Không tốn tiền.
+The local model is running.	Mô hình cục bộ đang chạy.
+The local model was already running.	Mô hình cục bộ đã chạy sẵn.
+a script that starts the server (full path)	script khởi động máy chủ (đường dẫn đầy đủ)
+{made} model previews made, {failed} couldn't be.	Đã tạo {made} ảnh xem trước, {failed} không được.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} xem từng cái và viết nó là gì; trình dựng dùng những từ này thay cho của nó.
+{n} assets described.	Đã mô tả {n} tài nguyên.
+This one describes, sorts and looks at models. Click to choose automatically again.	Cái này mô tả, phân loại và xem mô hình. Nhấn để chọn tự động lại.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Được chọn tự động để mô tả, phân loại và xem mô hình (mô hình trên máy này trước).
+Describe, sort and look at models with this one.	Mô tả, phân loại và xem mô hình bằng cái này.

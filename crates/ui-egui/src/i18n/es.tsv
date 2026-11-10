@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	Normalmente la dirección de
 Voices	Voces
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, para escuchar los sonidos del original en el formato propio de un juego.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Hecho con las tarjetas gráficas de este ordenador en el estilo que elijas: imágenes, modelos 3D terminados en Blender, sonidos, música y voces.
+Asset work with this	Trabajo de assets con este
+Blender makes a picture of {n} models, so they show here.	Blender hace una imagen de {n} modelos para que se vean aquí.
+Check the local model	Comprobar el modelo local
+Describe them first with the local model	Describirlos primero con el modelo local
+Does the asset work	Hace el trabajo de assets
+Every model has a preview.	Todos los modelos tienen vista previa.
+Inspect a model in Blender	Inspeccionar un modelo en Blender
+Local model: Not running	Modelo local: detenido
+Local model: Running	Modelo local: en marcha
+Local model: checking…	Modelo local: comprobando…
+Local model: not checked	Modelo local: sin comprobar
+Render a model preview	Renderizar una vista previa
+Render model previews	Renderizar vistas previas de modelos
+Run a Blender script	Ejecutar un script de Blender
+Set what starts the local model	Definir qué inicia el modelo local
+Sort the unsorted with the AI	Clasificar lo no ordenado con la IA
+Sorted with {n} new terms: {terms}	Clasificado con {n} términos nuevos: {terms}
+Start command for {name}	Comando de inicio de {name}
+Start command	Comando de inicio
+Start the local model	Iniciar el modelo local
+The AI found nothing it was sure about.	La IA no estaba segura de nada.
+The AI is sorting them; the counts change when it's done.	La IA los está clasificando; los números cambian cuando termine.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	La IA que hace el trabajo de assets los clasifica (un modelo en este ordenador si lo hay, si no el constructor). No cuesta dinero.
+The local model is running.	El modelo local está en marcha.
+The local model was already running.	El modelo local ya estaba en marcha.
+a script that starts the server (full path)	un script que inicia el servidor (ruta completa)
+{made} model previews made, {failed} couldn't be.	{made} vistas previas hechas, {failed} no se pudieron.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} mira cada uno y escribe qué es; el constructor usa esas palabras en vez de las suyas.
+{n} assets described.	{n} assets descritos.
+This one describes, sorts and looks at models. Click to choose automatically again.	Este describe, clasifica y examina modelos. Haz clic para volver a elegir automáticamente.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Elegido automáticamente para describir, clasificar y examinar modelos (primero un modelo en este ordenador).
+Describe, sort and look at models with this one.	Describir, clasificar y examinar modelos con este.

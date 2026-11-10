@@ -8,6 +8,7 @@
 
 pub mod agent;
 pub mod anthropic;
+pub mod assets_ai;
 pub mod cli_agents;
 pub mod config;
 pub mod context;
@@ -222,6 +223,9 @@ pub enum Role {
     Builder,
     /// Takes the original game's files out after the study, in Deep mode (only when chosen).
     Extractor,
+    /// Does the light asset work: describing, sorting, looking at models in Blender (a local
+    /// model when one is set up, else the builder).
+    Assets,
 }
 
 /// Something that was found on this machine and can be added with one click.
@@ -372,6 +376,7 @@ pub fn tools() -> Vec<craft_anything_engine::ToolSpec> {
     v.extend(key_tools::specs());
     v.extend(model_tools::specs());
     v.extend(model_options::specs());
+    v.extend(assets_ai::specs());
     v
 }
 
@@ -568,6 +573,31 @@ impl AiHub {
         b.options.command = command.map(str::to_string);
         self.save_config(&cfg)?;
         Ok(true)
+    }
+
+    /// What starts a model server on this computer when it isn't running (`None` or empty: it's
+    /// started by hand). A full path to a script or program. Returns false when there was no such
+    /// backend.
+    pub fn set_start(&self, name: &str, start: Option<&str>) -> Result<bool, ToolError> {
+        let start = start.map(str::trim).filter(|c| !c.is_empty());
+        let mut cfg = self.config_to_change()?;
+        let Some(b) = cfg.backends.iter_mut().find(|b| b.config.name == name) else { return Ok(false) };
+        if start.is_some() && !config::is_local_server(&b.config) {
+            return Err(ToolError::invalid(format!("{name} isn't a model server on this computer, so it can't be started from here.")));
+        }
+        if let Some(s) = start.filter(|s| !std::path::Path::new(s).is_absolute()) {
+            return Err(ToolError::invalid(format!("{s:?} isn't a full path."))
+                .with_remediation("Give the whole path of the script or program that starts the server."));
+        }
+        b.options.start = start.map(str::to_string);
+        self.save_config(&cfg)?;
+        Ok(true)
+    }
+
+    /// The backend doing the asset work: the Assets role's choice, else a model server on this
+    /// computer or its network, else the builder.
+    pub fn assets_backend(&self) -> Option<String> {
+        self.config().backend_for(Role::Assets).map(|b| b.config.name.clone())
     }
 
     /// The folder an agent app keeps its sign-in, settings and sessions in ([`folder_var`]), so

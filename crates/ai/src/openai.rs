@@ -55,6 +55,7 @@ pub const LOCAL_SERVERS: &[(&str, &str)] = &[
     ("Ollama", "http://127.0.0.1:11434/v1"),
     ("LM Studio", "http://127.0.0.1:1234/v1"),
     ("llama.cpp server", "http://127.0.0.1:8080/v1"),
+    ("Local model server on port 8190", "http://127.0.0.1:8190/v1"),
     ("vLLM", "http://127.0.0.1:8000/v1"),
 ];
 
@@ -256,6 +257,7 @@ pub fn messages_json(m: &Msg, react: bool) -> Vec<Value> {
         Speaker::User => {
             let mut out = Vec::new();
             let mut text = String::new();
+            let mut images: Vec<Value> = Vec::new();
             for b in &m.blocks {
                 match b {
                     Block::Text { text: t } => text.push_str(t),
@@ -267,8 +269,18 @@ pub fn messages_json(m: &Msg, react: bool) -> Vec<Value> {
                             out.push(json!({"role": "tool", "tool_call_id": tool_use_id, "content": content}));
                         }
                     }
+                    Block::Image { media_type, data } => {
+                        images.push(json!({"type": "image_url", "image_url": {"url": format!("data:{media_type};base64,{data}")}}));
+                    }
                     _ => {}
                 }
+            }
+            // Pictures go in a user message after the tool results (a tool message holds text only).
+            if !images.is_empty() {
+                let words = if text.is_empty() { "The picture(s) from the tool above:".to_string() } else { std::mem::take(&mut text) };
+                let mut parts = vec![json!({"type": "text", "text": words})];
+                parts.append(&mut images);
+                out.push(json!({"role": "user", "content": parts}));
             }
             if !text.is_empty() {
                 out.push(json!({"role": "user", "content": text}));

@@ -9,6 +9,7 @@ use crate::tool::{CancelToken, Ctx, Effects, Requires, ToolOutput, ToolSpec, Too
 use craft_anything_evidence::{Confidence, Coverage, ErrorCode, Limitation, Location, Subject, ToolError};
 use craft_anything_formats::godot_pck;
 use craft_anything_formats::unity_bundle;
+use craft_anything_formats::unity_mesh;
 use craft_anything_formats::unity_serialized;
 use craft_anything_formats::unity_texture;
 use craft_anything_formats::unreal_iostore;
@@ -825,6 +826,25 @@ pub(crate) fn unity_texture_image(
     let rgba = unity_texture::decode(t.format, t.width, t.height, &pixels).map_err(|e| format_err(e, "a Unity texture's pixels"))?;
     let image = Image { width: t.width, height: t.height, rgba };
     Ok((t, image))
+}
+
+/// A Unity Mesh object as an OBJ file's text, with its triangle count.
+pub(crate) fn unity_mesh_obj(src: &mut Serialized, version: &str, big_endian: bool, object: &unity_serialized::Object) -> Result<(String, usize), ToolError> {
+    if stripped(version) {
+        return Err(ToolError::unsupported("This file doesn't say which Unity version wrote it, so its meshes' layout isn't known."));
+    }
+    let bytes = src.read(object.offset, u64::from(object.size))?;
+    let m = unity_mesh::parse(&bytes, version, big_endian).map_err(|e| format_err(e, "a Unity mesh"))?;
+    let data = match (&m.inline, &m.stream) {
+        (Some((start, len)), _) => bytes.get(*start..start.saturating_add(*len)).map(<[u8]>::to_vec).unwrap_or_default(),
+        (None, Some(s)) => src.stream(&s.path, s.offset, u64::from(s.size))?,
+        (None, None) => Vec::new(),
+    };
+    let g = unity_mesh::decode(&m, &data, big_endian).map_err(|e| format_err(e, "a Unity mesh's vertices"))?;
+    if g.triangles() == 0 {
+        return Err(ToolError::unsupported(format!("{} has no triangles (lines, points, or filled in while the game runs).", m.name)));
+    }
+    Ok((unity_mesh::to_obj(&g, &m.name), g.triangles()))
 }
 
 fn game_unity_asset_export(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {

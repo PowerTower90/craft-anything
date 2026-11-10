@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	보통 3D 서버의 주소: 
 Voices	목소리
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, 게임 고유 형식으로 된 원본의 소리를 듣기 위한 도구.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	이 컴퓨터의 그래픽 카드로 고른 스타일에 맞춰 만듭니다: 그림, Blender에서 마무리한 3D 모델, 소리, 음악, 목소리.
+Asset work with this	이것으로 에셋 작업
+Blender makes a picture of {n} models, so they show here.	Blender가 모델 {n}개의 그림을 만들어 여기에 보여 줍니다.
+Check the local model	로컬 모델 확인
+Describe them first with the local model	먼저 로컬 모델로 설명하기
+Does the asset work	에셋 작업 담당
+Every model has a preview.	모든 모델에 미리 보기가 있습니다.
+Inspect a model in Blender	Blender에서 모델 살펴보기
+Local model: Not running	로컬 모델: 실행 안 됨
+Local model: Running	로컬 모델: 실행 중
+Local model: checking…	로컬 모델: 확인 중…
+Local model: not checked	로컬 모델: 확인 안 함
+Render a model preview	모델 미리 보기 렌더링
+Render model previews	모델 미리 보기 렌더링
+Run a Blender script	Blender 스크립트 실행
+Set what starts the local model	로컬 모델을 시작하는 것 설정
+Sort the unsorted with the AI	AI로 미분류 항목 분류
+Sorted with {n} new terms: {terms}	새 용어 {n}개로 분류함: {terms}
+Start command for {name}	{name} 시작 명령
+Start command	시작 명령
+Start the local model	로컬 모델 시작
+The AI found nothing it was sure about.	AI가 확신한 것이 없습니다.
+The AI is sorting them; the counts change when it's done.	AI가 분류하는 중입니다. 끝나면 숫자가 바뀝니다.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	에셋 작업을 하는 AI가 분류합니다(이 컴퓨터에 모델이 있으면 그 모델, 없으면 빌더). 비용은 들지 않습니다.
+The local model is running.	로컬 모델이 실행 중입니다.
+The local model was already running.	로컬 모델이 이미 실행 중이었습니다.
+a script that starts the server (full path)	서버를 시작하는 스크립트(전체 경로)
+{made} model previews made, {failed} couldn't be.	모델 미리 보기 {made}개 생성, {failed}개 실패.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name}이(가) 각각을 보고 무엇인지 씁니다. 빌더는 자기 말 대신 이 설명을 씁니다.
+{n} assets described.	에셋 {n}개를 설명했습니다.
+This one describes, sorts and looks at models. Click to choose automatically again.	이것이 모델을 설명·분류·검토합니다. 클릭하면 다시 자동으로 고릅니다.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	모델 설명·분류·검토용으로 자동 선택됨(이 컴퓨터의 모델이 먼저).
+Describe, sort and look at models with this one.	이것으로 모델을 설명·분류·검토합니다.

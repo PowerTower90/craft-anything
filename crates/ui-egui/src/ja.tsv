@@ -1103,3 +1103,35 @@ Usually the 3D server's address: it starts with it.	通常は 3D サーバーの
 Voices	音声
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli。ゲーム独自の形式になっている原作の音を聴くためのものです。
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	このコンピューターのグラフィックカードで、選んだスタイルで作ります：画像、Blender で仕上げた 3D モデル、効果音、音楽、音声。
+Asset work with this	これで素材作業
+Blender makes a picture of {n} models, so they show here.	Blender が {n} 個のモデルの画像を作り、ここに表示します。
+Check the local model	ローカルモデルを確認
+Describe them first with the local model	まずローカルモデルで説明する
+Does the asset work	素材作業を担当
+Every model has a preview.	すべてのモデルにプレビューがあります。
+Inspect a model in Blender	Blender でモデルを調べる
+Local model: Not running	ローカルモデル：停止中
+Local model: Running	ローカルモデル：実行中
+Local model: checking…	ローカルモデル：確認中…
+Local model: not checked	ローカルモデル：未確認
+Render a model preview	モデルのプレビューをレンダリング
+Render model previews	モデルのプレビューをレンダリング
+Run a Blender script	Blender スクリプトを実行
+Set what starts the local model	ローカルモデルを起動するものを設定
+Sort the unsorted with the AI	未分類を AI で分類
+Sorted with {n} new terms: {terms}	{n} 個の新しい語で分類しました：{terms}
+Start command for {name}	{name} の起動コマンド
+Start command	起動コマンド
+Start the local model	ローカルモデルを起動
+The AI found nothing it was sure about.	AI が確信できたものはありませんでした。
+The AI is sorting them; the counts change when it's done.	AI が分類中です。終わると数が変わります。
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	素材作業を担当する AI が分類します（このコンピューターにモデルがあればそれ、なければビルダー）。費用はかかりません。
+The local model is running.	ローカルモデルは実行中です。
+The local model was already running.	ローカルモデルはすでに実行中でした。
+a script that starts the server (full path)	サーバーを起動するスクリプト（フルパス）
+{made} model previews made, {failed} couldn't be.	モデルのプレビューを {made} 個作成、{failed} 個は作れませんでした。
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} が一つずつ見て何かを書きます。ビルダーは自分の言葉の代わりにそれを使います。
+{n} assets described.	{n} 個の素材を説明しました。
+This one describes, sorts and looks at models. Click to choose automatically again.	これがモデルを説明・分類・確認します。クリックすると自動選択に戻ります。
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	モデルの説明・分類・確認のために自動で選ばれました（このコンピューターのモデルが優先）。
+Describe, sort and look at models with this one.	これでモデルを説明・分類・確認します。

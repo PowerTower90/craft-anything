@@ -85,6 +85,12 @@ pub enum AiCommand {
     /// Choose the backend that takes a game's own files out after the study, in Deep mode (an API
     /// backend such as Kimi K3 through OpenRouter; leave the name out to turn it off).
     Extractor { name: Option<String> },
+    /// Choose the backend that does the asset work: describing, sorting, looking at models (leave
+    /// the name out to go back to automatic: a model on this computer, else the builder).
+    Assets { name: Option<String> },
+    /// What starts a model server on this computer when it isn't running (leave the path out to
+    /// start it by hand).
+    Start { name: String, path: Option<String> },
 }
 
 fn hub(cli: &Cli) -> Result<AiHub, ToolError> {
@@ -370,6 +376,21 @@ pub fn ai(cli: &Cli, c: &AiCommand, f: Format) -> u8 {
                 emit(&json!({"builder": name}), f);
                 0
             }
+            Err(e) => fail(&e, f),
+        },
+        AiCommand::Assets { name } => match hub.set_role(craft_anything_ai::Role::Assets, name.as_deref()) {
+            Ok(()) => {
+                emit(&json!({"assets": name, "doing_the_asset_work": hub.assets_backend()}), f);
+                0
+            }
+            Err(e) => fail(&e, f),
+        },
+        AiCommand::Start { name, path } => match hub.set_start(name, path.as_deref()) {
+            Ok(true) => {
+                emit(&json!({"name": name, "start": path}), f);
+                0
+            }
+            Ok(false) => fail(&ToolError::invalid(format!("No AI backend named {name:?}")), f),
             Err(e) => fail(&e, f),
         },
         AiCommand::Extractor { name } => match hub.set_role(craft_anything_ai::Role::Extractor, name.as_deref()) {

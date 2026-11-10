@@ -1673,3 +1673,35 @@ Usually the 3D server's address: it starts with it.	Obvykle adresa 3D serveru: s
 Voices	Hlasy
 vgmstream-cli, to listen to the original's sounds in a game's own format.	vgmstream-cli, k poslechu zvuků originálu ve vlastním formátu hry.
 Made on this computer's graphics cards in the style you choose: pictures, 3D models finished in Blender, sounds, music and voices.	Vytvořeno na grafických kartách tohoto počítače ve zvoleném stylu: obrázky, 3D modely dokončené v Blenderu, zvuky, hudba a hlasy.
+Asset work with this	Práce s assety tímto
+Blender makes a picture of {n} models, so they show here.	Blender vytvoří obrázek {n} modelů, aby se tu zobrazily.
+Check the local model	Zkontrolovat místní model
+Describe them first with the local model	Nejdřív je popsat místním modelem
+Does the asset work	Dělá práci s assety
+Every model has a preview.	Každý model má náhled.
+Inspect a model in Blender	Prozkoumat model v Blenderu
+Local model: Not running	Místní model: neběží
+Local model: Running	Místní model: běží
+Local model: checking…	Místní model: kontroluje se…
+Local model: not checked	Místní model: nezkontrolováno
+Render a model preview	Vykreslit náhled modelu
+Render model previews	Vykreslit náhledy modelů
+Run a Blender script	Spustit skript Blenderu
+Set what starts the local model	Nastavit, co spouští místní model
+Sort the unsorted with the AI	Roztřídit neroztříděné s AI
+Sorted with {n} new terms: {terms}	Roztříděno s {n} novými výrazy: {terms}
+Start command for {name}	Spouštěcí příkaz pro {name}
+Start command	Spouštěcí příkaz
+Start the local model	Spustit místní model
+The AI found nothing it was sure about.	AI si nebyla ničím jistá.
+The AI is sorting them; the counts change when it's done.	AI je třídí; čísla se změní, až skončí.
+The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money.	AI pro práci s assety je roztřídí (model na tomto počítači, pokud je, jinak stavitel). Nic to nestojí.
+The local model is running.	Místní model běží.
+The local model was already running.	Místní model už běžel.
+a script that starts the server (full path)	skript, který spouští server (celá cesta)
+{made} model previews made, {failed} couldn't be.	Vytvořeno {made} náhledů modelů, {failed} nešlo.
+{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.	{name} si každý prohlédne a napíše, co to je; stavitel použije tato slova místo svých.
+{n} assets described.	Popsáno {n} assetů.
+This one describes, sorts and looks at models. Click to choose automatically again.	Tento popisuje, třídí a prohlíží modely. Kliknutím zvolíte znovu automaticky.
+Chosen automatically to describe, sort and look at models (a model on this computer comes first).	Zvolen automaticky k popisu, třídění a prohlížení modelů (nejdřív model na tomto počítači).
+Describe, sort and look at models with this one.	Popisovat, třídit a prohlížet modely tímto.

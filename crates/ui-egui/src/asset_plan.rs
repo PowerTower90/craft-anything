@@ -90,6 +90,9 @@ pub struct PlanState {
     pub starting: bool,
     /// The style for local AI: a preset or the person's own words.
     pub style: String,
+    /// Describe the items with the Assets AI before the rebuild starts (asset_describe), so the
+    /// builder uses those descriptions.
+    pub describe_first: bool,
 }
 
 fn call(engine: &Engine, tool: &str, params: Value, job: &crate::jobs::JobCtx) -> Result<Value, ToolError> {
@@ -101,7 +104,8 @@ impl CraftApp {
     /// Show the plan for rebuilding a category of the open project's assets, or items by id.
     pub fn open_rebuild_plan(&mut self, category: Option<Category>, ids: Vec<String>) {
         let Some(root) = self.workspace.as_ref().map(|w| w.root.clone()) else { return };
-        self.assets.plan = Some(PlanState { root, category, ids, ..Default::default() });
+        let describe_first = self.local_assets_ready();
+        self.assets.plan = Some(PlanState { root, category, ids, describe_first, ..Default::default() });
         self.load_rebuild_plan();
     }
 
@@ -134,8 +138,18 @@ impl CraftApp {
         p.starting = true;
         let style = Some(p.style.trim()).filter(|s| !s.is_empty());
         let params = json!({"project": p.root, "category": p.category, "ids": p.ids, "methods": p.methods, "style": style, "send": false});
+        let describe = p.describe_first.then(|| json!({"project": p.root, "category": p.category, "ids": p.ids, "limit": 5000}));
         let (engine, root) = (self.engine.clone(), p.root.clone());
         self.jobs.spawn(tr("Start a rebuild"), true, move |j| {
+            // Described first, so the list the builder gets has the descriptions; a description
+            // that fails leaves that item to the builder.
+            if let Some(d) = describe {
+                let progress = j.reporter();
+                let opts = CallOptions::new(Caller::Ui).with_consent(Consent::Granted).with_cancel(j.cancel.clone()).with_progress(&progress);
+                if let Err(e) = engine.call("asset_describe", d, opts) {
+                    log::warn!("describing before the rebuild failed: {}", e.message);
+                }
+            }
             let result = call(&engine, "project_inventory_rebuild", params, j);
             Ok(Done::AssetRebuildStarted { root, result })
         });
@@ -154,9 +168,16 @@ impl CraftApp {
         });
     }
 
-    /// Ask the project's builder to sort the Unsorted assets with the sorting tools ([`SORT_BRIEF`]).
+    /// Sort the Unsorted assets with the Assets AI: an API backend (a local model) proposes terms
+    /// itself (project_inventory_sort_with_agent); the builder gets the sorting brief ([`SORT_BRIEF`]).
     pub fn sort_unsorted_with_agent(&mut self) {
         let Some(root) = self.workspace.as_ref().map(|w| w.root.clone()) else { return };
+        let api =
+            self.assets_backend.as_ref().is_some_and(|n| self.backends.iter().any(|b| &b.name == n && b.kind != craft_anything_ai::BackendKind::AgentCli));
+        if api {
+            self.act("project_inventory_sort_with_agent", json!({"project": root}), tr("Sort the unsorted with the AI"));
+            return self.toast(tr("The AI is sorting them; the counts change when it's done."), false);
+        }
         self.deliver(root, SORT_BRIEF.to_string(), Vec::new(), Ok(Vec::new()));
         self.toast(tr("Sent to the builder. Its sorting shows here as it goes."), false);
     }
@@ -272,10 +293,22 @@ pub fn category_list(app: &mut CraftApp, ui: &mut Ui) {
     }
     if app.assets.category_count(Category::Unsorted) > 0
         && widgets::secondary(ui, Some("sparkles"), "Sort the unsorted with the agent")
-            .on_hover_text(tr("The builder sorts them with the sorting tools. It costs no money: your coding agent's plan covers it."))
+            .on_hover_text(tr("The AI that does the asset work sorts them (a model on this computer when there is one, else the builder). It costs no money."))
             .clicked()
     {
         app.sort_unsorted_with_agent();
+    }
+    // Models with a file and no picture yet: Blender renders them, so the gallery shows them.
+    let unrendered = app.assets.items.iter().filter(|i| i.kind == Kind::Model && i.path.is_some() && i.thumb.is_none()).count();
+    if unrendered > 0 {
+        if app.assets.rendering {
+            ui.add(widgets::Spinner::new().size(14.0).color(t.accent));
+        } else if widgets::secondary(ui, Some("box"), "Render model previews")
+            .on_hover_text(trf("Blender makes a picture of {n} models, so they show here.", &[("n", &count(unrendered as u64))]))
+            .clicked()
+        {
+            app.render_model_previews();
+        }
     }
     if let Some(c) = pick {
         app.assets.category = if app.assets.category == Some(c) { None } else { Some(c) };
@@ -424,6 +457,8 @@ fn style_picker(ui: &mut Ui, style: &mut String) {
 pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
     let Some(plan) = app.assets.plan.clone() else { return };
     let mut style = plan.style.clone();
+    let mut describe_first = plan.describe_first;
+    let assets_ai = app.assets_backend.clone();
     let t = Tokens::get(ctx);
     let mut close = false;
     let mut choose: Option<(Kind, String)> = None;
@@ -484,6 +519,13 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
                     if view.uses_local_ai {
                         style_picker(ui, &mut style);
                     }
+                    if let Some(name) = assets_ai.as_deref().filter(|_| view.rows.iter().any(|r| r.method != "keep")) {
+                        ui.add_space(6.0);
+                        ui.checkbox(&mut describe_first, tr("Describe them first with the local model")).on_hover_text(trf(
+                            "{name} looks at each one and writes what it is; the builder uses those words instead of writing its own.",
+                            &[("name", name)],
+                        ));
+                    }
                     let kept: usize = view.rows.iter().filter(|r| r.method == "keep" || !r.available).map(|r| r.count).sum();
                     if kept > 0 {
                         ui.label(
@@ -513,6 +555,9 @@ pub fn plan_modal(app: &mut CraftApp, ctx: &egui::Context) {
     }
     if let Some(p) = app.assets.plan.as_mut().filter(|p| p.style != style) {
         p.style = style;
+    }
+    if let Some(p) = app.assets.plan.as_mut() {
+        p.describe_first = describe_first;
     }
     if let Some((kind, method)) = choose {
         app.choose_rebuild_method(kind, &method);

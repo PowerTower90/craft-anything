@@ -203,7 +203,8 @@ fn the_original_unity_games_assets_are_taken_out_once() {
     let click = std::fs::read(ws.root.join(list("Click")["path"].as_str().unwrap())).unwrap();
     assert_eq!(click, fsb5(15), "the clip's own bytes of the resource");
     let drill = list("Drill");
-    assert!(drill["path"].is_null() && drill["detail"].as_str().unwrap().contains("Mesh"), "{drill}");
+    // A mesh is taken out as OBJ when its layout is read; this made-up one isn't a real mesh.
+    assert!(drill["path"].is_null() && drill["problem"].as_str().unwrap().contains("mesh"), "{drill}");
     let fancy = list("Fancy");
     assert!(fancy["path"].is_null() && fancy["problem"].as_str().unwrap().contains("Crunched"), "a texture that can't be decoded is listed with why: {fancy}");
     let beep = list("beep.wav");

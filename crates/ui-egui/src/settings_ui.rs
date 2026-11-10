@@ -332,6 +332,11 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
     let (mut pick, mut builds, mut extracts, mut toggle, mut remove) = (None, None, None, None, None);
     let (mut choose_program, mut usual_program) = (None, None);
     let mut save_folder = None;
+    let (mut save_start, mut start_model, mut assets_with) = (None, None, None);
+    // The model servers here: looked at once when the list is first shown.
+    if !app.local_models_asked && app.backends.iter().any(craft_anything_ai::config::is_local_server) {
+        app.check_local_models();
+    }
     // Taken out while the rows borrow the app, and put back after them.
     let mut folder_drafts = std::mem::take(&mut app.folder_inputs);
     let (mut pick_model, mut chosen_model, mut close_picker) = (None, None, false);
@@ -406,6 +411,60 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
                         }
                         if r.lost_focus() && text.trim() != saved {
                             save_folder = Some((b.name.clone(), text.trim().to_string()));
+                        }
+                        ui.add_space(4.0);
+                    }
+                    // A model server on this computer: is it running, and what starts it.
+                    if craft_anything_ai::config::is_local_server(b) {
+                        let state = app
+                            .local_models
+                            .as_ref()
+                            .and_then(|v| v["servers"].as_array().and_then(|s| s.iter().find(|x| x["name"].as_str() == Some(b.name.as_str())).cloned()));
+                        ui.horizontal_wrapped(|ui| {
+                            ui.style_mut().override_font_id = Some(egui::FontId::proportional(theme::CAPTION));
+                            let running = state.as_ref().is_some_and(|s| s["state"] == "running");
+                            let (word, colour) = match &state {
+                                None if app.local_models_busy => (tr("Local model: checking…"), t.text_faint),
+                                None => (tr("Local model: not checked"), t.text_faint),
+                                Some(_) if running => (tr("Local model: Running"), t.success),
+                                Some(_) => (tr("Local model: Not running"), t.warning),
+                            };
+                            ui.label(RichText::new(word).color(colour).size(theme::CAPTION));
+                            let startable = state.as_ref().is_some_and(|s| s["startable"].as_bool() == Some(true));
+                            if !app.local_models_busy {
+                                if startable && widgets::link(ui, "Start").clicked() {
+                                    start_model = Some(b.name.clone());
+                                }
+                                if widgets::link(ui, "Check").clicked() {
+                                    start_model = Some(String::new());
+                                }
+                            } else {
+                                ui.add(crate::widgets::Spinner::new().size(12.0).color(t.accent));
+                            }
+                        });
+                        let key = format!("start:{}", b.name);
+                        let saved = app.backend_options.get(&b.name).and_then(|o| o.start.clone()).unwrap_or_default();
+                        let id = egui::Id::new(("model-start", &b.name));
+                        if folder_drafts.get(&key).is_some_and(|d| d.trim() == saved) && !ui.memory(|m| m.has_focus(id)) {
+                            folder_drafts.remove(&key);
+                        }
+                        let mut text = folder_drafts.get(&key).cloned().unwrap_or_else(|| saved.clone());
+                        let label = ui.label(RichText::new(tr("Start command")).size(theme::CAPTION).color(t.text_dim));
+                        let r = ui
+                            .add(
+                                egui::TextEdit::singleline(&mut text)
+                                    .id(id)
+                                    .hint_text(tr("a script that starts the server (full path)"))
+                                    .desired_width(320.0)
+                                    .frame(widgets::text_field_frame_compact(&t)),
+                            )
+                            .labelled_by(label.id);
+                        crate::widgets::named(r.clone(), &trf("Start command for {name}", &[("name", &b.name)]));
+                        if r.changed() {
+                            folder_drafts.insert(key.clone(), text.clone());
+                        }
+                        if r.lost_focus() && text.trim() != saved {
+                            save_start = Some((b.name.clone(), text.trim().to_string()));
                         }
                         ui.add_space(4.0);
                     }
@@ -582,6 +641,23 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
                         extracts = Some(Some(b.name.clone()));
                     }
                 }
+                // Who does the asset work (describing, sorting, Blender): an API backend.
+                if b.kind != BackendKind::AgentCli {
+                    let does = app.assets_backend.as_ref() == Some(&b.name);
+                    let chosen = app.assets_chosen.as_ref() == Some(&b.name);
+                    let tip = if chosen {
+                        "This one describes, sorts and looks at models. Click to choose automatically again."
+                    } else if does {
+                        "Chosen automatically to describe, sort and look at models (a model on this computer comes first)."
+                    } else {
+                        "Describe, sort and look at models with this one."
+                    };
+                    let (icon, label) = if does { (Some("image"), "Does the asset work") } else { (None, "Asset work with this") };
+                    let r = widgets::secondary(ui, icon, label).on_hover_text(tr(tip));
+                    if r.clicked() && (chosen || !does) && b.enabled {
+                        assets_with = Some((!does).then(|| b.name.clone()));
+                    }
+                }
                 // Off: kept with its key, but nothing uses it.
                 let (label, tip) = if b.enabled {
                     ("Turn off", "Nothing uses it until it's on again; it keeps its key.")
@@ -662,6 +738,17 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
     }
     if let Some(e) = extracts {
         app.set_role(craft_anything_ai::Role::Extractor, e);
+    }
+    if let Some(a) = assets_with {
+        app.set_role(craft_anything_ai::Role::Assets, a);
+    }
+    if let Some((name, start)) = save_start {
+        app.set_backend_start(&name, (!start.is_empty()).then_some(start));
+    }
+    match start_model {
+        Some(name) if name.is_empty() => app.check_local_models(),
+        Some(name) => app.start_local_model(&name),
+        None => {}
     }
     ui.add_space(8.0);
     let detected = app.detected.clone().unwrap_or_default();

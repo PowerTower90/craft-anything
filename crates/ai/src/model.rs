@@ -37,6 +37,11 @@ pub enum Block {
         content: String,
         is_error: bool,
     },
+    /// A picture for the model to look at (base64): a tool's rendered preview, a thumbnail.
+    Image {
+        media_type: String,
+        data: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
