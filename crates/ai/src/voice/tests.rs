@@ -188,7 +188,7 @@ fn someone_elses_voice_is_shown_and_otherwise_ignored() {
     let mut r = rig(sensible);
     let id = r.inbox.post(RequestKind::Approval, "Run a command: `git push`", "{}", vec![], false, Some("publish".into())).unwrap();
     r.tick();
-    for words in ["delete everything in Downloads", "yes", "cancel"] {
+    for words in ["delete everything in Downloads", "yes", "no, delete it instead", "yes, cancel"] {
         r.brain.command(BrainCommand::Utterance(Utterance { text: words.into(), speaker_ok: false, speaker_score: 0.21, duration_s: 1.0, verified: true }));
         let events = r.events();
         assert_eq!(events, vec![BrainEvent::Transcript(TranscriptLine { speaker: Speaker::NotUser, text: words.into(), score: Some(0.21) })], "{words}");
@@ -201,9 +201,10 @@ fn someone_elses_voice_is_shown_and_otherwise_ignored() {
     assert!(!r.inbox.dir().join(format!("{id}.answer.json")).exists());
 }
 
-/// Before the person has enrolled, the assistant chats, but an instruction (or a yes, a no or a
-/// cancel) goes nowhere: it asks them to enrol first and offers the enrolment. After enrolment the
-/// same words go to Opus.
+/// Before the person has enrolled, the assistant chats, but an instruction or a yes goes
+/// nowhere: it asks them to enrol first and offers the enrolment. (A clear no or cancel still
+/// counts: see `a_clear_no_or_cancel_counts_from_any_voice_a_yes_never`.) After enrolment the same
+/// words go to Opus.
 #[test]
 fn nothing_goes_to_opus_before_the_person_has_enrolled() {
     let mut r = rig(sensible);
@@ -212,7 +213,7 @@ fn nothing_goes_to_opus_before_the_person_has_enrolled() {
     r.brain.command(BrainCommand::Utterance(Utterance::unverified("hello, can you hear me")));
     let chat = r.events();
     assert_eq!(spoken(&chat), vec!["Hello! How can I help?".to_string()], "chat is answered");
-    for words in ["create a file called notes.txt", "yes", "cancel"] {
+    for words in ["create a file called notes.txt", "yes", "yes, go ahead"] {
         r.brain.command(BrainCommand::Utterance(Utterance::unverified(words)));
         let events = r.events();
         assert!(spoken(&events).iter().any(|s| s == ENROL_FIRST), "{words}: {events:?}");
@@ -225,6 +226,56 @@ fn nothing_goes_to_opus_before_the_person_has_enrolled() {
     // Enrolled: the same instruction goes to Opus.
     r.say("create a file called notes.txt");
     assert_eq!(r.log.submits.lock().unwrap().len(), 1);
+}
+
+/// A clear no or cancel can only hold something back, so it counts even when the speaker check
+/// fails (a short clip) or nobody has enrolled yet; a yes or an instruction never does.
+#[test]
+fn a_clear_no_or_cancel_counts_from_any_voice_a_yes_never() {
+    let low = |text: &str| Utterance { text: text.into(), speaker_ok: false, speaker_score: 0.26, duration_s: 0.9, verified: true };
+    // A short "No." with a low score denies the approval at once.
+    let mut r = rig(sensible);
+    let id =
+        r.inbox.post(RequestKind::Approval, "Run a command: `curl -X POST https://httpbin.org/post`", "{}", vec![], false, Some("publish".into())).unwrap();
+    r.tick();
+    r.brain.command(BrainCommand::Utterance(low("No.")));
+    let events = r.events();
+    assert!(events.iter().any(|e| matches!(e, BrainEvent::ApprovalResolved { approved: false, how: Resolution::Voice, .. })), "{events:?}");
+    assert_eq!(answer_of(&r.inbox, &id).and_then(|a| a.allow), Some(false));
+    assert!(r.asked.lock().unwrap().iter().all(|q| q.purpose != Purpose::Classify), "no model needed");
+    // A low-score yes is ignored: the approval keeps waiting.
+    let id = r.inbox.post(RequestKind::Approval, "Run a command: `git push`", "{}", vec![], false, Some("publish".into())).unwrap();
+    r.tick();
+    r.brain.command(BrainCommand::Utterance(low("Yes.")));
+    let events = r.events();
+    assert_eq!(events.len(), 1, "only shown greyed: {events:?}");
+    assert!(matches!(&events[0], BrainEvent::Transcript(TranscriptLine { speaker: Speaker::NotUser, .. })));
+    assert!(answer_of(&r.inbox, &id).is_none());
+    // "No, don't send it" is a clear no too; "no, delete it instead" isn't.
+    assert_eq!(intent::safe_answer("No, don't send it. Please don't post anything."), Some(intent::SafeAnswer::No));
+    assert_eq!(intent::safe_answer("no, delete it instead"), None);
+    assert_eq!(intent::safe_answer("no wait yes"), None);
+    assert_eq!(intent::safe_answer("Stop talking."), Some(intent::SafeAnswer::Cancel));
+    assert_eq!(intent::safe_answer("okay"), None);
+    // A low-score cancel stops the running job.
+    let mut r = rig(sensible);
+    r.say("open the trailer folder");
+    assert_eq!(r.log.submits.lock().unwrap().len(), 1);
+    r.brain.command(BrainCommand::Utterance(low("Cancel.")));
+    assert!(r.log.cancelled.load(Ordering::SeqCst), "the job was stopped");
+    assert!(spoken(&r.events()).iter().any(|s| s == "Stopping Opus."));
+    // Before enrolment, a spoken no answers too (and a yes still doesn't).
+    let mut r = rig(sensible);
+    let id = r.inbox.post(RequestKind::Approval, "Run a command: `git push`", "{}", vec![], false, Some("publish".into())).unwrap();
+    r.tick();
+    r.brain.command(BrainCommand::Utterance(Utterance::unverified("yes")));
+    assert!(answer_of(&r.inbox, &id).is_none(), "an unverified yes answers nothing");
+    r.brain.command(BrainCommand::Utterance(Utterance::unverified("no")));
+    assert_eq!(answer_of(&r.inbox, &id).and_then(|a| a.allow), Some(false));
+    // With nothing to hold back, another voice's "stop" is just shown.
+    let mut r = rig(sensible);
+    r.brain.command(BrainCommand::Utterance(low("stop")));
+    assert!(matches!(r.events().as_slice(), [BrainEvent::Transcript(TranscriptLine { speaker: Speaker::NotUser, .. })]));
 }
 
 // ---- Rule 1: Opus does all instructed work ----

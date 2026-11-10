@@ -212,6 +212,90 @@ pub fn is_affirmative(text: &str) -> bool {
     yes && !negated
 }
 
+/// A safe answer: one that can only hold something back, so it's taken from any voice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SafeAnswer {
+    /// No to what waits (an approval, a question).
+    No,
+    /// Stop the running job (and say no to what waits).
+    Cancel,
+}
+
+/// Words that may come before or after a clear no or stop without changing it.
+const SAFE_FILLER: &[&str] = &[
+    "please",
+    "thanks",
+    "thank",
+    "you",
+    "it",
+    "that",
+    "this",
+    "the",
+    "now",
+    "right",
+    "for",
+    "just",
+    "job",
+    "task",
+    "opus",
+    "claude",
+    "craft",
+    "talking",
+    "speaking",
+    "everything",
+    "anything",
+    "all",
+    "of",
+    "send",
+    "post",
+    "do",
+    "go",
+    "ahead",
+    "with",
+    "don't",
+    "dont",
+    "not",
+    "no",
+    "nope",
+    "nah",
+    "stop",
+    "cancel",
+    "abort",
+    "halt",
+    "never",
+    "mind",
+    "never-mind",
+    "i",
+    "said",
+    "deny",
+    "denied",
+    "negative",
+    "way",
+    "wait",
+];
+
+/// Whether `text` is clearly a no, or clearly a cancel or stop, and nothing else: the
+/// negative counterpart of [`is_affirmative`]. It must start with a no word (no, nope, nah,
+/// don't, deny, never, negative) or a stop word (cancel, stop, abort, halt), carry no yes word,
+/// and every other word must be one that can't turn it into a request ("no, don't send it"
+/// is a no; "no, delete it instead" isn't). Safe answers are taken even when the speaker check
+/// fails or there's no enrolled voice yet: they can only hold something back.
+pub fn safe_answer(text: &str) -> Option<SafeAnswer> {
+    let w = words(text);
+    let first = w.first()?.as_str();
+    // Whole words only: "please don't" isn't "please do".
+    let padded = format!(" {} ", w.join(" "));
+    let yes = YES.iter().any(|y| padded.contains(&format!(" {y} ")));
+    if yes || !w.iter().all(|x| SAFE_FILLER.contains(&x.as_str())) {
+        return None;
+    }
+    match first {
+        "no" | "nope" | "nah" | "don't" | "dont" | "deny" | "denied" | "never" | "negative" => Some(SafeAnswer::No),
+        "cancel" | "stop" | "abort" | "halt" => Some(SafeAnswer::Cancel),
+        _ => None,
+    }
+}
+
 const ACTION_WORDS: &[&str] = &[
     "open", "close", "start", "launch", "run", "make", "create", "build", "write", "edit", "change", "fix", "delete", "remove", "move", "copy", "rename",
     "find", "search", "look", "show", "download", "install", "update", "post", "send", "upload", "publish", "buy", "order", "play", "render", "generate",

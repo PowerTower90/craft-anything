@@ -204,10 +204,19 @@ impl Brain {
         self.publish_status();
     }
 
-    /// One utterance. Someone else's voice is shown and nothing more: no model, no job.
+    /// One utterance. Someone else's voice is shown and nothing more: no model, no job. A clear
+    /// no, cancel or stop is the exception ([`intent::safe_answer`]): it can only hold something
+    /// back, so it counts from any voice, before enrolment too, and when a short clip leaves the
+    /// speaker check unsure.
     fn utterance(&mut self, u: Utterance) {
         let text = u.text.trim().to_string();
         if text.is_empty() {
+            return;
+        }
+        if (!u.speaker_ok || !u.verified)
+            && let Some(safe) = intent::safe_answer(&text)
+            && self.take_safe_answer(&text, safe, u.speaker_score)
+        {
             return;
         }
         if !u.speaker_ok {
@@ -361,6 +370,35 @@ impl Brain {
                 self.line(Speaker::Notice, &e.for_people(), None);
                 self.say(&format!("Opus couldn't start: {}", intent::spoken(&e.message, 1, 200)));
             }
+        }
+    }
+
+    /// A safe answer from a voice that isn't (or can't yet be) checked: a no to the first thing
+    /// waiting, or a cancel of the job. False when there's nothing for it to act on, so it's
+    /// treated like any other utterance.
+    fn take_safe_answer(&mut self, text: &str, safe: intent::SafeAnswer, score: f32) -> bool {
+        let working = self.job.is_some() || !self.queue.is_empty() || self.exec.is_busy();
+        let first = self.prompts.first().cloned();
+        match (safe, first) {
+            (intent::SafeAnswer::No, Some(p)) => {
+                self.line(Speaker::User, text, Some(score));
+                self.remember(format!("User: {text}"));
+                let answer = match p.kind {
+                    PromptKind::Question => {
+                        Some(p.choices.iter().find(|c| intent::safe_answer(c) == Some(intent::SafeAnswer::No)).cloned().unwrap_or_else(|| text.to_string()))
+                    }
+                    PromptKind::Approval => Some(format!("said no by voice: {text}")),
+                };
+                self.resolve(&p.id, false, answer, Resolution::Voice);
+                true
+            }
+            (intent::SafeAnswer::Cancel, _) if working || !self.prompts.is_empty() => {
+                self.line(Speaker::User, text, Some(score));
+                self.remember(format!("User: {text}"));
+                self.cancel(true);
+                true
+            }
+            _ => false,
         }
     }
 
