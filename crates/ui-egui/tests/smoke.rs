@@ -4184,3 +4184,43 @@ fn the_plan_asks_for_a_style_when_local_ai_makes_something() {
     assert_eq!(h.state().assets.plan.as_ref().map(|p| p.style.as_str()), Some("Pixel art, chunky outlines"));
     h.get_by_label_contains("set it up in Settings → Local generation");
 }
+
+#[test]
+fn the_console_keeps_the_size_it_is_dragged_to_with_a_project_open() {
+    let d = tempfile::tempdir().unwrap();
+    let ws = asset_project(d.path());
+    let mut h = Harness::builder().with_size(egui::vec2(1600.0, 1000.0)).with_step_dt(1.0 / 60.0).with_max_steps(64).build_eframe(move |cc| {
+        CraftApp::setup_context(&cc.egui_ctx);
+        let mut a = demo::app(demo::engine(Mode::Experienced, true));
+        demo::deep(&mut a);
+        a.open_workspace(ws);
+        a.open_asset_gallery();
+        a
+    });
+    assert!(wait(&mut h, |a| a.follow.on()));
+    h.run_steps(6);
+    let top = h.get_by_label("Agent").rect().top();
+    // The console's top edge sits a few points above its tab strip.
+    let edge = egui::pos2(800.0, top - 6.0);
+    h.hover_at(edge);
+    h.step();
+    h.input_mut().events.push(egui::Event::PointerButton { pos: edge, button: egui::PointerButton::Primary, pressed: true, modifiers: egui::Modifiers::NONE });
+    h.step();
+    for dy in [20.0, 60.0, 120.0, 200.0] {
+        h.hover_at(edge - egui::vec2(0.0, dy));
+        h.step();
+    }
+    let up = edge - egui::vec2(0.0, 200.0);
+    h.input_mut().events.push(egui::Event::PointerButton { pos: up, button: egui::PointerButton::Primary, pressed: false, modifiers: egui::Modifiers::NONE });
+    h.step();
+    let dragged = h.get_by_label("Agent").rect().top();
+    assert!((top - 210.0..top - 190.0).contains(&dragged), "dragged 200 up from {top}, got {dragged}");
+    let sides = |h: &Harness<'static, CraftApp>| {
+        ["wb-rail", "wb-right"].map(|id| egui::containers::panel::PanelState::load(&h.ctx, egui::Id::new(id)).map(|p| p.outer_rect.width()))
+    };
+    let before = sides(&h);
+    assert!(before.iter().all(Option::is_some), "both side panels have a stored width: {before:?}");
+    h.run_steps(30);
+    assert_eq!(h.get_by_label("Agent").rect().top(), dragged, "it keeps the size it was dragged to");
+    assert_eq!(sides(&h), before, "the side panels keep their widths too");
+}

@@ -952,6 +952,11 @@ fn bottom(app: &mut CraftApp, ui: &mut Ui) {
         BottomTab::Log if project => wb_project::log(app, ui),
         BottomTab::Log => log_view(app, ui),
     }
+    // The panel stores the height its contents used: a tab that comes out even a point short
+    // would make the console shrink a point every frame, creeping back after every drag. So the
+    // contents always claim the panel's whole height, whatever the tab draws.
+    let full = ui.max_rect();
+    ui.expand_to_include_rect(full);
 }
 
 fn jobs(app: &mut CraftApp, ui: &mut Ui) {
