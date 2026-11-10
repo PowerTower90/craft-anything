@@ -47,6 +47,8 @@ pub mod theme;
 pub mod things_ui;
 pub mod titlebar;
 pub mod usage;
+pub mod voice_demo;
+pub mod voice_ui;
 pub mod wb_project;
 pub mod widgets;
 pub mod workbench;
@@ -108,6 +110,8 @@ pub const USED_ICONS: &[&str] = &[
     "list-tree",
     "lock",
     "message-square",
+    "mic",
+    "mic-off",
     "microscope",
     "music",
     "network",
@@ -437,6 +441,8 @@ pub enum Pick {
     SavePicture,
     /// The program an agent app runs ([`CraftApp::picking_program_for`] says which).
     AgentProgram,
+    /// The folder Opus works in for voice tasks (Settings → Voice).
+    VoiceTaskFolder,
 }
 
 /// One open target, as the UI shows it.
@@ -680,6 +686,8 @@ pub struct CraftApp {
     pub follow: wb_project::Follow,
     /// Settings → Local generation: the last status, a check or start under way.
     pub local_gen: local_gen_ui::Panel,
+    /// Voice: the microphone, the conversation and Opus's jobs (`voice_ui`).
+    pub voice: voice_ui::Voice,
     /// A build asked something since the last frame: the taskbar flashes if the window is behind.
     attention: bool,
     /// Jobs whose result goes into the conversation (a first look, an answer without an AI):
@@ -776,6 +784,7 @@ impl CraftApp {
             assets: Default::default(),
             follow: Default::default(),
             local_gen: Default::default(),
+            voice: voice_ui::Voice::new(Box::new(voice_demo::DemoVoice::unconnected())),
             pending_consent: Default::default(),
             next_consent: 1,
             attention: false,
@@ -1342,6 +1351,7 @@ impl CraftApp {
                 Pick::GameFolder => pollster::block_on(d.set_title(tr("Pick the game's folder")).pick_folder()),
                 Pick::SavePicture => pollster::block_on(d.set_title(tr("Save the picture")).add_filter("PNG", &["png"]).set_file_name(&suggested).save_file()),
                 Pick::AgentProgram => pollster::block_on(d.set_title(tr("Where is the program?")).pick_file()),
+                Pick::VoiceTaskFolder => pollster::block_on(d.set_title(tr("Pick the folder Opus works in")).pick_folder()),
                 Pick::Pictures | Pick::Attach => None,
             };
             Ok(Done::Picked { pick, path: handle.map(|h| h.path().to_path_buf()) })
@@ -1863,7 +1873,9 @@ impl CraftApp {
                             if let Some(name) = self.picking_program_for.take() {
                                 self.set_agent_program(&name, Some(path.display().to_string()));
                             }
-                        } // Several files: these come back as Done::Pictures / Done::ToAttach.
+                        }
+                        Pick::VoiceTaskFolder => self.voice.set_task_folder(Some(path)),
+                        // Several files: these come back as Done::Pictures / Done::ToAttach.
                         Pick::Pictures | Pick::Attach => {}
                     }
                 }
@@ -1974,6 +1986,9 @@ impl CraftApp {
                 if !self.settings.first_run_done {
                     self.detect_backends();
                 }
+                if self.voice.view.config.auto_start {
+                    self.voice.act(voice_ui::VoiceAction::Start);
+                }
             }
         }
         let want = (self.theme_kind(), self.beginner());
@@ -1988,6 +2003,7 @@ impl CraftApp {
         guard("conversation", || self.poll_conversation());
         guard("rebuild", || self.poll_run());
         guard("pins", || self.poll_pins(ctx));
+        guard("voice", || voice_ui::tick(self, ctx));
         // Back from another window: projects, AI and engines may have changed meanwhile.
         if ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::WindowFocused(true)))) {
             self.window_focused();
@@ -2052,6 +2068,8 @@ impl CraftApp {
                 .resizable(false)
                 .frame(egui::Frame::new().fill(t.chrome).inner_margin(egui::Margin::symmetric(8, 0)))
                 .show(ui, |ui| guard_ui(ui, "sidebar", |ui| sidebar::show(self, ui)));
+            // The voice conversation slides in here; the Workbench has it in its console.
+            voice_ui::side_panel(self, ui);
             egui::CentralPanel::default().frame(egui::Frame::new().fill(t.canvas)).show(ui, |ui| {
                 guard_ui(ui, "simple", |ui| match self.state.screen {
                     Screen::Home | Screen::Workbench => home::show(self, ui),

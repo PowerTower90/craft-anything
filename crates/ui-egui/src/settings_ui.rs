@@ -1,5 +1,5 @@
 //! Settings: General (mode, theme, language), Engines (Ghidra, tool paths), AI, Builds (when a
-//! build is good enough, generated art), Plugins (MCP servers), Safety.
+//! build is good enough, generated art), Plugins (MCP servers), Safety, Voice (`voice_ui`).
 
 use crate::i18n::{LANGUAGES, tr, trf};
 use crate::state::SettingsTab;
@@ -54,6 +54,7 @@ pub fn show(app: &mut CraftApp, ctx: &egui::Context) {
                         (SettingsTab::Builds, "hammer", "Builds"),
                         (SettingsTab::Plugins, "puzzle", "Plugins"),
                         (SettingsTab::Safety, "shield", "Safety"),
+                        (SettingsTab::Voice, "mic", "Voice"),
                     ] {
                         let on = app.state.settings_tab == tab;
                         let (rect, r) = ui.allocate_exact_size(Vec2::new(150.0, 34.0), egui::Sense::click());
@@ -106,6 +107,7 @@ pub fn show(app: &mut CraftApp, ctx: &egui::Context) {
                             SettingsTab::Builds => builds(app, ui),
                             SettingsTab::Plugins => plugins(app, ui),
                             SettingsTab::Safety => safety(app, ui),
+                            SettingsTab::Voice => crate::voice_ui::settings(app, ui, path_field),
                         }
                     });
                 });

@@ -1748,3 +1748,98 @@ pictures	obrázků
 effects	efektů
 pieces of music	skladeb
 things	věcí
+# Voice (voice_ui.rs)
+After the wake word	Po aktivačním slově
+Always listening	Poslouchat stále
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	Na vše veřejné (příspěvek, zprávu, nákup) se vždy nejdřív zeptáme a to, co odejde, vám přečteme.
+Click to stop it speaking.	Kliknutím přestane mluvit.
+Close the voice panel	Zavřít hlasový panel
+Craft Anything, please open my newest project and show me what changed.	Craft Anything, otevři prosím můj nejnovější projekt a ukaž mi, co se změnilo.
+Describe it: a calm, deep voice that speaks slowly…	Popište ho: klidný, hluboký hlas, který mluví pomalu…
+Describe the voice	Popsat hlas
+Design the assistant's voice	Navrhnout hlas asistenta
+Designing the voice…	Navrhuje se hlas…
+Didn't work	Nepovedlo se
+Done. Your voice is enrolled.	Hotovo. Váš hlas je nahraný.
+Enrol my voice	Nahrát můj hlas
+Enrol my voice again	Nahrát můj hlas znovu
+Finish	Dokončit
+Hearing you	Slyším vás
+Hearing you. Click (or let go of the key) when you've finished.	Slyším vás. Až domluvíte, klikněte (nebo pusťte klávesu).
+Hello, I'm Craft Anything. What shall we make today?	Ahoj, jsem Craft Anything. Co dnes vytvoříme?
+Hold {key} (or press the microphone) and talk.	Držte {key} (nebo stiskněte mikrofon) a mluvte.
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	Jak moc se musí hlas shodovat s vaším, aby mohl dávat příkazy. Vyšší hodnota ignoruje víc ostatních lidí a někdy i vás.
+I'd like a small game where a red ball bounces between two walls.	Chtěl bych malou hru, kde se červený míček odráží mezi dvěma stěnami.
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	Neznělo to jako váš nahraný hlas, takže to bylo ignorováno a neposláno Opusu.
+It speaks with the built-in voice.	Mluví vestavěným hlasem.
+It speaks with the voice you designed.	Mluví hlasem, který jste navrhli.
+Just talk: a pause ends what you say.	Prostě mluvte: pauza ukončí, co říkáte.
+List the devices again	Znovu vypsat zařízení
+Listen	Poslech
+Listening	Poslouchá
+Listening…	Poslouchám…
+Microphone	Mikrofon
+No	Ne
+No answer in {time} counts as no.	Bez odpovědi do {time} to znamená ne.
+Not enrolled yet: any voice can give commands.	Zatím nenahráno: příkazy může dávat jakýkoli hlas.
+Not your voice	Není to váš hlas
+Only my voice	Jen můj hlas
+Opus asks	Opus se ptá
+Opus asks before anything public	Opus se ptá před čímkoli veřejným
+Opus is working on…	Opus pracuje na…
+Opus working	Opus pracuje
+Opus works in	Opus pracuje ve složce
+Pick the folder Opus works in	Vyberte složku, ve které Opus pracuje
+Played. Keep it, or change the words and preview again.	Přehráno. Nechte si ho, nebo změňte slova a poslechněte si ho znovu.
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	Stiskněte Spustit nahrávání a pak nahlas přečtěte tyto čtyři věty svým běžným tempem. Celkem asi 20 sekund.
+Preview	Poslechnout
+Push to talk	Mluvit po stisku
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	Mluvit po stisku poslouchá, jen dokud držíte klávesu. Aktivační slovo a stálý poslech nechávají mikrofon otevřený.
+Push-to-talk key	Klávesa pro mluvení
+Sample sentence	Ukázková věta
+Say “{word}”, then talk.	Řekněte „{word}“ a pak mluvte.
+Seven green bottles stood in a row on the kitchen window.	Sedm zelených lahví stálo v řadě na kuchyňském okně.
+Speaker profile	Hlasový profil
+Speakers	Reproduktory
+Speaking	Mluví
+Speech	Řeč
+Speech recognition	Rozpoznávání řeči
+Start recording	Spustit nahrávání
+Start voice	Spustit hlas
+Start voice first.	Nejdřív spusťte hlas.
+Start voice when Craft Anything opens	Spouštět hlas při otevření Craft Anything
+Start with the app	Spouštět s aplikací
+Stop speaking	Přestat mluvit
+Stop voice	Zastavit hlas
+Stopped	Zastaveno
+System default	Výchozí systému
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	Mluvte s Craft Anything a poslouchejte odpověď. Poslech, porozumění i řeč běží na tomto počítači; co chcete udělat, udělá Opus v Claude Code.
+Talk to Craft Anything. Click to start voice.	Mluvte s Craft Anything. Kliknutím spustíte hlas.
+That wasn't enough of your voice. Try again and read all four.	Vašeho hlasu nebylo dost. Zkuste to znovu a přečtěte všechny čtyři.
+The assistant's voice	Hlas asistenta
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	Složka, ve které Opus začíná s tím, oč žádáte hlasem. Prázdné: vaše domovská složka.
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	Místní model jen poslouchá a mluví. Vše, co chcete udělat, udělá Opus v Claude Code.
+The wake word	Aktivační slovo
+The wake word, said before a request when listening for it.	Aktivační slovo, které se říká před žádostí, když se na něj čeká.
+Tomorrow morning I will finish the trailer and check the music.	Zítra ráno dokončím trailer a zkontroluji hudbu.
+Use this voice	Použít tento hlas
+Voice	Hlas
+Voice ({n})	Hlas ({n})
+Voice conversation	Hlasový rozhovor
+Voice is off. Start it with the microphone in the title bar.	Hlas je vypnutý. Spusťte ho mikrofonem v záhlaví okna.
+Voice is starting.	Hlas se spouští.
+Voice isn't connected in this build yet: it comes with the voice service.	Hlas v tomto sestavení ještě není připojený: přijde s hlasovou službou.
+Voice service	Hlasová služba
+Voice settings	Nastavení hlasu
+Voice: {state}	Hlas: {state}
+Wake word	Aktivační slovo
+What goes out:	Co odejde:
+What to say first	Co říct nejdřív
+What you say and what Craft Anything answers shows here.	Tady se zobrazí, co říkáte a co odpovídá Craft Anything.
+Works while Craft Anything is the window in front.	Funguje, když je Craft Anything okno v popředí.
+Yes	Ano
+You	Vy
+Your voice	Váš hlas
+Your voice is enrolled: only you can give commands.	Váš hlas je nahraný: příkazy můžete dávat jen vy.
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Váš hlas ještě není nahraný, takže příkazy by mohl dávat jakýkoli hlas. Nahrajte ho v Nastavení → Hlas.
+{done} of {needed} seconds	{done} z {needed} sekund

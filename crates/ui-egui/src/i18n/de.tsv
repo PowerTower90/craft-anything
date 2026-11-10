@@ -1748,3 +1748,98 @@ pictures	Bilder
 effects	Effekte
 pieces of music	Musikstücke
 things	Dinge
+# Voice (voice_ui.rs)
+After the wake word	Nach dem Weckwort
+Always listening	Immer zuhören
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	Alles Öffentliche (ein Beitrag, eine Nachricht, ein Kauf) wird immer zuerst erfragt, und was hinausgeht, wird dir vorgelesen.
+Click to stop it speaking.	Klicke, damit es aufhört zu sprechen.
+Close the voice panel	Sprachbereich schließen
+Craft Anything, please open my newest project and show me what changed.	Craft Anything, öffne bitte mein neuestes Projekt und zeig mir, was sich geändert hat.
+Describe it: a calm, deep voice that speaks slowly…	Beschreibe sie: eine ruhige, tiefe Stimme, die langsam spricht…
+Describe the voice	Stimme beschreiben
+Design the assistant's voice	Die Stimme des Assistenten gestalten
+Designing the voice…	Die Stimme wird gestaltet…
+Didn't work	Hat nicht geklappt
+Done. Your voice is enrolled.	Fertig. Deine Stimme ist eingelernt.
+Enrol my voice	Meine Stimme einlernen
+Enrol my voice again	Meine Stimme neu einlernen
+Finish	Fertigstellen
+Hearing you	Ich höre dich
+Hearing you. Click (or let go of the key) when you've finished.	Ich höre dich. Klicke (oder lass die Taste los), wenn du fertig bist.
+Hello, I'm Craft Anything. What shall we make today?	Hallo, ich bin Craft Anything. Was machen wir heute?
+Hold {key} (or press the microphone) and talk.	Halte {key} gedrückt (oder drück das Mikrofon) und sprich.
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	Wie genau eine Stimme deiner gleichen muss, um Befehle zu geben. Höher ignoriert mehr andere Leute – und manchmal dich.
+I'd like a small game where a red ball bounces between two walls.	Ich hätte gern ein kleines Spiel, in dem ein roter Ball zwischen zwei Wänden hin und her springt.
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	Es klang nicht nach deiner eingelernten Stimme, deshalb wurde es ignoriert und nicht an Opus geschickt.
+It speaks with the built-in voice.	Es spricht mit der eingebauten Stimme.
+It speaks with the voice you designed.	Es spricht mit der Stimme, die du gestaltet hast.
+Just talk: a pause ends what you say.	Sprich einfach: Eine Pause beendet, was du sagst.
+List the devices again	Geräte neu auflisten
+Listen	Zuhören
+Listening	Hört zu
+Listening…	Hört zu…
+Microphone	Mikrofon
+No	Nein
+No answer in {time} counts as no.	Keine Antwort in {time} zählt als Nein.
+Not enrolled yet: any voice can give commands.	Noch nicht eingelernt: Jede Stimme kann Befehle geben.
+Not your voice	Nicht deine Stimme
+Only my voice	Nur meine Stimme
+Opus asks	Opus fragt
+Opus asks before anything public	Opus fragt vor allem Öffentlichen
+Opus is working on…	Opus arbeitet an…
+Opus working	Opus arbeitet
+Opus works in	Opus arbeitet in
+Pick the folder Opus works in	Wähle den Ordner, in dem Opus arbeitet
+Played. Keep it, or change the words and preview again.	Abgespielt. Behalte sie oder ändere die Beschreibung und hör sie dir noch einmal an.
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	Drück „Aufnahme starten“ und lies dann diese vier Sätze in deinem normalen Tempo laut vor. Insgesamt etwa 20 Sekunden.
+Preview	Anhören
+Push to talk	Drücken zum Sprechen
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	„Drücken zum Sprechen“ hört nur zu, solange du die Taste hältst. Mit Weckwort und „Immer zuhören“ bleibt das Mikrofon offen.
+Push-to-talk key	Sprechtaste
+Sample sentence	Beispielsatz
+Say “{word}”, then talk.	Sag „{word}“ und sprich dann.
+Seven green bottles stood in a row on the kitchen window.	Sieben grüne Flaschen standen in einer Reihe am Küchenfenster.
+Speaker profile	Sprecherprofil
+Speakers	Lautsprecher
+Speaking	Spricht
+Speech	Sprachausgabe
+Speech recognition	Spracherkennung
+Start recording	Aufnahme starten
+Start voice	Sprachsteuerung starten
+Start voice first.	Starte zuerst die Sprachsteuerung.
+Start voice when Craft Anything opens	Sprachsteuerung starten, wenn Craft Anything öffnet
+Start with the app	Mit der App starten
+Stop speaking	Sprechen beenden
+Stop voice	Sprachsteuerung stoppen
+Stopped	Gestoppt
+System default	Systemstandard
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	Sprich mit Craft Anything und hör seine Antwort. Zuhören, Verstehen und Sprechen passieren auf diesem Computer; was du erledigt haben willst, erledigt Opus in Claude Code.
+Talk to Craft Anything. Click to start voice.	Sprich mit Craft Anything. Klicke, um die Sprachsteuerung zu starten.
+That wasn't enough of your voice. Try again and read all four.	Das war nicht genug von deiner Stimme. Versuch es noch einmal und lies alle vier.
+The assistant's voice	Die Stimme des Assistenten
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	Der Ordner, in dem Opus mit dem beginnt, was du per Sprache erbittest. Leer: dein persönlicher Ordner.
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	Das lokale Modell hört nur zu und spricht. Alles, was du erledigt haben willst, erledigt Opus in Claude Code.
+The wake word	Das Weckwort
+The wake word, said before a request when listening for it.	Das Weckwort, vor einer Bitte gesagt, wenn auf es gehört wird.
+Tomorrow morning I will finish the trailer and check the music.	Morgen früh stelle ich den Trailer fertig und prüfe die Musik.
+Use this voice	Diese Stimme verwenden
+Voice	Sprachsteuerung
+Voice ({n})	Sprachsteuerung ({n})
+Voice conversation	Sprachgespräch
+Voice is off. Start it with the microphone in the title bar.	Die Sprachsteuerung ist aus. Starte sie mit dem Mikrofon in der Titelleiste.
+Voice is starting.	Die Sprachsteuerung startet.
+Voice isn't connected in this build yet: it comes with the voice service.	Die Sprachsteuerung ist in diesem Build noch nicht angebunden: Sie kommt mit dem Sprachdienst.
+Voice service	Sprachdienst
+Voice settings	Einstellungen der Sprachsteuerung
+Voice: {state}	Sprachsteuerung: {state}
+Wake word	Weckwort
+What goes out:	Was hinausgeht:
+What to say first	Was du zuerst sagst
+What you say and what Craft Anything answers shows here.	Hier steht, was du sagst und was Craft Anything antwortet.
+Works while Craft Anything is the window in front.	Funktioniert, solange Craft Anything das vordere Fenster ist.
+Yes	Ja
+You	Du
+Your voice	Deine Stimme
+Your voice is enrolled: only you can give commands.	Deine Stimme ist eingelernt: Nur du kannst Befehle geben.
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Deine Stimme ist noch nicht eingelernt, daher könnte jede Stimme Befehle geben. Lerne sie unter Einstellungen → Sprachsteuerung ein.
+{done} of {needed} seconds	{done} von {needed} Sekunden

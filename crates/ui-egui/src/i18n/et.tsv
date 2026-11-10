@@ -1748,3 +1748,98 @@ pictures	pilti
 effects	efekti
 pieces of music	muusikapala
 things	asja
+# Voice (voice_ui.rs)
+After the wake word	Pärast äratussõna
+Always listening	Kuula alati
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	Kõige avaliku kohta (postitus, sõnum, ost) küsitakse alati enne ja see, mis välja läheb, loetakse sulle ette.
+Click to stop it speaking.	Klõpsa, et see lõpetaks rääkimise.
+Close the voice panel	Sulge häälepaneel
+Craft Anything, please open my newest project and show me what changed.	Craft Anything, ava palun mu uusim projekt ja näita, mis muutus.
+Describe it: a calm, deep voice that speaks slowly…	Kirjelda seda: rahulik, sügav hääl, mis räägib aeglaselt…
+Describe the voice	Kirjelda häält
+Design the assistant's voice	Kujunda assistendi hääl
+Designing the voice…	Häält kujundatakse…
+Didn't work	Ei õnnestunud
+Done. Your voice is enrolled.	Valmis. Sinu hääl on salvestatud.
+Enrol my voice	Salvesta minu hääl
+Enrol my voice again	Salvesta minu hääl uuesti
+Finish	Lõpeta
+Hearing you	Kuulen sind
+Hearing you. Click (or let go of the key) when you've finished.	Kuulen sind. Klõpsa (või lase klahv lahti), kui oled lõpetanud.
+Hello, I'm Craft Anything. What shall we make today?	Tere, mina olen Craft Anything. Mida me täna teeme?
+Hold {key} (or press the microphone) and talk.	Hoia {key} all (või vajuta mikrofoni) ja räägi.
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	Kui täpselt peab hääl sinu omaga sobima, et käske anda. Kõrgem eirab rohkem teisi inimesi ja mõnikord ka sind.
+I'd like a small game where a red ball bounces between two walls.	Tahaksin väikest mängu, kus punane pall põrkab kahe seina vahel.
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	See ei kõlanud nagu sinu salvestatud hääl, seega jäeti see tähelepanuta ega saadetud Opusele.
+It speaks with the built-in voice.	See räägib sisseehitatud häälega.
+It speaks with the voice you designed.	See räägib sinu kujundatud häälega.
+Just talk: a pause ends what you say.	Lihtsalt räägi: paus lõpetab sinu jutu.
+List the devices again	Loetle seadmed uuesti
+Listen	Kuulamine
+Listening	Kuulab
+Listening…	Kuulan…
+Microphone	Mikrofon
+No	Ei
+No answer in {time} counts as no.	Kui vastust pole {time} jooksul, on see ei.
+Not enrolled yet: any voice can give commands.	Veel salvestamata: käske võib anda iga hääl.
+Not your voice	Pole sinu hääl
+Only my voice	Ainult minu hääl
+Opus asks	Opus küsib
+Opus asks before anything public	Opus küsib enne kõike avalikku
+Opus is working on…	Opus töötab ülesandega…
+Opus working	Opus töötab
+Opus works in	Opus töötab kaustas
+Pick the folder Opus works in	Vali kaust, kus Opus töötab
+Played. Keep it, or change the words and preview again.	Esitatud. Jäta see alles või muuda sõnu ja kuula uuesti.
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	Vajuta Alusta salvestamist ja loe need neli lauset tavalises tempos valjusti ette. Kokku umbes 20 sekundit.
+Preview	Kuula proovi
+Push to talk	Vajuta ja räägi
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	Vajuta ja räägi kuulab ainult siis, kui hoiad klahvi all. Äratussõna ja pidev kuulamine hoiavad mikrofoni avatuna.
+Push-to-talk key	Rääkimisklahv
+Sample sentence	Näidislause
+Say “{word}”, then talk.	Ütle „{word}“ ja räägi siis.
+Seven green bottles stood in a row on the kitchen window.	Seitse rohelist pudelit seisid reas köögiaknal.
+Speaker profile	Hääleprofiil
+Speakers	Kõlarid
+Speaking	Räägib
+Speech	Kõne
+Speech recognition	Kõnetuvastus
+Start recording	Alusta salvestamist
+Start voice	Käivita hääl
+Start voice first.	Käivita kõigepealt hääl.
+Start voice when Craft Anything opens	Käivita hääl, kui Craft Anything avaneb
+Start with the app	Käivita koos rakendusega
+Stop speaking	Lõpeta rääkimine
+Stop voice	Peata hääl
+Stopped	Peatatud
+System default	Süsteemi vaikimisi
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	Räägi Craft Anythingiga ja kuula vastust. Kuulamine, mõistmine ja rääkimine toimuvad selles arvutis; selle, mida palud teha, teeb Opus Claude Code'is.
+Talk to Craft Anything. Click to start voice.	Räägi Craft Anythingiga. Klõpsa, et hääl käivitada.
+That wasn't enough of your voice. Try again and read all four.	Sinu häält oli liiga vähe. Proovi uuesti ja loe kõik neli.
+The assistant's voice	Assistendi hääl
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	Kaust, kus Opus alustab seda, mida häälega palud. Tühi: sinu kodukaust.
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	Kohalik mudel ainult kuulab ja räägib. Kõik, mida palud teha, teeb Opus Claude Code'is.
+The wake word	Äratussõna
+The wake word, said before a request when listening for it.	Äratussõna, mida öeldakse enne palvet, kui seda oodatakse.
+Tomorrow morning I will finish the trailer and check the music.	Homme hommikul lõpetan treileri ja kontrollin muusikat.
+Use this voice	Kasuta seda häält
+Voice	Hääl
+Voice ({n})	Hääl ({n})
+Voice conversation	Häälvestlus
+Voice is off. Start it with the microphone in the title bar.	Hääl on väljas. Käivita see tiitliriba mikrofonist.
+Voice is starting.	Hääl käivitub.
+Voice isn't connected in this build yet: it comes with the voice service.	Hääl pole selles versioonis veel ühendatud: see tuleb koos hääleteenusega.
+Voice service	Hääleteenus
+Voice settings	Hääle seaded
+Voice: {state}	Hääl: {state}
+Wake word	Äratussõna
+What goes out:	Mis välja läheb:
+What to say first	Mida kõigepealt öelda
+What you say and what Craft Anything answers shows here.	Siin näed, mida sa ütled ja mida Craft Anything vastab.
+Works while Craft Anything is the window in front.	Töötab, kui Craft Anything on esiplaanil olev aken.
+Yes	Jah
+You	Sina
+Your voice	Sinu hääl
+Your voice is enrolled: only you can give commands.	Sinu hääl on salvestatud: käske saad anda ainult sina.
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Sinu hääl pole veel salvestatud, seega võiks käske anda iga hääl. Salvesta see jaotises Seaded → Hääl.
+{done} of {needed} seconds	{done} / {needed} sekundit

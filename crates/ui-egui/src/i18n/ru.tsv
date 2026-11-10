@@ -1748,3 +1748,98 @@ pictures	картинок
 effects	эффектов
 pieces of music	музыки
 things	вещей
+# Voice (voice_ui.rs)
+After the wake word	После слова активации
+Always listening	Слушать всегда
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	Обо всём публичном (публикация, сообщение, покупка) всегда спрашивают заранее, а то, что будет отправлено, зачитывается вам.
+Click to stop it speaking.	Нажмите, чтобы остановить речь.
+Close the voice panel	Закрыть голосовую панель
+Craft Anything, please open my newest project and show me what changed.	Craft Anything, пожалуйста, открой мой самый новый проект и покажи, что изменилось.
+Describe it: a calm, deep voice that speaks slowly…	Опишите её: спокойный, низкий голос, который говорит медленно…
+Describe the voice	Описать голос
+Design the assistant's voice	Создать голос ассистента
+Designing the voice…	Создаём голос…
+Didn't work	Не получилось
+Done. Your voice is enrolled.	Готово. Ваш голос записан.
+Enrol my voice	Записать мой голос
+Enrol my voice again	Записать мой голос заново
+Finish	Завершить
+Hearing you	Слушаю вас
+Hearing you. Click (or let go of the key) when you've finished.	Слушаю вас. Нажмите (или отпустите клавишу), когда закончите.
+Hello, I'm Craft Anything. What shall we make today?	Привет, я Craft Anything. Что сделаем сегодня?
+Hold {key} (or press the microphone) and talk.	Удерживайте {key} (или нажмите на микрофон) и говорите.
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	Насколько голос должен совпадать с вашим, чтобы давать команды. Чем выше, тем больше чужих голосов игнорируется, а иногда и ваш.
+I'd like a small game where a red ball bounces between two walls.	Хочу маленькую игру, где красный мяч отскакивает между двумя стенами.
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	Это не было похоже на ваш записанный голос, поэтому было проигнорировано и не отправлено Opus.
+It speaks with the built-in voice.	Он говорит встроенным голосом.
+It speaks with the voice you designed.	Он говорит голосом, который вы создали.
+Just talk: a pause ends what you say.	Просто говорите: пауза завершает сказанное.
+List the devices again	Снова перечислить устройства
+Listen	Слушать
+Listening	Слушает
+Listening…	Слушаю…
+Microphone	Микрофон
+No	Нет
+No answer in {time} counts as no.	Нет ответа за {time} — значит нет.
+Not enrolled yet: any voice can give commands.	Ещё не записан: команды может давать любой голос.
+Not your voice	Не ваш голос
+Only my voice	Только мой голос
+Opus asks	Opus спрашивает
+Opus asks before anything public	Opus спрашивает перед любым публичным действием
+Opus is working on…	Opus работает над…
+Opus working	Opus работает
+Opus works in	Opus работает в
+Pick the folder Opus works in	Выберите папку, в которой работает Opus
+Played. Keep it, or change the words and preview again.	Воспроизведено. Оставьте его или измените слова и прослушайте снова.
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	Нажмите «Начать запись», затем прочитайте вслух эти четыре предложения в обычном темпе. Всего около 20 секунд.
+Preview	Прослушать
+Push to talk	Нажми и говори
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	«Нажми и говори» слушает, только пока вы держите клавишу. Слово активации и постоянное прослушивание держат микрофон открытым.
+Push-to-talk key	Клавиша для речи
+Sample sentence	Пример фразы
+Say “{word}”, then talk.	Скажите «{word}», затем говорите.
+Seven green bottles stood in a row on the kitchen window.	Семь зелёных бутылок стояли в ряд на кухонном окне.
+Speaker profile	Профиль голоса
+Speakers	Динамики
+Speaking	Говорит
+Speech	Синтез речи
+Speech recognition	Распознавание речи
+Start recording	Начать запись
+Start voice	Включить голос
+Start voice first.	Сначала включите голос.
+Start voice when Craft Anything opens	Включать голос при запуске Craft Anything
+Start with the app	Запускать вместе с приложением
+Stop speaking	Остановить речь
+Stop voice	Выключить голос
+Stopped	Остановлено
+System default	Системное по умолчанию
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	Говорите с Craft Anything и слушайте ответ. Слушание, понимание и речь происходят на этом компьютере; то, что вы просите сделать, делает Opus в Claude Code.
+Talk to Craft Anything. Click to start voice.	Говорите с Craft Anything. Нажмите, чтобы включить голос.
+That wasn't enough of your voice. Try again and read all four.	Вашего голоса было недостаточно. Попробуйте снова и прочитайте все четыре.
+The assistant's voice	Голос ассистента
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	Папка, в которой Opus начинает то, что вы просите голосом. Пусто: ваша домашняя папка.
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	Локальная модель только слушает и говорит. Всё, что вы просите сделать, делает Opus в Claude Code.
+The wake word	Слово активации
+The wake word, said before a request when listening for it.	Слово активации, которое произносят перед просьбой, когда его ждут.
+Tomorrow morning I will finish the trailer and check the music.	Завтра утром я закончу трейлер и проверю музыку.
+Use this voice	Использовать этот голос
+Voice	Голос
+Voice ({n})	Голос ({n})
+Voice conversation	Голосовой разговор
+Voice is off. Start it with the microphone in the title bar.	Голос выключен. Включите его микрофоном в строке заголовка.
+Voice is starting.	Голос запускается.
+Voice isn't connected in this build yet: it comes with the voice service.	Голос в этой сборке ещё не подключён: он появится вместе с голосовой службой.
+Voice service	Голосовая служба
+Voice settings	Настройки голоса
+Voice: {state}	Голос: {state}
+Wake word	Слово активации
+What goes out:	Что будет отправлено:
+What to say first	Что сказать сначала
+What you say and what Craft Anything answers shows here.	Здесь появляется то, что вы говорите, и что отвечает Craft Anything.
+Works while Craft Anything is the window in front.	Работает, пока Craft Anything — активное окно.
+Yes	Да
+You	Вы
+Your voice	Ваш голос
+Your voice is enrolled: only you can give commands.	Ваш голос записан: команды можете давать только вы.
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	Ваш голос ещё не записан, поэтому команды может давать любой голос. Запишите его в Настройки → Голос.
+{done} of {needed} seconds	{done} из {needed} секунд

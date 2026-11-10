@@ -211,6 +211,9 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
             if !app.settings.first_run_done {
                 return;
             }
+            // Voice: the microphone and its state, in both modes.
+            crate::voice_ui::mic_button(app, ui, s, CONTROL * s);
+            rule(ui);
             // Simple mode keeps the bar to the essentials: Settings is in the sidebar, the mode
             // switch and AI picker are in Settings, and the Clean room switch stays in view.
             if app.beginner() {

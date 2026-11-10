@@ -327,6 +327,8 @@ pub enum BottomTab {
     Agent,
     Jobs,
     Log,
+    /// The voice conversation and Opus's voice jobs.
+    Voice,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -338,6 +340,7 @@ pub enum SettingsTab {
     Builds,
     Plugins,
     Safety,
+    Voice,
 }
 
 /// A list or view that a tool fills.

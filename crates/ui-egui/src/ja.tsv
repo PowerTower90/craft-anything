@@ -1178,3 +1178,98 @@ pictures	画像
 effects	エフェクト
 pieces of music	曲
 things	もの
+# Voice (voice_ui.rs)
+After the wake word	ウェイクワードのあと
+Always listening	常に聞き取る
+Anything public (a post, a message, a purchase) is always asked first, and what goes out is read to you.	公開されるもの（投稿、メッセージ、購入）は必ず先に確認し、送られる内容を読み上げます。
+Click to stop it speaking.	クリックすると話すのをやめます。
+Close the voice panel	音声パネルを閉じる
+Craft Anything, please open my newest project and show me what changed.	Craft Anything、いちばん新しいプロジェクトを開いて、何が変わったか見せて。
+Describe it: a calm, deep voice that speaks slowly…	説明してください：ゆっくり話す、落ち着いた低い声…
+Describe the voice	声を説明
+Design the assistant's voice	アシスタントの声をデザイン
+Designing the voice…	声をデザインしています…
+Didn't work	うまくいきませんでした
+Done. Your voice is enrolled.	完了しました。あなたの声が登録されました。
+Enrol my voice	自分の声を登録
+Enrol my voice again	自分の声を登録し直す
+Finish	完了
+Hearing you	聞いています
+Hearing you. Click (or let go of the key) when you've finished.	聞いています。話し終えたらクリック（またはキーを離して）ください。
+Hello, I'm Craft Anything. What shall we make today?	こんにちは、Craft Anything です。今日は何を作りましょうか？
+Hold {key} (or press the microphone) and talk.	{key} を押したまま（またはマイクを押して）話してください。
+How closely a voice must match yours to give commands. Higher ignores more of other people, and sometimes you.	命令できるのに、声があなたの声とどれだけ一致する必要があるか。高いほど他の人の声を無視しますが、あなたの声も無視することがあります。
+I'd like a small game where a red ball bounces between two walls.	赤いボールが二つの壁の間で跳ね返る、小さなゲームがほしいです。
+It didn't sound like your enrolled voice, so it was ignored and not sent to Opus.	登録された声に聞こえなかったため、無視して Opus には送りませんでした。
+It speaks with the built-in voice.	内蔵の声で話します。
+It speaks with the voice you designed.	あなたがデザインした声で話します。
+Just talk: a pause ends what you say.	そのまま話してください：間があくと発言の区切りになります。
+List the devices again	デバイスを再取得
+Listen	聞き取り
+Listening	聞き取り中
+Listening…	聞き取り中…
+Microphone	マイク
+No	いいえ
+No answer in {time} counts as no.	{time} 以内に答えがなければ「いいえ」とみなします。
+Not enrolled yet: any voice can give commands.	まだ登録されていません：誰の声でも命令できます。
+Not your voice	あなたの声ではありません
+Only my voice	自分の声だけ
+Opus asks	Opus からの確認
+Opus asks before anything public	公開する前の Opus からの確認
+Opus is working on…	Opus が作業中…
+Opus working	Opus 作業中
+Opus works in	Opus の作業フォルダー
+Pick the folder Opus works in	Opus が作業するフォルダーを選択
+Played. Keep it, or change the words and preview again.	再生しました。この声にするか、言葉を変えてもう一度試聴してください。
+Press Start recording, then read these four sentences aloud at your normal pace. About 20 seconds in all.	「録音を開始」を押して、この4つの文をふだんの速さで声に出して読んでください。全部で約20秒です。
+Preview	試聴
+Push to talk	押して話す
+Push to talk listens only while you hold the key. The wake word and always listening keep the microphone open.	「押して話す」はキーを押している間だけ聞き取ります。ウェイクワードと常に聞き取るモードではマイクが開いたままになります。
+Push-to-talk key	話すためのキー
+Sample sentence	サンプル文
+Say “{word}”, then talk.	「{word}」と言ってから話してください。
+Seven green bottles stood in a row on the kitchen window.	台所の窓に緑の瓶が七本並んでいました。
+Speaker profile	話者プロファイル
+Speakers	スピーカー
+Speaking	話しています
+Speech	音声合成
+Speech recognition	音声認識
+Start recording	録音を開始
+Start voice	音声を開始
+Start voice first.	先に音声を開始してください。
+Start voice when Craft Anything opens	Craft Anything の起動時に音声を開始
+Start with the app	アプリと一緒に開始
+Stop speaking	話すのをやめる
+Stop voice	音声を停止
+Stopped	停止しました
+System default	システムの既定
+Talk to Craft Anything and hear it answer. Listening, understanding and speaking happen on this computer; what you ask to be done is done by Opus in Claude Code.	Craft Anything に話しかけて、答えを聞きましょう。聞き取り・理解・発話はこのコンピューター上で行われ、頼んだ作業は Claude Code の Opus が行います。
+Talk to Craft Anything. Click to start voice.	Craft Anything に話しかけましょう。クリックで音声を開始します。
+That wasn't enough of your voice. Try again and read all four.	声が足りませんでした。もう一度、4つの文をすべて読んでください。
+The assistant's voice	アシスタントの声
+The folder Opus starts in for what you ask by voice. Empty: your home folder.	音声で頼んだ作業を Opus が始めるフォルダー。空欄：ホームフォルダー。
+The local model only listens and talks. Everything you ask to be done is done by Opus in Claude Code.	ローカルモデルは聞いて話すだけです。頼んだ作業はすべて Claude Code の Opus が行います。
+The wake word	ウェイクワード
+The wake word, said before a request when listening for it.	ウェイクワード。聞き取り待ちのとき、お願いの前に言う言葉です。
+Tomorrow morning I will finish the trailer and check the music.	明日の朝、トレーラーを仕上げて音楽を確認します。
+Use this voice	この声を使う
+Voice	音声
+Voice ({n})	音声（{n}）
+Voice conversation	音声での会話
+Voice is off. Start it with the microphone in the title bar.	音声はオフです。タイトルバーのマイクで開始してください。
+Voice is starting.	音声を開始しています。
+Voice isn't connected in this build yet: it comes with the voice service.	このビルドではまだ音声が接続されていません：音声サービスとともに提供されます。
+Voice service	音声サービス
+Voice settings	音声の設定
+Voice: {state}	音声：{state}
+Wake word	ウェイクワード
+What goes out:	送られる内容：
+What to say first	最初に言う言葉
+What you say and what Craft Anything answers shows here.	あなたが話したことと Craft Anything の答えがここに表示されます。
+Works while Craft Anything is the window in front.	Craft Anything が手前のウィンドウのときに使えます。
+Yes	はい
+You	あなた
+Your voice	あなたの声
+Your voice is enrolled: only you can give commands.	あなたの声は登録済みです：命令できるのはあなただけです。
+Your voice isn't enrolled yet, so anyone's voice could give commands. Enrol it in Settings → Voice.	あなたの声はまだ登録されていないため、誰の声でも命令できてしまいます。設定 → 音声で登録してください。
+{done} of {needed} seconds	{done} / {needed} 秒
