@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	La voz está activa — mantén {key} y habl
 Voice is on — hold {key} or say “{word}”	La voz está activa — mantén {key} o di «{word}»
 Voice starts with Craft Anything. You can change that in Settings → Voice.	La voz se inicia con Craft Anything. Puedes cambiarlo en Ajustes → Voz.
 Waiting for your yes or no	Esperando tu sí o no
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything oyó su propia voz por los altavoces y la ignoró.
+Echo cancellation	Cancelación de eco
+Its own echo	Su propio eco
+Take the speakers' sound out of the microphone, so it never hears itself	Quitar el sonido de los altavoces del micrófono, para que nunca se oiga a sí mismo

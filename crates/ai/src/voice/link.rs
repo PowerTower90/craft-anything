@@ -86,6 +86,11 @@ fn pump(
 ) {
     let mut service_gone = false;
     let mut brain_stopped = false;
+    // What the brain needs to know about its own speech: when it last ended, and whether the
+    // microphone is open (wake word, always) so it could hear it.
+    let mut open_mic = false;
+    let mut speaking = false;
+    let mut speech_ended: Option<std::time::Instant> = None;
     while !stop.load(Ordering::SeqCst) && !(service_gone && brain_stopped) {
         let mut any = false;
         let first = if service_gone {
@@ -104,9 +109,25 @@ fn pump(
         for ev in first.into_iter().chain(heard.try_iter()) {
             any = true;
             match &ev {
+                VoiceEvent::State { mode, speaking: now_speaking, .. } => {
+                    open_mic = mode != "push_to_talk";
+                    if speaking && !now_speaking {
+                        speech_ended = Some(std::time::Instant::now());
+                    }
+                    speaking = *now_speaking;
+                }
+                VoiceEvent::Spoken { .. } => speech_ended = Some(std::time::Instant::now()),
                 VoiceEvent::Utterance { text, speaker_ok, speaker_score, duration_s, verified } => {
-                    let u =
-                        Utterance { text: text.clone(), speaker_ok: *speaker_ok, speaker_score: *speaker_score, duration_s: *duration_s, verified: *verified };
+                    let since_speech_s = if speaking { Some(0.0) } else { speech_ended.map(|t| t.elapsed().as_secs_f32()) };
+                    let u = Utterance {
+                        text: text.clone(),
+                        speaker_ok: *speaker_ok,
+                        speaker_score: *speaker_score,
+                        duration_s: *duration_s,
+                        verified: *verified,
+                        open_mic,
+                        since_speech_s,
+                    };
                     brain.lock().unwrap_or_else(PoisonError::into_inner).utterance(u);
                 }
                 VoiceEvent::Disconnected => service_gone = true,

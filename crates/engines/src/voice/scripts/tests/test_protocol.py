@@ -201,15 +201,43 @@ def test_speak_queue_stop_and_spoken(svc):
     c.close()
 
 
+def enrol(c, svc, base=150):
+    """Enrol a stand-in voice (tones around `base` Hz)."""
+    c.send(cmd="enroll_start")
+    c.wait("state", lambda e: e["enrolling"])
+    svc.audio.feed(np.concatenate([np.concatenate([tone(base + 5 * i, 2.5, vibrato=0.02), silence(0.8)]) for i in range(4)]))
+    while svc.audio.feed_remaining_s() > 0:
+        time.sleep(0.1)
+    c.wait("enroll_progress", lambda e: e["seconds"] >= 9, timeout=20)
+    c.send(cmd="enroll_stop")
+    assert c.wait("enrolled", timeout=10)["ok"] is True
+
+
 def test_barge_in_by_voice_and_by_ptt(svc):
     c = Client(svc.port)
-    c.send(cmd="config", listen_mode="always")
+    c.send(cmd="config", listen_mode="always", vad_silence_ms=500)
     c.wait("config_ok")
-    c.send(cmd="speak", id="long", text="Talking for quite a while now. " * 30)
-    c.wait("state", lambda e: e["speaking"])
+    # Before enrolment a voice can't talk over the assistant in an open-mic mode: it may be its echo.
+    t = time.perf_counter()
+    c.send(cmd="speak", id="first", text="Talking for quite a while now. " * 30)
+    c.wait("state", lambda e: e["speaking"], after=t)
     time.sleep(0.5)
     svc.audio.feed(np.concatenate([tone(180, 1.5), silence(1.2)]))
-    c.wait("barge_in", timeout=5)
+    time.sleep(3.0)
+    assert not c.of("barge_in", t), "no barge-in by an unknown voice"
+    c.send(cmd="stop_speaking")
+    c.wait("spoken", lambda e: e["id"] == "first")
+    time.sleep(1.2)
+    # The enrolled user can. (With the echo canceller installed it must be on for that; the
+    # stand-in models hear pure tones its noise suppressor dampens, so this runs without one.)
+    enrol(c, svc)
+    svc.svc.aec = None
+    t = time.perf_counter()
+    c.send(cmd="speak", id="long", text="Talking for quite a while now. " * 30)
+    c.wait("state", lambda e: e["speaking"], after=t)
+    time.sleep(0.5)
+    svc.audio.feed(np.concatenate([tone(152, 1.5, vibrato=0.02), silence(1.2)]))
+    c.wait("barge_in", timeout=5, after=t)
     assert c.wait("spoken", lambda e: e["id"] == "long")["interrupted"] is True
     c.wait("utterance", timeout=10)
     # push-to-talk barge-in

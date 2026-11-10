@@ -16,6 +16,10 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant};
 
+/// Before enrolment in an open-mic mode, what is heard this soon after the assistant's own speech
+/// and sounds like it is taken for its echo.
+const ECHO_GUARD_S: f32 = 2.0;
+
 /// How the brain paces itself.
 #[derive(Debug, Clone)]
 pub struct BrainConfig {
@@ -223,6 +227,12 @@ impl Brain {
             self.line(Speaker::NotUser, &text, Some(u.speaker_score));
             return;
         }
+        // Belt and braces against hearing itself: before enrolment, in an open-mic mode, words
+        // heard within 2 s of its own speech that sound like that speech are its echo.
+        if !u.verified && u.open_mic && u.since_speech_s.is_some_and(|s| s < ECHO_GUARD_S) && intent::echo_like(&text, &self.own_recent()) {
+            self.line(Speaker::Echo, &text, None);
+            return;
+        }
         self.line(Speaker::User, &text, Some(u.speaker_score));
         let waiting = !self.prompts.is_empty();
         let working = self.job.is_some() || !self.queue.is_empty();
@@ -239,6 +249,11 @@ impl Brain {
             return;
         }
         self.act(&text, c);
+    }
+
+    /// What the assistant said lately, newest last.
+    fn own_recent(&self) -> Vec<String> {
+        self.history.iter().filter_map(|l| l.strip_prefix("Assistant: ")).map(str::to_string).collect()
     }
 
     /// Ask the local model what `text` is; its answer is only read, never run.

@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	Голос включён — удержив
 Voice is on — hold {key} or say “{word}”	Голос включён — удерживайте {key} или скажите «{word}»
 Voice starts with Craft Anything. You can change that in Settings → Voice.	Голос запускается вместе с Craft Anything. Это можно изменить в Настройки → Голос.
 Waiting for your yes or no	Жду вашего «да» или «нет»
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything услышал свой собственный голос из динамиков и проигнорировал его.
+Echo cancellation	Подавление эха
+Its own echo	Собственное эхо
+Take the speakers' sound out of the microphone, so it never hears itself	Убирать звук динамиков из микрофона, чтобы он никогда не слышал сам себя

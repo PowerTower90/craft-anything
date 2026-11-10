@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	語音已開啟 — 按住 {key} 說話
 Voice is on — hold {key} or say “{word}”	語音已開啟 — 按住 {key} 或說「{word}」
 Voice starts with Craft Anything. You can change that in Settings → Voice.	語音會隨 Craft Anything 一起啟動。可在 設定 → 語音 中變更。
 Waiting for your yes or no	等待你回答是或否
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything 透過喇叭聽到了自己的聲音，已忽略。
+Echo cancellation	回音消除
+Its own echo	它自己的回音
+Take the speakers' sound out of the microphone, so it never hears itself	從麥克風中去除喇叭的聲音，讓它不會聽到自己

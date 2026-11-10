@@ -42,7 +42,14 @@ START_BLOCKS = 3         # ~96 ms of voiced audio starts a VAD capture
 VAD_ON, VAD_OFF = 0.5, 0.35
 MAX_CAPTURE_S = 60.0
 WAKE_WAIT_S = 6.0        # after a wake word, how long to wait for the command to start
-ECHO_HOLDOFF_S = 0.35    # after playback ends, ignore speech starts this long (room echo)
+ECHO_HOLDOFF_S = 0.35    # after playback ends, ignore speech starts this long (room echo)...
+ECHO_HOLDOFF_OPEN_S = 1.0  # ...in the open-microphone modes (wake word, always), where the echo is the danger
+OWN_WORDS_KEEP_S = 60.0  # what the assistant said is kept this long, to know its own words when they come back
+ECHO_WINDOW_S = 5.0      # a capture that heard playback, or began this soon after it, is checked for own words
+OWN_VOICE_SIM = 0.55     # an utterance this close to the assistant's own voice is its echo
+BARGE_BLOCKS = 62        # talking over the assistant is checked on up to the last ~2 s of speech: a shorter clip
+BARGE_VOICED = 31        # scores too low to tell the user from anyone (it's checked from ~1 s of speech on)
+AEC_FRAME = 160          # 10 ms at 16 kHz: the echo canceller's frame
 LEVEL_EVERY_S = 0.05     # `level` events at ~20 Hz while capturing, speaking or playing a sound...
 LEVEL_IDLE_EVERY_S = 0.5  # ...and at 2 Hz while only listening (a room's own noise isn't news)
 LOAD_STEPS = 5           # vad, speech recognition, speaker verification, speech synthesis, warm-up
@@ -89,6 +96,113 @@ def load_wav(path, sr=None):
 
 def norm_words(text):
     return re.sub(r"[^\w\s']", " ", (text or "").lower()).split()
+
+
+def _lcs_words(a, b):
+    """Longest common subsequence of two word lists (how many of `a`'s words appear in order in `b`)."""
+    a, b = a[:80], b[:400]
+    prev = [0] * (len(b) + 1)
+    for x in a:
+        cur = [0] * (len(b) + 1)
+        for j, y in enumerate(b, 1):
+            cur[j] = prev[j - 1] + 1 if x == y else max(prev[j], cur[j - 1])
+        prev = cur
+    return prev[-1]
+
+
+def matches_own_speech(text, sentences, min_words=3):
+    """Whether `text` (something heard) is the assistant's own speech coming back: at least 60% of
+    its words appear in order within one of `sentences` (what the assistant said or is about to say,
+    oldest first) or within two or three consecutive ones, or the word sequences are 60% alike
+    (difflib), or they share a run of 4 words. Shorter than `min_words` words is never taken for an echo: a "yes" or "no" to a
+    question the assistant just asked must get through."""
+    u = norm_words(text)
+    if len(u) < min_words:
+        return False
+    toks = [norm_words(x) for x in sentences if x and x.strip()]
+    for i in range(len(toks)):
+        for k in (1, 2, 3):
+            if i + k > len(toks):
+                break
+            w = [x for t in toks[i:i + k] for x in t]
+            if not w:
+                continue
+            if _lcs_words(u, w) >= 0.6 * len(u):
+                return True
+            sm = difflib.SequenceMatcher(None, u, w, autojunk=False)
+            if sm.ratio() >= 0.6:
+                return True
+            if sm.find_longest_match(0, len(u), 0, len(w)).size >= 4:
+                return True
+    return False
+
+
+def own_voice(assistant_sim, user_sim, threshold=OWN_VOICE_SIM):
+    """Whether an utterance is the assistant's own voice: at least `threshold` like it, and (when the
+    user is enrolled) at least as like it as like the user."""
+    if assistant_sim is None:
+        return False
+    return assistant_sim >= threshold and (user_sim is None or assistant_sim >= user_sim)
+
+
+def holdoff_s(mode):
+    """How long after playback ends a capture may not start by itself (push-to-talk always may)."""
+    return ECHO_HOLDOFF_S if mode == "push_to_talk" else ECHO_HOLDOFF_OPEN_S
+
+
+class EchoCanceller:
+    """Acoustic echo cancellation with WebRTC's AEC3 (livekit's AudioProcessingModule, with noise
+    suppression and a high-pass filter): what's played is the reference (`render`), the microphone is
+    cleaned of it (`capture`). Both run at 16 kHz in 10 ms frames; AEC3 finds the remaining delay
+    itself, `delay_ms` is its starting guess."""
+
+    def __init__(self, delay_ms=60):
+        from livekit import rtc
+        self.rtc = rtc
+        self.apm = rtc.AudioProcessingModule(echo_cancellation=True, noise_suppression=True, high_pass_filter=True,
+                                             auto_gain_control=False)
+        self.apm.set_stream_delay_ms(int(delay_ms))
+        self.lock = threading.Lock()
+        self.rbuf = np.zeros(0, dtype=np.float32)
+        self.cbuf = np.zeros(0, dtype=np.float32)
+        self.obuf = np.zeros(AEC_FRAME, dtype=np.float32)    # one frame of latency, so a block comes out whole
+
+    def _frame(self, x):
+        pcm = (np.clip(x, -1.0, 1.0) * 32767.0).astype(np.int16)
+        return self.rtc.AudioFrame(pcm.tobytes(), SR_IN, 1, AEC_FRAME)
+
+    def render(self, x, sr):
+        """What the speakers play now (any rate)."""
+        x = resample(np.asarray(x, dtype=np.float32), sr, SR_IN) if sr != SR_IN else np.asarray(x, dtype=np.float32)
+        with self.lock:
+            self.rbuf = np.concatenate([self.rbuf, x])
+            while self.rbuf.size >= AEC_FRAME:
+                self.apm.process_reverse_stream(self._frame(self.rbuf[:AEC_FRAME]))
+                self.rbuf = self.rbuf[AEC_FRAME:]
+
+    def capture(self, block):
+        """A microphone block (16 kHz) without the echo of what was played; the same length."""
+        with self.lock:
+            self.cbuf = np.concatenate([self.cbuf, np.asarray(block, dtype=np.float32)])
+            outs = [self.obuf]
+            while self.cbuf.size >= AEC_FRAME:
+                f = self._frame(self.cbuf[:AEC_FRAME])
+                self.apm.process_stream(f)
+                outs.append(np.frombuffer(bytes(f.data), dtype=np.int16).astype(np.float32) / 32767.0)
+                self.cbuf = self.cbuf[AEC_FRAME:]
+            out = np.concatenate(outs)
+            n = len(block)
+            self.obuf = out[n:]
+            return out[:n] if out.size >= n else np.pad(out, (0, n - out.size))
+
+
+def echo_canceller(delay_ms=60):
+    """An echo canceller, or None when its package (livekit) isn't installed."""
+    try:
+        return EchoCanceller(delay_ms)
+    except Exception as e:
+        log.warning("echo cancellation unavailable (%s); own-words, own-voice and turn-taking filters still apply", e)
+        return None
 
 
 def split_sentences(text, max_chars=220):
@@ -205,6 +319,7 @@ class Player:
         self.epoch = 0                  # bumped by clear(), so a stale producer can't refill
         self.last_audio_t = 0.0         # wall time the last non-silent sample was handed out
         self.last_rms = 0.0             # loudness of what was last handed to the speakers
+        self.on_read = None             # told what is played (the echo canceller's reference)
 
     def push(self, x, epoch=None):
         x = np.asarray(x, dtype=np.float32)
@@ -233,6 +348,12 @@ class Player:
             if got:
                 self.last_audio_t = time.monotonic()
         self.last_rms = float(np.sqrt(np.mean(out * out))) if n else 0.0
+        cb = self.on_read
+        if cb is not None and n:
+            try:
+                cb(out, self.sr)
+            except Exception:
+                log.exception("echo reference failed")
         return out
 
     def clear(self):
@@ -429,6 +550,11 @@ class FakeAudioIO(AudioIO):
         self.played = []                 # (wall time, samples) of non-silent output
         self.first_audio_t = None        # perf_counter time of the first non-silent output since reset_played()
         self.noise = 1e-4
+        # A room (tests): what the speaker plays comes back into the microphone `delay` seconds
+        # later at `gain`, as from loudspeakers in a room.
+        self.room = None                 # (delay_s, gain)
+        self.echo_buf = collections.deque()
+        self.echo_lock = threading.Lock()
         self.in_thread = threading.Thread(target=self._in_loop, daemon=True, name="fake-mic")
         self.out_thread = threading.Thread(target=self._out_loop, daemon=True, name="fake-speaker")
         self.in_thread.start()
@@ -483,6 +609,12 @@ class FakeAudioIO(AudioIO):
                 b = self.feed_q.popleft() if self.feed_q else None
             if b is None:
                 b = (rng.standard_normal(BLOCK) * self.noise).astype(np.float32)
+            if self.room is not None:
+                with self.echo_lock:
+                    take = [self.echo_buf.popleft() for _ in range(min(BLOCK, len(self.echo_buf)))]
+                if take:
+                    b = b.copy()
+                    b[:len(take)] += np.asarray(take, dtype=np.float32) * self.room[1]
             cb = self.on_block
             if cb is not None:
                 cb(b)
@@ -498,6 +630,11 @@ class FakeAudioIO(AudioIO):
         nxt = time.perf_counter()
         while self.running:
             x = self.player.read(int(self.player.sr * step))
+            if self.room is not None:
+                with self.echo_lock:
+                    if not self.echo_buf:
+                        self.echo_buf.extend(np.zeros(int(self.room[0] * SR_IN), dtype=np.float32))
+                    self.echo_buf.extend(resample(x, self.player.sr, SR_IN))
             if np.any(x):
                 now = time.perf_counter()
                 if self.first_audio_t is None:
@@ -1019,10 +1156,13 @@ def stub_design(models_dir, device, description, sample_text, language, out_path
 class Capture:
     _ids = itertools.count(1)
 
-    def __init__(self, kind, pre_blocks=(), pre_voiced=()):
+    def __init__(self, kind, pre_blocks=(), pre_voiced=(), pre_raw=None):
         self.id = next(Capture._ids)
         self.kind = kind                    # vad | ptt | wake | kws | enroll
         self.blocks = list(pre_blocks)
+        # The microphone as it was, before echo cancellation: who is talking is told from this
+        # (the canceller dampens a voice that talks over the speakers, which spoils its score).
+        self.raw = list(pre_raw) if pre_raw is not None else list(self.blocks)
         self.voiced = list(pre_voiced) if pre_voiced else [False] * len(self.blocks)
         self.lock = threading.Lock()
         self.started = time.monotonic()
@@ -1033,10 +1173,13 @@ class Capture:
         self.last_partial_req = 0.0
         self.last_partial_text = ""
         self.wake_found = False             # kws: the wake phrase was seen in a partial
+        self.heard_playback = False         # the speakers were playing while it listened
+        self.barge_score = None             # a barge-in's verified score (it started by talking over the assistant)
 
-    def add(self, block, voiced):
+    def add(self, block, voiced, raw=None):
         with self.lock:
             self.blocks.append(block)
+            self.raw.append(block if raw is None else raw)
             self.voiced.append(voiced)
         if voiced:
             self.last_voice = time.monotonic()
@@ -1052,9 +1195,9 @@ class Capture:
             blocks = blocks[: min(len(blocks), last + 8)]        # keep ~250 ms after the last voiced block
         return np.concatenate(blocks)
 
-    def voiced_audio(self):
+    def voiced_audio(self, raw=False):
         with self.lock:
-            blocks, voiced = list(self.blocks), list(self.voiced)
+            blocks, voiced = list(self.raw if raw else self.blocks), list(self.voiced)
         keep = [False] * len(voiced)
         for i, v in enumerate(voiced):
             if v:
@@ -1088,7 +1231,7 @@ class VoiceService:
         self.lock = threading.RLock()
         self.cfg = {"listen_mode": "push_to_talk", "wake_word": "hey craft", "input_device": None,
                     "output_device": None, "speaker_threshold": 0.55, "language": "en", "tts_voice": None,
-                    "vad_silence_ms": 700, "sounds": True}
+                    "vad_silence_ms": 700, "sounds": True, "echo_cancellation": True}
         # models
         self.vad = self.stt = self.speaker = self.tts = self.wake = None
         self.wake_engine = None            # "openwakeword" | "whisper" | None
@@ -1104,8 +1247,10 @@ class VoiceService:
         self.pre_roll = collections.deque(maxlen=PRE_ROLL_BLOCKS)
         self.pre_voiced = collections.deque(maxlen=PRE_ROLL_BLOCKS)
         self.run_voiced = 0
-        self.recent_voiced = collections.deque(maxlen=12)
-        self.recent_blocks = collections.deque(maxlen=24)
+        self.recent_voiced = collections.deque(maxlen=BARGE_BLOCKS)
+        self.recent_blocks = collections.deque(maxlen=BARGE_BLOCKS)     # raw (who is talking)
+        self.recent_clean = collections.deque(maxlen=BARGE_BLOCKS)      # echo-cancelled (what is said)
+        self.pre_roll_raw = collections.deque(maxlen=PRE_ROLL_BLOCKS)
         self.wake_armed_until = 0.0
         self.last_wake_t = 0.0
         self.barge_checked_t = 0.0
@@ -1116,7 +1261,15 @@ class VoiceService:
         self.profile_path = os.path.join(self.models_dir, "speaker", "profile.json")
         self.enrolling = False
         self.enroll_segments = []
-        self.assistant_emb = None
+        self.assistant_emb = None           # the assistant's voice, from its reference clip
+        self.played_emb = None              # ...and from what was actually played (first ~4 s)
+        self.played_buf = []
+        self.own_said = collections.deque()  # (time, sentence) the assistant said, newest last
+        self.speech_ended_t = 0.0            # when the assistant last finished speaking
+        # echo cancellation (WebRTC AEC3): the speakers' output is the reference
+        self.aec = echo_canceller()
+        if self.audio is not None and getattr(self.audio, "player", None) is not None:
+            self.audio.player.on_read = self._echo_reference
         # speaking
         self.speak_q = collections.deque()
         self.speak_cv = threading.Condition()
@@ -1225,7 +1378,7 @@ class VoiceService:
         st = {"type": "status", "version": VERSION, "state": self.state(), "models": dict(self.models),
               "device": self.device, "wake_engine": self.wake_engine, "wake_word": self.cfg["wake_word"],
               "config": dict(self.cfg), "voice": self._voice_desc(), "speaker_threshold": self.cfg["speaker_threshold"],
-              "queue": len(self.speak_q)}
+              "queue": len(self.speak_q), "echo_cancellation": self.echo_cancellation_state()}
         try:
             if self.device.startswith("cuda") and not self.stub:
                 import torch
@@ -1341,6 +1494,7 @@ class VoiceService:
         except Exception as e:
             self.error(f"assistant voice could not be loaded: {e}")
             return
+        self.played_emb, self.played_buf = None, []
         if self.speaker is not None:
             try:
                 a, _ = load_wav(v["ref_audio"], SR_IN)
@@ -1404,6 +1558,8 @@ class VoiceService:
                 self.cfg[k] = c[k]
         if "sounds" in c:
             self.cfg["sounds"] = bool(c["sounds"])
+        if "echo_cancellation" in c:
+            self.cfg["echo_cancellation"] = bool(c["echo_cancellation"])
         if "speaker_threshold" in c:
             try:
                 self.cfg["speaker_threshold"] = min(1.0, max(-1.0, float(c["speaker_threshold"])))
@@ -1467,7 +1623,7 @@ class VoiceService:
                 else:
                     kind = "enroll" if self.enrolling else "ptt"
                     pre = list(self.pre_roll)[-6:]
-                    self.capture = Capture(kind, pre, list(self.pre_voiced)[-6:])
+                    self.capture = Capture(kind, pre, list(self.pre_voiced)[-6:], list(self.pre_roll_raw)[-6:])
             elif not down and self.ptt_down:
                 self.ptt_down = False
                 if self.capture is not None and self.capture.kind in ("ptt", "enroll") and not self.capture.done:
@@ -1478,8 +1634,6 @@ class VoiceService:
     def _on_block(self, block, injected=False):
         if self.injecting and not injected:
             return                      # the microphone is muted while a test WAV is fed in
-        rms = float(np.sqrt(np.mean(np.square(block)))) if len(block) else 0.0
-        self.level_in = max(self.loudness(rms), self.level_in * 0.85)
         self.in_q.append(block)
         self.in_evt.set()
 
@@ -1547,23 +1701,33 @@ class VoiceService:
             except IndexError:
                 continue
             try:
-                self._process_block(block)
+                # The speakers' sound taken out of the microphone before the VAD, the wake word
+                # and speech recognition hear it.
+                raw = block
+                if self.aec is not None and self.cfg.get("echo_cancellation", True):
+                    block = self.aec.capture(raw)
+                rms = float(np.sqrt(np.mean(np.square(block)))) if len(block) else 0.0
+                self.level_in = max(self.loudness(rms), self.level_in * 0.85)
+                self._process_block(block, raw)
             except Exception:
                 log.exception("audio processing failed")
 
-    def _process_block(self, block):
+    def _process_block(self, block, raw=None):
+        raw = block if raw is None else raw
         if self.vad is None:
             self.pre_roll.append(block)
+            self.pre_roll_raw.append(raw)
             self.pre_voiced.append(False)
             cap = self.capture
             if cap is not None and not cap.done and cap.kind == "ptt":
-                cap.add(block, True)        # no VAD yet: treat push-to-talk audio as speech
+                cap.add(block, True, raw)   # no VAD yet: treat push-to-talk audio as speech
             return
         p = self.vad.prob(block)
         voiced = p >= (VAD_OFF if self.run_voiced > 0 else VAD_ON)
         self.run_voiced = self.run_voiced + 1 if voiced else 0
         self.recent_voiced.append(voiced)
-        self.recent_blocks.append(block)
+        self.recent_blocks.append(raw)
+        self.recent_clean.append(block)
         now = time.monotonic()
         mode = self.cfg["listen_mode"]
         wake_score = None
@@ -1572,11 +1736,16 @@ class VoiceService:
         changed = False
         with self.lock:
             cap = self.capture
+            sounding = self.speaking or (now - self.audio.player.last_audio_t) < 0.15
             if cap is not None and not cap.done:
-                cap.add(block, voiced)
+                cap.add(block, voiced, raw)
+                cap.heard_playback |= sounding
                 self._capture_tick(cap, now)
             else:
-                playing = self.speaking or (now - self.audio.player.last_audio_t) < ECHO_HOLDOFF_S
+                # Not while it speaks, nor for a moment after: 1 s after its speech in the open-mic
+                # modes (the room's echo of it), the short default after any other sound (a chime).
+                playing = (self.speaking or now - self.speech_ended_t < holdoff_s(mode)
+                           or now - self.audio.player.last_audio_t < ECHO_HOLDOFF_S)
                 if self.enrolling:
                     if self.run_voiced >= START_BLOCKS and not playing:
                         self._start_capture("enroll")
@@ -1603,12 +1772,13 @@ class VoiceService:
                         self._start_capture("kws")
                         changed = True
             self.pre_roll.append(block)
+            self.pre_roll_raw.append(raw)
             self.pre_voiced.append(voiced)
         if changed:
             self.push_state()
 
     def _start_capture(self, kind):
-        self.capture = Capture(kind, list(self.pre_roll), list(self.pre_voiced))
+        self.capture = Capture(kind, list(self.pre_roll), list(self.pre_voiced), list(self.pre_roll_raw))
 
     def _capture_tick(self, cap, now):
         silence_s = self.cfg["vad_silence_ms"] / 1000.0
@@ -1645,30 +1815,36 @@ class VoiceService:
 
     def _barge_candidate(self, now):
         """While speaking: is this the user talking over us (not our own voice echoing back)?"""
-        if sum(self.recent_voiced) < 8 or now - self.barge_checked_t < 0.25:
+        if sum(self.recent_voiced) < BARGE_VOICED or now - self.barge_checked_t < 0.25:
             return False
         cur = self.current
         if cur is not None and not cur.get("interruptible", True):
             return False
         self.barge_checked_t = now
-        audio = np.concatenate(list(self.recent_blocks)[-16:])
-        ok = True
-        if self.speaker is not None:
-            try:
-                e = self.speaker.embed(audio)
-                user = float(np.dot(e, self.profile)) if self.profile is not None else None
-                echo = float(np.dot(e, self.assistant_emb)) if self.assistant_emb is not None else None
-                if user is not None:
-                    ok = user >= 0.8 * self.cfg["speaker_threshold"] and (echo is None or user > echo)
-                elif echo is not None:
-                    ok = echo < 0.5
-                log.debug("barge check user=%s echo=%s ok=%s", user, echo, ok)
-            except Exception:
-                log.exception("barge-in check failed")
+        # Talking over the assistant in an open-mic mode needs the enrolled user's verified voice
+        # (and the echo canceller, when it's installed and on): otherwise its own echo would stop it.
+        if self.profile is None or self.speaker is None:
+            return False
+        if self.aec is not None and not self.cfg.get("echo_cancellation", True):
+            return False
+        # Only the blocks with speech in them: what's left of the echo between words would drag
+        # the user's score down.
+        audio = np.concatenate([b for b, v in zip(self.recent_blocks, self.recent_voiced) if v])
+        try:
+            e = self.speaker.embed(audio)
+            user = float(np.dot(e, self.profile))
+            echo = self.assistant_similarity(e)
+            ok = user >= self.cfg["speaker_threshold"] and not own_voice(echo, user)
+            log.debug("barge check user=%s echo=%s ok=%s", user, echo, ok)
+        except Exception:
+            log.exception("barge-in check failed")
+            ok = False
         if not ok:
             return False
         self._barge_in(reason="voice")
-        self._start_capture("vad")
+        # The capture starts with what was checked, so the words before the barge-in aren't lost.
+        self.capture = Capture("vad", list(self.recent_clean), list(self.recent_voiced), list(self.recent_blocks))
+        self.capture.barge_score = user
         return True
 
     def _barge_in(self, reason):
@@ -1719,11 +1895,15 @@ class VoiceService:
                 rest = match_wake(text, self.cfg["wake_word"])
                 if rest is None:
                     return
+                if self._in_echo_window(cap) and matches_own_speech(text, self.own_sentences()):
+                    return
                 if not cap.wake_found:
                     cap.wake_found = True
                     self.emit({"type": "wake", "word": self.cfg["wake_word"], "score": 1.0})
                     self.push_state()       # now it shows (and chimes) as taking down what's said
                 text = rest
+            if text and self._in_echo_window(cap) and matches_own_speech(text, self.own_sentences()):
+                return
             if text and text != cap.last_partial_text:
                 cap.last_partial_text = text
                 self.emit({"type": "partial", "text": text})
@@ -1761,11 +1941,27 @@ class VoiceService:
                 text = rest
         if not text.strip():
             return
-        score = None
+        echo_window = self._in_echo_window(cap)
+        if echo_window and matches_own_speech(text, self.own_sentences()):
+            self.echo_ignored(text, "own_words")
+            return
+        score, emb = None, None
         try:
-            score = self.speaker_score(cap.voiced_audio())
+            voiced = cap.voiced_audio(raw=True)
+            if self.speaker is not None and voiced.size >= SR_IN // 4:
+                emb = self.speaker.embed(voiced)
+                if self.profile is not None and emb.shape == self.profile.shape:
+                    score = float(np.dot(emb, self.profile))
         except Exception:
             log.exception("speaker scoring failed")
+        if emb is not None and cap.kind not in ("ptt", "enroll"):
+            if own_voice(self.assistant_similarity(emb), score):
+                self.echo_ignored(text, "own_voice")
+                return
+        if score is not None and cap.barge_score is not None:
+            # Talking over the assistant was checked on the clearest part; the whole capture also
+            # holds what was left of its echo.
+            score = max(score, cap.barge_score)
         if score is None:
             ok, verified, score = self.profile is None, False, 0.0
         else:
@@ -1775,6 +1971,58 @@ class VoiceService:
         if getattr(cap, "ended", None):
             ev["latency_ms"] = int((time.monotonic() - cap.ended) * 1000)
         self.emit(ev)
+
+    # ----- the assistant's own speech coming back ------------------------------------------------------
+    def echo_cancellation_state(self):
+        if not self.cfg.get("echo_cancellation", True):
+            return "off"
+        return "on" if self.aec is not None else "unavailable"
+
+    def _echo_reference(self, out, sr):
+        if self.aec is not None and self.cfg.get("echo_cancellation", True):
+            self.aec.render(out, sr)
+
+    def _remember_said(self, sentence):
+        now = time.monotonic()
+        with self.lock:
+            self.own_said.append((now, sentence))
+            while self.own_said and now - self.own_said[0][0] > OWN_WORDS_KEEP_S:
+                self.own_said.popleft()
+
+    def own_sentences(self):
+        """What the assistant said in the last minute, then what it is about to say."""
+        now = time.monotonic()
+        with self.lock:
+            said = [t for at, t in self.own_said if now - at <= OWN_WORDS_KEEP_S]
+        with self.speak_cv:
+            cur = self.current
+            queued = ([cur["text"]] if cur is not None else []) + [j["text"] for j in self.speak_q]
+        return said + [x for q in queued for x in split_sentences(q)]
+
+    def _in_echo_window(self, cap):
+        if cap.kind in ("ptt", "enroll"):
+            return False        # the person holding the key is talking; enrolment is their voice
+        return cap.heard_playback or cap.started - self.speech_ended_t < ECHO_WINDOW_S
+
+    def _note_played(self, chunk, sr):
+        """Keep the first ~4 s of what the assistant says, to know its voice as it sounds here."""
+        if self.speaker is None or self.played_emb is not None:
+            return
+        self.played_buf.append(resample(np.asarray(chunk, dtype=np.float32), sr, SR_IN))
+        if sum(x.size for x in self.played_buf) >= 4 * SR_IN:
+            try:
+                self.played_emb = self.speaker.embed(np.concatenate(self.played_buf))
+            except Exception:
+                log.exception("own-voice embedding failed")
+            self.played_buf = []
+
+    def assistant_similarity(self, emb):
+        sims = [float(np.dot(emb, e)) for e in (self.assistant_emb, self.played_emb) if e is not None and e.shape == emb.shape]
+        return max(sims) if sims else None
+
+    def echo_ignored(self, text, reason):
+        log.info("echo ignored (%s): %r", reason, text)
+        self.emit({"type": "echo_ignored", "text": text, "reason": reason})
 
     # ----- enrolment -----------------------------------------------------------------------------------
     def enroll_start(self):
@@ -1793,7 +2041,7 @@ class VoiceService:
     def _enroll_add(self, cap):
         if not self.enrolling:
             return
-        audio = cap.voiced_audio()
+        audio = cap.voiced_audio(raw=True)
         secs = cap.voiced_seconds()
         if secs >= 0.8:
             self.enroll_segments.append((audio, secs))
@@ -1889,10 +2137,12 @@ class VoiceService:
                     epoch = self.audio.player.epoch
                     first = True
                     for sentence in split_sentences(job["text"]):
+                        self._remember_said(sentence)
                         for chunk in self.tts.stream(sentence, self.cfg.get("language") or "en", job["cancel"]):
                             if job["cancel"].is_set():
                                 break
                             self.audio.play(chunk, self.tts.sr, epoch)
+                            self._note_played(chunk, self.tts.sr)
                             if first:
                                 first = False
                                 log.info("speak %s: first audio after %.0f ms", job["id"],
@@ -1901,6 +2151,7 @@ class VoiceService:
                             break
                     while self.audio.pending_seconds() > 0 and not job["cancel"].is_set() and not self.stopping.is_set():
                         time.sleep(0.02)
+                    self.speech_ended_t = time.monotonic()
                 interrupted = job["cancel"].is_set()
             except Exception as e:
                 log.exception("speaking failed")

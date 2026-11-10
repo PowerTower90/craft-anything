@@ -62,7 +62,7 @@ def real():
     prof = os.path.join(MODELS, "speaker", "profile.json")
     if os.path.exists(prof):
         os.remove(prof)                      # every run starts unenrolled
-    s = InProcess(MODELS, stub=False, device="cuda:0")
+    s = InProcess(MODELS, stub=False, device="cuda:0", aec=vs.echo_canceller() is not None)
     t0 = time.perf_counter()
     s.wait_ready(1800)
     metrics["load_s"] = round(time.perf_counter() - t0, 1)
@@ -191,24 +191,26 @@ def test_speak_latency_and_intelligibility(real):
     c.close()
 
 
-def test_barge_in_without_profile(real, clips):
+def test_no_voice_barge_in_without_profile(real, clips):
+    """Before enrolment a voice can't talk over the assistant in an open-mic mode (it could be the
+    assistant's own echo); once it has finished, the user is heard."""
     if real.svc.profile is not None:
         pytest.skip("a speaker profile exists already")
     c = Client(real.port)
     config(c, listen_mode="always", vad_silence_ms=700)
-    t = c.send(cmd="speak", id="long", text="Let me tell you about the render queue. " * 4 + "It has many steps and takes a while.")
+    t = c.send(cmd="speak", id="long", text="Let me tell you about the render queue. It has many steps and takes a while.")
     c.wait("state", lambda e: e["speaking"], after=t)
-    time.sleep(1.5)
+    time.sleep(1.0)
+    feed_and_time(real, clips["u_status"][0], lead=0.0, tail=0.5)
+    s = c.wait("spoken", lambda e: e["id"] == "long", after=t, timeout=60)
+    barged = bool(c.of("barge_in", after=t))
+    time.sleep(1.2)
     audio, text = clips["u_status"]
-    start, end = feed_and_time(real, audio, lead=0.0)
-    b = c.wait("barge_in", after=t, timeout=10)
-    s = c.wait("spoken", lambda e: e["id"] == "long", after=t, timeout=10)
+    start, end = feed_and_time(real, audio)
     u = c.wait("utterance", after=start, timeout=20)
-    metrics["barge_in_no_profile"] = {"barge_after_speech_start_s": round(b["_t"] - start, 3), "heard": u["text"],
-                                      "similarity": round(sim(text, u["text"]), 3)}
-    assert s["interrupted"] is True
-    assert b["_t"] - start < 1.0
-    assert sim(text, u["text"]) >= 0.7, metrics["barge_in_no_profile"]
+    metrics["no_barge_in_without_profile"] = {"barged": barged, "interrupted": s["interrupted"], "heard_after": u["text"]}
+    assert not barged and not s["interrupted"]
+    assert sim(text, u["text"]) >= 0.7, metrics["no_barge_in_without_profile"]
     c.close()
 
 
@@ -219,6 +221,11 @@ def test_enrol_and_verify(real, clips):
     c.wait("enroll_progress", after=t)
     for i in range(len(ENROL)):
         feed_and_time(real, clips[f"enrol_{i}"][0], lead=0.2, tail=1.0)
+    while real.audio.feed_remaining_s() > 0:
+        time.sleep(0.1)
+    time.sleep(2.0)
+    if not c.of("enrolled", after=t):
+        c.send(cmd="enroll_stop")        # it finishes by itself at 20 s of speech; short of that, the person stops it
     e = c.wait("enrolled", after=t, timeout=60)
     assert e["ok"] is True, e
     prog = c.of("enroll_progress", after=t)
@@ -234,6 +241,88 @@ def test_enrol_and_verify(real, clips):
     by = {r["line"]: r for r in rows}
     assert by["u_open"]["speaker_ok"] and by["u_status"]["speaker_ok"], rows
     assert not by["o_open"]["speaker_ok"] and not by["o_talk"]["speaker_ok"], rows
+    c.close()
+
+
+def db(x):
+    return 10 * np.log10(np.mean(np.square(x)) + 1e-12)
+
+
+def set_room(real, room):
+    """A new room: its echo starts afresh (what was on its way in the old one is gone)."""
+    with real.audio.echo_lock:
+        real.audio.echo_buf.clear()
+        real.audio.room = room
+
+
+def test_own_echo_is_ignored_and_the_user_is_heard(real, clips):
+    """Loudspeakers in a room: what the assistant says comes back into the microphone (120 ms
+    later, at -9 dB). It must not be heard as the user, with echo cancellation and without it (the
+    own-words and own-voice filters); the enrolled user talking over it, and after it, is heard."""
+    if real.svc.profile is None:
+        pytest.skip("needs the enrolment test first")
+    c = Client(real.port)
+    config(c, listen_mode="always", vad_silence_ms=700)
+    report = {}
+    try:
+        # With echo cancellation, without it (turn-taking keeps the echo out), and without it in a
+        # big room whose echo outlasts the wait after speaking (the own-words and own-voice filters).
+        rooms = [(True, 0.12), (False, 0.12), (False, 1.6)] if real.svc.aec is not None else [(False, 0.12), (False, 1.6)]
+        for aec, delay in rooms:
+            set_room(real, (delay, 0.35))
+            config(c, echo_cancellation=aec)
+            real.audio.reset_played()
+            t = c.send(cmd="speak", id=f"echo-{aec}-{delay}", text="Hello there! I can hear you clearly. The trailer folder is open now, "
+                       "and the three new clips are ready for you to watch.")
+            s = c.wait("spoken", lambda e, k=f"echo-{aec}-{delay}": e["id"] == k, after=t, timeout=90)
+            time.sleep(3.0 + delay)
+            heard = c.of("utterance", after=t)
+            report[f"aec_{aec}_delay_{delay}"] = {"utterances": [u["text"] for u in heard],
+                                    "echo_ignored": [(e["reason"], e["text"]) for e in c.of("echo_ignored", after=t)],
+                                    "partials": len(c.of("partial", after=t)), "interrupted": s["interrupted"]}
+            if delay < 1.0:
+                assert not heard, report
+            else:
+                # An echo that outlasts the wait after speaking can leave a word or two the filters
+                # can't place: never the enrolled user's, so never acted on.
+                assert not any(u["speaker_ok"] for u in heard), report
+            assert not s["interrupted"], "its own echo didn't stop it"
+        played = vs.resample(real.audio.played_audio(), real.audio.player.sr, 16000)
+        set_room(real, (0.12, 0.35))
+        # The enrolled user talks over it, then after it: both heard.
+        config(c, echo_cancellation=real.svc.aec is not None)
+        t = c.send(cmd="speak", id="over", text="Let me read you the whole render report, it is quite a long one today. " * 2)
+        c.wait("state", lambda e: e["speaking"], after=t)
+        time.sleep(1.5)
+        audio, text = clips["u_build"]
+        start, _ = feed_and_time(real, audio, lead=0.0)
+        b = c.wait("barge_in", after=t, timeout=10)
+        u = c.wait("utterance", after=start, timeout=30)
+        report["user_over_playback"] = {"barge_after_speech_start_s": round(b["_t"] - start, 3), "heard": u["text"],
+                                        "similarity": round(sim(text, u["text"]), 3), "speaker_ok": u["speaker_ok"]}
+        assert sim(text, u["text"]) >= 0.7 and u["speaker_ok"], report
+        time.sleep(1.5)
+        audio, text = clips["u_status"]
+        start, _ = feed_and_time(real, audio)
+        u = c.wait("utterance", after=start, timeout=30)
+        report["user_after_playback"] = {"heard": u["text"], "similarity": round(sim(text, u["text"]), 3)}
+        assert sim(text, u["text"]) >= 0.7, report
+    finally:
+        set_room(real, None)
+    # Echo reduction on the recorded loop: the assistant's real speech as the speakers' signal.
+    aec = vs.echo_canceller()
+    if aec is not None and played.size > 4 * 16000:
+        d = int(0.12 * 16000)
+        mic = np.concatenate([np.zeros(d, np.float32), played[:-d] * 0.35])
+        blocks = []
+        for i in range(0, played.size - vs.BLOCK + 1, vs.BLOCK):
+            aec.render(played[i:i + vs.BLOCK], 16000)
+            blocks.append(aec.capture(mic[i:i + vs.BLOCK]))
+        out = np.concatenate(blocks)
+        k = 2 * 16000
+        report["echo_reduction_db"] = round(db(mic[k:out.size]) - db(out[k:]), 1)
+        assert report["echo_reduction_db"] > 15, report
+    metrics["own_echo"] = report
     c.close()
 
 

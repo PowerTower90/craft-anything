@@ -8,5 +8,7 @@ silero-vad>=5.1         # voice activity detection (model bundled in the wheel),
 speechbrain>=1.0        # ECAPA-TDNN speaker verification, Apache-2.0
 openwakeword>=0.6       # built-in wake words (hey jarvis, alexa, ...), Apache-2.0
 psutil>=5.9             # parent-process watchdog, BSD-3-Clause
+livekit>=1.2            # WebRTC AEC3 echo cancellation (rtc.AudioProcessingModule), Apache-2.0; optional:
+                        # without it the own-words, own-voice and turn-taking filters still apply
 # tests only
 pytest>=8

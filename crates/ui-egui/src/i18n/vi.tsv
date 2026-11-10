@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	Giọng nói đã bật — giữ {key} rồ
 Voice is on — hold {key} or say “{word}”	Giọng nói đã bật — giữ {key} hoặc nói “{word}”
 Voice starts with Craft Anything. You can change that in Settings → Voice.	Giọng nói khởi động cùng Craft Anything. Bạn có thể đổi trong Cài đặt → Giọng nói.
 Waiting for your yes or no	Đang chờ bạn trả lời có hoặc không
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything nghe thấy giọng của chính nó qua loa và đã bỏ qua.
+Echo cancellation	Khử tiếng vọng
+Its own echo	Tiếng vọng của chính nó
+Take the speakers' sound out of the microphone, so it never hears itself	Loại bỏ âm thanh loa khỏi micro để nó không bao giờ nghe chính mình

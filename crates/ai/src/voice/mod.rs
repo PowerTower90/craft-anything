@@ -55,6 +55,12 @@ pub struct Utterance {
     /// nothing said then may be an instruction.
     #[serde(default = "yes")]
     pub verified: bool,
+    /// The microphone is open (wake word or always), where the assistant may hear itself.
+    #[serde(default)]
+    pub open_mic: bool,
+    /// Seconds since the assistant last finished speaking, when it has.
+    #[serde(default)]
+    pub since_speech_s: Option<f32>,
 }
 
 fn yes() -> bool {
@@ -64,7 +70,7 @@ fn yes() -> bool {
 impl Utterance {
     /// A verified utterance (tests and typed input).
     pub fn verified(text: impl Into<String>) -> Self {
-        Utterance { text: text.into(), speaker_ok: true, speaker_score: 1.0, duration_s: 1.0, verified: true }
+        Utterance { text: text.into(), speaker_ok: true, speaker_score: 1.0, duration_s: 1.0, verified: true, open_mic: false, since_speech_s: None }
     }
 
     /// One heard before the person enrolled their voice (`verified` false).
@@ -109,6 +115,8 @@ pub enum Speaker {
     Opus,
     /// Something the app says about itself (the local model is unreachable…).
     Notice,
+    /// The assistant's own speech, heard back through the speakers: shown faintly, never answered.
+    Echo,
 }
 
 /// One line of the conversation.

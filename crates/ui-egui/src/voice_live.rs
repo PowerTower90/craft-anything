@@ -179,6 +179,12 @@ impl LiveVoice {
                 v.level_in = 0.0;
             }
             VoiceEvent::Level { input, output } => (v.level_in, v.level_out) = (input, output),
+            VoiceEvent::EchoIgnored { text, .. } => {
+                // Its own speech came back and was dropped by the service: shown faintly.
+                v.thinking = false;
+                v.partial.clear();
+                v.lines.push(VoiceLine { speaker: Speaker::Echo, text, speaker_score: None });
+            }
             VoiceEvent::EnrollProgress { seconds, needed } => v.enrolment = Enrolment::Recording { seconds, needed },
             VoiceEvent::Enrolled { ok } => {
                 v.enrolment = Enrolment::Finished { ok };
@@ -233,6 +239,7 @@ impl LiveVoice {
                 let speaker = match line.speaker {
                     craft_anything_ai::voice::Speaker::User => Speaker::You,
                     craft_anything_ai::voice::Speaker::NotUser => Speaker::NotYou,
+                    craft_anything_ai::voice::Speaker::Echo => Speaker::Echo,
                     _ => Speaker::Assistant,
                 };
                 v.lines.push(VoiceLine { speaker, text: line.text, speaker_score: line.score });
@@ -399,6 +406,7 @@ fn config_of(v: &craft_anything_engine::settings::VoiceSettings) -> VoiceConfig 
         assistant_voice: v.assistant_voice_ref_audio.clone().map(|ref_audio| AssistantVoice { ref_audio, ref_text: v.assistant_voice_ref_text.clone() }),
         auto_start: v.auto_start,
         sounds: v.sounds,
+        echo_cancellation: v.echo_cancellation,
     }
 }
 
@@ -417,6 +425,7 @@ fn config_params(c: &VoiceConfig) -> Value {
         "assistant_voice_ref_text": c.assistant_voice.as_ref().map(|a| a.ref_text.clone()).unwrap_or_default(),
         "auto_start": c.auto_start,
         "sounds": c.sounds,
+        "echo_cancellation": c.echo_cancellation,
     })
 }
 

@@ -94,7 +94,7 @@ pub fn specs() -> Vec<ToolSpec> {
         ToolSpec {
             id: "voice_config",
             title: "Set up voice",
-            summary: "Show or change the [voice] settings: python, port, device (cuda:0 or cpu), listen_mode (push_to_talk, wake_word, always), wake_word, push_to_talk_key, speaker_threshold (0-1), input_device and output_device (empty: the system's), language, vad_silence_ms, assistant_voice_ref_audio and assistant_voice_ref_text, task_folder (empty: the home folder), models_dir, auto_start, sounds (short chimes). Saved to config.toml and given to the running service at once; python, port, device and models_dir take effect at the next start (restart_needed). With nothing given, shows them. Public actions are always confirmed: that can't be changed.",
+            summary: "Show or change the [voice] settings: python, port, device (cuda:0 or cpu), listen_mode (push_to_talk, wake_word, always), wake_word, push_to_talk_key, speaker_threshold (0-1), input_device and output_device (empty: the system's), language, vad_silence_ms, assistant_voice_ref_audio and assistant_voice_ref_text, task_folder (empty: the home folder), models_dir, auto_start, sounds (short chimes), echo_cancellation (take the speakers out of the microphone; on). Saved to config.toml and given to the running service at once; python, port, device and models_dir take effect at the next start (restart_needed). With nothing given, shows them. Public actions are always confirmed: that can't be changed.",
             beginner: "Changes how voice listens and speaks.",
             toolset: Toolset::Setup,
             effects: Effects::WRITES_FILESYSTEM.union(Effects::MUTATES_SESSION).union(Effects::ACCESSES_NETWORK),
@@ -467,6 +467,9 @@ pub struct ConfigParams {
     /// Short chimes when listening starts and stops, a job is done, or something waits for an answer.
     #[serde(default)]
     pub sounds: Option<bool>,
+    /// Take the speakers' sound out of the microphone, so the assistant doesn't hear itself.
+    #[serde(default)]
+    pub echo_cancellation: Option<bool>,
 }
 
 /// A path setting: empty clears it; otherwise it must be a full path.
@@ -565,6 +568,9 @@ fn voice_config(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolErro
     }
     if let Some(x) = p.sounds {
         v.sounds = x;
+    }
+    if let Some(x) = p.echo_cancellation {
+        v.echo_cancellation = x;
     }
     v.confirm_public_actions = true;
     if v == before {

@@ -92,6 +92,10 @@ pub struct VoiceConfig {
     /// Short chimes when capturing starts and ends (and for [`VoiceCommand::Chime`]).
     #[serde(default = "sounds_on")]
     pub sounds: bool,
+    /// Take the speakers' sound out of the microphone (WebRTC echo cancellation, when the
+    /// service has it).
+    #[serde(default = "sounds_on")]
+    pub echo_cancellation: bool,
 }
 
 fn sounds_on() -> bool {
@@ -110,6 +114,7 @@ impl Default for VoiceConfig {
             tts_voice: None,
             vad_silence_ms: 700,
             sounds: true,
+            echo_cancellation: true,
         }
     }
 }
@@ -248,6 +253,12 @@ pub enum VoiceEvent {
     Status {
         state: Value,
     },
+    /// Something heard was the assistant's own speech coming back (its words, or its voice), and
+    /// was dropped: `reason` is `own_words` or `own_voice`.
+    EchoIgnored {
+        text: String,
+        reason: String,
+    },
     /// Tests only: a WAV given with [`VoiceCommand::InjectWav`] has been fed in.
     Injected {
         seconds: f32,
@@ -312,6 +323,7 @@ impl VoiceEvent {
             "config_ok" => VoiceEvent::ConfigOk,
             "level" => VoiceEvent::Level { input: f("in").clamp(0.0, 1.0), output: f("out").clamp(0.0, 1.0) },
             "injected" => VoiceEvent::Injected { seconds: f("seconds") },
+            "echo_ignored" => VoiceEvent::EchoIgnored { text: s("text"), reason: s("reason") },
             "status" => {
                 let mut state = v.clone();
                 if let Some(o) = state.as_object_mut() {

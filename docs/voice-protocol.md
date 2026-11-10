@@ -82,6 +82,7 @@ utterance id of the `spoken` event.
 | `tts_voice` | `null` | `{"ref_audio":path,"ref_text":str}` = the assistant voice (a `voice_designed` result); `null` = the default voice |
 | `vad_silence_ms` | `700` | Silence that ends an utterance (200-5000) |
 | `sounds` | `true` | Short chimes: capture start and end, and the `chime` command |
+| `echo_cancellation` | `true` | Take the speakers' sound out of the microphone (WebRTC AEC3, when `livekit` is installed); `status` says `on`, `off` or `unavailable` |
 
 ### Events (service → client)
 
@@ -100,6 +101,7 @@ utterance id of the `spoken` event.
 | `{"type":"devices","inputs":[...],"outputs":[...]}` | Reply to `devices` (names of the default host API's devices) |
 | `{"type":"config_ok"}` | Reply to `config` |
 | `{"type":"status","version":1,"state":{...},"models":{...},"device":"cuda:0","wake_engine":"whisper","wake_word":"...","config":{...},"voice":{...},"speaker_threshold":0.55,"queue":0,"vram_mb":{"allocated":..,"peak":..,"reserved":..}}` | Reply to `status`; also sent once when the models are ready |
+| `{"type":"echo_ignored","text":"...","reason":"own_words"\|"own_voice"}` | Something heard was the assistant's own speech coming back through the speakers, and was dropped (never sent as an `utterance`) |
 | `{"type":"error","message":"...","fatal":false}` | Something failed; `fatal:true` only when the models could not load |
 
 Fields and events beyond the contract (`enrolling`, `models_ready`, `loading`, `load_step`,
@@ -133,6 +135,31 @@ ECAPA-TDNN (cosine similarity of the voiced part of the audio). `speaker_ok` = s
 `speaker_threshold`, `verified:true`. **Before enrolment** there is nothing to compare with:
 `speaker_ok:true`, `speaker_score:0`, `verified:false` (so the app works on first use; the UI should
 ask the person to enrol).
+
+## Not hearing itself
+
+With loudspeakers and an open microphone the assistant would otherwise hear its own speech, take it
+for the user and answer itself. Four layers stop that; none applies to a push-to-talk capture (the
+user holding the key is talking):
+
+1. **Echo cancellation.** What the speakers play is the reference for WebRTC's AEC3 (with noise
+   suppression and a high-pass filter), run at 16 kHz in 10 ms frames before the VAD, the wake word and
+   speech recognition hear the microphone. Who is talking (speaker verification, barge-in, own voice) is
+   judged on the microphone as it was, since the canceller dampens a voice that talks over the speakers.
+   Measured on a recorded loop (the assistant's real speech, 120 ms delay, -9 dB): about 57 dB less echo.
+2. **Own words.** Every sentence spoken in the last 60 s, and what is queued, is kept. A capture that
+   heard playback, or began within 5 s after the assistant finished speaking, is dropped as
+   `echo_ignored` (`own_words`) when at least 60% of its words appear in order in one of those sentences
+   or in two or three consecutive ones, or the word sequences are 60% alike, or they share a run of 4
+   words. Fewer than 3 words is never taken for an echo (a "yes" to its own question gets through).
+   Partials and the wake word are checked the same way.
+3. **Own voice.** The assistant's voice is known from its reference clip and from the first ~4 s it
+   actually played (again after the voice changes). An utterance at least 0.55 like it, and at least as
+   like it as like the enrolled user (or with nobody enrolled), is dropped as `own_voice`.
+4. **Turn-taking.** In `wake_word` and `always`, no capture starts while it speaks or for 1.0 s after
+   (0.35 s after a chime, and in `push_to_talk`). Talking over it by voice in those modes needs the
+   enrolled user: a verified score at least `speaker_threshold` on up to the last ~2 s of speech, and
+   echo cancellation on when it's installed. Push-to-talk always interrupts.
 
 ## Speaking
 

@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	เปิดเสียงแล้ว — 
 Voice is on — hold {key} or say “{word}”	เปิดเสียงแล้ว — กด {key} ค้างไว้หรือพูดว่า “{word}”
 Voice starts with Craft Anything. You can change that in Settings → Voice.	เสียงเริ่มพร้อม Craft Anything เปลี่ยนได้ที่ การตั้งค่า → เสียง
 Waiting for your yes or no	รอคำตอบใช่หรือไม่ของคุณ
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything ได้ยินเสียงของตัวเองจากลำโพงและเพิกเฉยต่อเสียงนั้น
+Echo cancellation	การตัดเสียงสะท้อน
+Its own echo	เสียงสะท้อนของตัวเอง
+Take the speakers' sound out of the microphone, so it never hears itself	ตัดเสียงลำโพงออกจากไมโครโฟน เพื่อไม่ให้ได้ยินเสียงตัวเอง

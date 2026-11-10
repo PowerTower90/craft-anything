@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	Hääl on sees — hoia {key} ja räägi
 Voice is on — hold {key} or say “{word}”	Hääl on sees — hoia {key} või ütle „{word}“
 Voice starts with Craft Anything. You can change that in Settings → Voice.	Hääl käivitub koos Craft Anythingiga. Seda saab muuta: Seaded → Hääl.
 Waiting for your yes or no	Ootab sinu jah- või ei-vastust
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything kuulis kõlaritest omaenda häält ja jättis selle tähelepanuta.
+Echo cancellation	Kajasummutus
+Its own echo	Oma kaja
+Take the speakers' sound out of the microphone, so it never hears itself	Eemalda kõlarite heli mikrofonist, et see ei kuuleks kunagi iseennast

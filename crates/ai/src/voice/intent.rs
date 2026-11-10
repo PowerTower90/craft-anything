@@ -212,6 +212,34 @@ pub fn is_affirmative(text: &str) -> bool {
     yes && !negated
 }
 
+/// Whether `text` sounds like the assistant's own recent words (`own`): at least half of its words
+/// appear in order in one of them, or it shares a run of three words with one, or it's a word or two
+/// from the end of one (the tail of its echo; before enrolment a "yes" approves nothing anyway). Loose on purpose:
+/// it only decides what is heard right after the assistant spoke, before the person has enrolled.
+pub fn echo_like(text: &str, own: &[String]) -> bool {
+    let u = words(text);
+    if u.is_empty() {
+        return false;
+    }
+    own.iter().any(|o| {
+        let w = words(o);
+        let mut prev = vec![0usize; w.len() + 1];
+        for x in &u {
+            let mut cur = vec![0usize; w.len() + 1];
+            for (j, y) in w.iter().enumerate() {
+                cur[j + 1] = if x == y { prev[j] + 1 } else { prev[j + 1].max(cur[j]) };
+            }
+            prev = cur;
+        }
+        let in_order = prev[w.len()];
+        let run = (0..u.len()).any(|i| (0..w.len()).any(|j| u.iter().skip(i).zip(w.iter().skip(j)).take_while(|(a, b)| a == b).count() >= 3));
+        // A word or two from the end of what it said: the tail of its echo.
+        let tail = &w[w.len().saturating_sub(6)..];
+        let tail_echo = u.len() <= 2 && u.iter().all(|x| tail.contains(x));
+        (in_order * 2 >= u.len() && in_order >= 2) || run || tail_echo
+    })
+}
+
 /// A safe answer: one that can only hold something back, so it's taken from any voice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SafeAnswer {

@@ -80,6 +80,8 @@ pub struct VoiceConfig {
     pub auto_start: bool,
     /// Short chimes when listening starts and stops, a job is done, or something waits.
     pub sounds: bool,
+    /// Take the speakers' sound out of the microphone, so it never hears itself.
+    pub echo_cancellation: bool,
 }
 
 impl Default for VoiceConfig {
@@ -95,6 +97,7 @@ impl Default for VoiceConfig {
             assistant_voice: None,
             auto_start: true,
             sounds: true,
+            echo_cancellation: true,
         }
     }
 }
@@ -151,6 +154,8 @@ pub enum Speaker {
     Assistant,
     /// Speech that didn't sound like the person: shown greyed, never acted on.
     NotYou,
+    /// Its own speech heard back through the speakers: shown faintly, never acted on.
+    Echo,
 }
 
 /// One line of the conversation.
@@ -930,16 +935,23 @@ fn line_row(ui: &mut Ui, t: &Tokens, line: &VoiceLine) {
         Speaker::You => (tr("You"), t.accent_ink, t.text),
         Speaker::Assistant => (tr("Craft Anything"), t.text_dim, t.text),
         Speaker::NotYou => (tr("Not your voice"), t.text_faint, t.text_faint),
+        Speaker::Echo => (tr("Its own echo"), t.text_faint, t.text_faint.gamma_multiply(0.7)),
     };
     ui.horizontal_top(|ui| {
         name_cell(ui, 96.0, RichText::new(who).font(theme::medium(theme::CAPTION)).color(who_col));
         let mut text = RichText::new(&line.text).color(text_col);
-        if line.speaker == Speaker::NotYou {
+        if matches!(line.speaker, Speaker::NotYou | Speaker::Echo) {
             text = text.italics();
         }
         let r = ui.add(egui::Label::new(text).wrap());
-        if line.speaker == Speaker::NotYou {
-            r.on_hover_text(tr("It didn't sound like your enrolled voice, so it was ignored and not sent to Opus."));
+        match line.speaker {
+            Speaker::NotYou => {
+                r.on_hover_text(tr("It didn't sound like your enrolled voice, so it was ignored and not sent to Opus."));
+            }
+            Speaker::Echo => {
+                r.on_hover_text(tr("Craft Anything heard its own voice through the speakers and ignored it."));
+            }
+            _ => {}
         }
     });
     ui.add_space(3.0);
@@ -1135,6 +1147,9 @@ pub fn settings(app: &mut CraftApp, ui: &mut Ui, path_field: fn(&mut Ui, &mut Op
     });
     settings_row(ui, &tr("Start with the app"), "", |ui| {
         widgets::toggle(ui, &mut config.auto_start, "Start voice when Craft Anything opens");
+    });
+    settings_row(ui, &tr("Echo cancellation"), "", |ui| {
+        widgets::toggle(ui, &mut config.echo_cancellation, "Take the speakers' sound out of the microphone, so it never hears itself");
     });
     settings_row(ui, &tr("Sounds"), "", |ui| {
         widgets::toggle(ui, &mut config.sounds, "Short chimes when it starts and stops listening, finishes a job or asks you something");

@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	ხმა ჩართულია — დ�
 Voice is on — hold {key} or say “{word}”	ხმა ჩართულია — დააჭირე {key} ან თქვი „{word}“
 Voice starts with Craft Anything. You can change that in Settings → Voice.	ხმა Craft Anything-თან ერთად ირთვება. შეცვლა შეგიძლია: პარამეტრები → ხმა.
 Waiting for your yes or no	ელოდება შენს „კი“-ს ან „არა“-ს
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything-მა დინამიკებიდან საკუთარი ხმა გაიგო და უგულებელყო.
+Echo cancellation	ექოს ჩახშობა
+Its own echo	საკუთარი ექო
+Take the speakers' sound out of the microphone, so it never hears itself	დინამიკების ხმის ამოღება მიკროფონიდან, რომ საკუთარი თავი არასოდეს გაიგონოს

@@ -1313,3 +1313,7 @@ Voice is on — hold {key} and talk	音声オン — {key} を押し続けて話
 Voice is on — hold {key} or say “{word}”	音声オン — {key} を押し続けるか「{word}」と言ってください
 Voice starts with Craft Anything. You can change that in Settings → Voice.	音声は Craft Anything と一緒に起動します。設定 → 音声 で変更できます。
 Waiting for your yes or no	はい／いいえの返事を待っています
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything はスピーカーから自分の声を聞き取り、無視しました。
+Echo cancellation	エコーキャンセル
+Its own echo	自分の声のエコー
+Take the speakers' sound out of the microphone, so it never hears itself	スピーカーの音をマイクから取り除き、自分の声を聞かないようにします

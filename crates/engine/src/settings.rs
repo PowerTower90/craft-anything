@@ -167,6 +167,9 @@ pub struct VoiceSettings {
     /// Short chimes when the microphone starts and stops listening, when a job is done and when
     /// something waits for an answer.
     pub sounds: bool,
+    /// Take the speakers' sound out of the microphone (echo cancellation), so the assistant never
+    /// hears itself through loudspeakers.
+    pub echo_cancellation: bool,
     /// Public and outward actions (posting, sending, buying) are always confirmed. Always true:
     /// a config.toml can't turn it off, and neither can `settings_set`.
     #[serde(deserialize_with = "always_true")]
@@ -197,6 +200,7 @@ impl Default for VoiceSettings {
             push_to_talk_key: "F9".into(),
             auto_start: true,
             sounds: true,
+            echo_cancellation: true,
             confirm_public_actions: true,
             models_dir: None,
             input_device: None,
@@ -231,6 +235,7 @@ impl VoiceSettings {
             tts_voice,
             vad_silence_ms: self.vad_silence_ms.clamp(100, 5000),
             sounds: self.sounds,
+            echo_cancellation: self.echo_cancellation,
         }
     }
 }
@@ -887,7 +892,7 @@ default = "Claude Code"
         assert_eq!((v.speaker_threshold, v.auto_start, v.sounds, v.confirm_public_actions, v.python.as_ref()), (0.55, true, true, true, None));
         let kept = read_settings("[voice]\nauto_start = false\n").unwrap();
         assert!(!kept.voice.auto_start, "a config that turned it off keeps it off");
-        assert!(kept.voice.sounds);
+        assert!(kept.voice.sounds && kept.voice.echo_cancellation);
         // Saved and read back.
         let mut s = Settings::default();
         s.voice.listen_mode = ListenMode::WakeWord;

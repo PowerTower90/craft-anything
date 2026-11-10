@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	음성 켜짐 — {key}를 누르고 말하�
 Voice is on — hold {key} or say “{word}”	음성 켜짐 — {key}를 누르고 있거나 “{word}”라고 말하세요
 Voice starts with Craft Anything. You can change that in Settings → Voice.	음성은 Craft Anything과 함께 시작됩니다. 설정 → 음성에서 바꿀 수 있습니다.
 Waiting for your yes or no	예 또는 아니요를 기다리는 중
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything이 스피커에서 나온 자기 목소리를 듣고 무시했습니다.
+Echo cancellation	에코 제거
+Its own echo	자기 목소리의 메아리
+Take the speakers' sound out of the microphone, so it never hears itself	마이크에서 스피커 소리를 빼서 자기 목소리를 듣지 않게 합니다

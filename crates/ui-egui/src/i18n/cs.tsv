@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	Hlas je zapnutý — podržte {key} a mluvte
 Voice is on — hold {key} or say “{word}”	Hlas je zapnutý — podržte {key} nebo řekněte „{word}“
 Voice starts with Craft Anything. You can change that in Settings → Voice.	Hlas se spouští s Craft Anything. Můžete to změnit v Nastavení → Hlas.
 Waiting for your yes or no	Čekám na vaše ano nebo ne
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything zaslechl svůj vlastní hlas z reproduktorů a ignoroval ho.
+Echo cancellation	Potlačení ozvěny
+Its own echo	Vlastní ozvěna
+Take the speakers' sound out of the microphone, so it never hears itself	Odebrat zvuk reproduktorů z mikrofonu, aby nikdy neslyšel sám sebe

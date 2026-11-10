@@ -119,7 +119,8 @@ fn commands_are_written_as_the_protocol_says() {
     assert_eq!(
         j(VoiceCommand::Config(VoiceConfig::default())),
         json!({"cmd": "config", "listen_mode": "push_to_talk", "wake_word": "hey craft", "input_device": null, "output_device": null,
-               "speaker_threshold": 0.55, "language": "en", "tts_voice": null, "vad_silence_ms": 700, "sounds": true})
+               "speaker_threshold": 0.55, "language": "en", "tts_voice": null, "vad_silence_ms": 700, "sounds": true,
+               "echo_cancellation": true})
     );
     let voice = VoiceConfig {
         listen_mode: ListenMode::WakeWord,
@@ -489,6 +490,17 @@ fn levels_loading_and_chimes_are_read_and_written() {
     assert_eq!(j, json!({"cmd": "chime", "kind": "done"}));
     let c: Value = serde_json::from_str(&VoiceCommand::Config(VoiceConfig::default()).to_json().unwrap()).unwrap();
     assert_eq!(c["sounds"], true);
+}
+
+/// The service's own speech coming back is reported, not heard.
+#[test]
+fn echo_ignored_is_read() {
+    assert_eq!(
+        VoiceEvent::parse(r#"{"type":"echo_ignored","text":"how can I help","reason":"own_words"}"#),
+        Some(VoiceEvent::EchoIgnored { text: "how can I help".into(), reason: "own_words".into() })
+    );
+    let c: Value = serde_json::from_str(&VoiceCommand::Config(VoiceConfig::default()).to_json().unwrap()).unwrap();
+    assert_eq!(c["echo_cancellation"], true);
 }
 
 /// The stand-in says how loud it is while push-to-talk is held, and goes quiet after.

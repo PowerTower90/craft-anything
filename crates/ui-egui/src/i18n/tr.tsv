@@ -1886,3 +1886,7 @@ Voice is on — hold {key} and talk	Ses açık — {key} tuşunu basılı tutup 
 Voice is on — hold {key} or say “{word}”	Ses açık — {key} tuşunu basılı tut ya da “{word}” de
 Voice starts with Craft Anything. You can change that in Settings → Voice.	Ses, Craft Anything ile birlikte başlar. Bunu Ayarlar → Ses bölümünden değiştirebilirsin.
 Waiting for your yes or no	Evet ya da hayır yanıtını bekliyor
+Craft Anything heard its own voice through the speakers and ignored it.	Craft Anything hoparlörlerden kendi sesini duydu ve yok saydı.
+Echo cancellation	Yankı giderme
+Its own echo	Kendi yankısı
+Take the speakers' sound out of the microphone, so it never hears itself	Hoparlör sesini mikrofondan çıkar, böylece kendini asla duymaz

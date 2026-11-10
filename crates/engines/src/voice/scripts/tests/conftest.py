@@ -99,9 +99,12 @@ class Client:
 class InProcess:
     """The real service (VoiceService + Server) in this process, with a fake microphone/speaker."""
 
-    def __init__(self, models_dir, stub=True, device="cpu", allow_inject=False):
+    def __init__(self, models_dir, stub=True, device="cpu", allow_inject=False, aec=False):
         self.audio = vs.FakeAudioIO()
         self.svc = vs.VoiceService(models_dir, device, self.audio, stub_models=stub, allow_inject=allow_inject)
+        # The stand-in models hear pure tones, which the echo canceller's noise suppressor would
+        # dampen; the tests that are about echo cancellation turn it on.
+        self.svc.cfg["echo_cancellation"] = aec
         self.server = vs.Server(self.svc, "127.0.0.1", 0)
         self.port = None
         ready = threading.Event()
